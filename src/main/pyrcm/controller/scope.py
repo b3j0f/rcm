@@ -14,14 +14,23 @@ class ScopeController(Controller):
         self._super_components = []
 
     def get_sub_components(self):
+        """
+        Get sub components.
+        """
 
         return self._sub_components
 
     def get_super_components(self):
+        """
+        Get super components.
+        """
 
         return self._super_components
 
-    def add_sub_components(self, component):
+    def add_sub_component(self, component):
+        """
+        Add input component from self sub components.
+        """
 
         component_name = NameController.get_name(component)
 
@@ -34,6 +43,13 @@ class ScopeController(Controller):
                     (component, sub_component, component_name))
 
         self._sub_components.append(component)
+
+    def remove_sub_component(self, component):
+        """
+        Remove input component from self sub components.
+        """
+
+        self._sub_components.remove(component)
 
     def start(self):
         """
@@ -56,10 +72,36 @@ class ScopeController(Controller):
 
     @staticmethod
     def GET_SUPER_COMPONENTS(component):
-        scope = component[ScopeController.NAME]
+        """
+        Get super components of the input component.
+        """
+
+        scope = ScopeController.GET_CONTROLLER(component)
         return scope.get_super_components()
 
     @staticmethod
     def GET_SUB_COMPONENTS(component):
-        scope = component[ScopeController.NAME]
+        """
+        Get sub components of the input component.
+        """
+
+        scope = ScopeController.GET_CONTROLLER(component)
         return scope.get_sub_components()
+
+    @staticmethod
+    def ADD_SUB_COMPONENT(component, component_to_add):
+        """
+        Get sub components of the input component.
+        """
+
+        scope = ScopeController.GET_CONTROLLER(component)
+        return scope.add_sub_component(component_to_add)
+
+    @staticmethod
+    def REMOVE_SUB_COMPONENT(component, component_to_remove):
+        """
+        Remove sub component.
+        """
+
+        scope = ScopeController.GET_CONTROLLER(component)
+        return scope.remove_sub_component(component_to_remove)

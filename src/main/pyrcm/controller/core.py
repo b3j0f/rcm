@@ -9,6 +9,10 @@ class Controller(Component):
     def __init__(self, component):
         super(Controller, self).__init__(component=component)
 
+    def apply(self, component):
+
+        pass
+
     def get_component(self):
         """
         Returns self component.

@@ -1,18 +1,39 @@
 """
-Contains all core objects related to a reflective component model.
+Contains definition of Component.
 """
+from pycoann.core import Decorator
+from pyrcm.binding import Service, Reference
 
 
-class Component(dict):
+class Component(Decorator, dict):
     """
     Component which contains Interfaces.
+    Can be used such as a decorator in order to specialize a component \
+    business class.
     """
 
     NAME = 'component'
 
-    def __init__(self, **named_interfaces):
+    def __init__(self, *controllers, **interfaces):
 
-        self.update(named_interfaces)
+        self.update(interfaces)
+        for controller in controllers:
+            self.set_interface(controller)
+
+    @Service()
+    def get_interface(self, interface_name):
+
+        return self[interface_name]
+
+    @Reference()
+    def set_interface(self, interface, name=None):
+
+        if name is None:
+            interface_type = type(interface)
+            name = "%s.%s" % \
+                (interface_type.__module__, interface_type.__name__)
+
+        self[name] = interface
 
     def __getitem__(self, key):
         """
@@ -35,78 +56,18 @@ class Component(dict):
 
         return result
 
+    @Service()
     def start(self):
         """
-        Start this component and all interfaces which are components.
+        Start this component. Do nothing by default.
         """
 
-        for interface in self.values():
-            if isinstance(interface, Component):
-                interface.start()
+        pass
 
+    @Service()
     def stop(self):
         """
-        Stop this component and all interfaces which are components.
+        Stop this component. Do nothing by default.
         """
 
-        for interface in self.values():
-            if isinstance(interface, Component):
-                interface.stop()
-
-
-class Interface(Component):
-    """
-    Component interface which manages bindings.
-    """
-
-    def __init__(self, component, bindings=[]):
-
-        super(Interface, self).__init__(component=component)
-        self.bindings = bindings
-
-    def get_bindings(self):
-        """
-        Return this bindings.
-        """
-        return self.bindings
-
-    def start(self):
-        """
-        Start all bindings.
-        """
-
-        for binding in self.bindings:
-            binding.start()
-
-    def stop(self):
-        """
-        Stop all bindings.
-        """
-
-        for binding in self.bindings:
-            binding.stop()
-
-    @staticmethod
-    def GET_BINDINGS(component, interface_name):
-        """
-        Get all component bindings related to the input interface name.
-        """
-
-        result = []
-
-        interface = component.get(interface_name, None)
-
-        if isinstance(interface, Interface):
-            result = interface.get_bindings()
-
-        return result
-
-
-class Binding(Component):
-    """
-    Component binding related to an interface.
-    """
-
-    def __init__(self, interface):
-
-        super(Binding, self).__init__(interface=interface)
+        pass

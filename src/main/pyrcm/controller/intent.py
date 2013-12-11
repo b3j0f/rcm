@@ -16,9 +16,9 @@ class IntentController(Controller):
 
         Contains an interface_name, a callee_name, \
         called arguments (args and kwargs), \
-        list of interceptors and the intercepted callee resource.
+        list of intents and the intercepted callee resource.
 
-        When a interceptor intercepts this, it just has to call this \
+        When a intent intercepts this, it just has to call this \
         in order to follow interception mechanism.
         """
 
@@ -28,7 +28,7 @@ class IntentController(Controller):
             callee_name,
             args,
             kwargs,
-            interceptors,
+            intents,
             callee
         ):
 
@@ -37,27 +37,27 @@ class IntentController(Controller):
             self.next = next
             self.args = args
             self.kwargs = kwargs
-            self.interceptors = interceptors
+            self.intents = intents
 
         def __call__(self):
             """
-            Call first interceptor with this such as argument \
+            Call first intent with this such as argument \
             or the intercepted callee resource.
             """
 
             result = None
 
-            if self.interceptors:
-                interceptor = self.interceptors.pop()
-                result = interceptor.intercepts(self)
+            if self.intents:
+                intent = self.intents.pop()
+                result = intent.intercepts(self)
             else:
                 result = self.callee(*self.args, **self.kwargs)
 
             return result
 
-    class _InterceptorMatching(object):
+    class _IntentMatching(object):
         """
-        Dedicated to manage interceptor matching.
+        Dedicated to manage intent matching.
         Matching condition is a regex on interface_name, callee_name \
         and dynamic_matching execution.
         """
@@ -104,57 +104,57 @@ class IntentController(Controller):
     def __init__(self, component):
 
         self.component = component
-        self.matchings_per_interceptor = []
+        self.matchings_per_intent = []
 
-    def add_interceptor(
+    def add_intent(
         self,
-        interceptor,
+        intent,
         interface_name=None,
         callee_name=None,
         dynamic_matching=None
     ):
         """
-        Add an interceptor with optional arguments.
-        The interceptor will intercepts if:
+        Add an intent with optional arguments.
+        The intent will intercepts if:
         * input interface_name matches with called interface name,
         * input callee_name matches with called callee name,
         * input dynamic_matching matches the interface_call.
         """
 
-        interceptor_matching = IntentController._InterceptorMatching(
+        intent_matching = IntentController._IntentMatching(
             interface_name,
             callee_name,
             dynamic_matching)
 
-        interceptor_matchings = self.matchings_per_interceptor.get(
-            interceptor, None)
+        intent_matchings = self.matchings_per_intent.get(
+            intent, None)
 
-        if interceptor_matchings is None:
-            interceptors_matchings = [interceptor_matching]
-            self.matchings_per_interceptor[interceptor] = interceptor_matchings
+        if intent_matchings is None:
+            intent_matchings = [intent_matching]
+            self.matchings_per_intent[intent] = intent_matchings
         else:
-            interceptors_matchings.append(interceptor_matching)
+            intent_matchings.append(intent_matching)
 
-    def remove_interceptor(self, interceptor):
+    def remove_intent(self, intent):
         """
-        Remove an interceptor.
+        Remove an intent.
         """
 
-        del self.matchings_per_interceptor[interceptor]
+        del self.matchings_per_intent[intent]
 
-    def get_interceptors(self, interface_call):
+    def get_intent(self, interface_call):
         """
         """
 
         result = []
-        for interceptor, matching in enumerate(self.matchings_per_interceptor):
+        for intent, matching in enumerate(self.matchings_per_intent):
             if matching.match(interface_call):
-                result.append(interceptor)
+                result.append(intent)
 
         return result
 
 
-class Interceptor(object):
+class Intent(object):
     """
     Dedicated to intercepts component interface calls.
     """

@@ -4,7 +4,7 @@ from pyrcm.controller.core import Controller
 
 class BindingController(Controller):
     """
-    Controller dedicated to manage component interface bindings.
+    Dedicated to manage component interface bindings.
     """
 
     NAME = '/binding-controller'
@@ -32,11 +32,11 @@ class BindingController(Controller):
     @staticmethod
     def BIND(component, interface_name, binding):
 
-        binding_controller = component[BindingController.NAME]
+        binding_controller = BindingController.GET_CONTROLLER(component)
         binding_controller.bind(interface_name, binding)
 
     @staticmethod
     def UNBIND(component, interface_name, binding):
 
-        binding_controller = component[BindingController.NAME]
+        binding_controller = BindingController.GET_CONTROLLER(component)
         return binding_controller.unbind(interface_name, binding)

@@ -16,12 +16,23 @@ class LifecycleController(Controller):
         self._status = LifecycleController.STOP
 
     def set_status(self, status):
+        """
+        Change of lifecycle status.
+        """
+
         self._status = status
 
     def get_status(self):
+        """
+        Get component lifecycle status.
+        """
+
         return self._status
 
     def start(self):
+        """
+        Start all interfaces which are components.
+        """
 
         interfaces = self.get_component().values()
 
@@ -32,6 +43,9 @@ class LifecycleController(Controller):
         self.set_status(LifecycleController.START)
 
     def stop(self):
+        """
+        Stop all interfaces which are components.
+        """
 
         interfaces = self.get_component().values()
 
