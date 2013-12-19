@@ -42,8 +42,7 @@ class ParameterController(Controller):
 
         parameter_controller = ParameterController.GET_CONTROLLER(component)
 
-        if parameter_controller is not None:
-            result = parameter_controller.get_parameter_names()
+        result = parameter_controller.get_parameter_names()
 
         return result
 
@@ -57,8 +56,7 @@ class ParameterController(Controller):
 
         parameter_controller = ParameterController.GET_CONTROLLER(component)
 
-        if parameter_controller is not None:
-            result = parameter_controller.get_parameter_names()
+        result = parameter_controller.get_parameter_names()
 
         return result
 
@@ -75,4 +73,6 @@ class Parameter(Decorator):
     """
 
     def __init__(self, name=None):
+
+        self._super(Parameter).__init__()
         self.name = name

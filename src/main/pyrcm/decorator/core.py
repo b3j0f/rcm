@@ -34,55 +34,7 @@ class BaseComponent(Component):
     pass
 
 
-class Reference(Decorator):
-    """
-    Binding dedicated to manage References.
-    """
-
-    def __init__(self, name=None, interface=None):
-
-        self._super(Reference).__init__()
-        self.name = name
-        self.interface = interface
-
-
-class Service(Decorator):
-    """
-    Binding dedicated to manage Services.
-    """
-
-    def __init__(self, name=None, interface=None):
-
-        self._super(Service).__init__()
-        self.name = name
-        self.interface = interface
-
-
-class Parameter(Decorator):
-
-    def __init__(self, name=None):
-
-        self._super(Parameter).__init__()
-        self.name = name
-
-
-class Component(DecoratorWithoutParameters):
-
-    pass
-
-
-class Lifecycle(Decorator):
-
-    def __init__(self, status):
-        self.status = status
-
-
-class Binding(Decorator):
-
-    def __init__(self, binding):
-        self.binding = binding
-
-
-class Intent(DecoratorWithoutParameters):
+@BaseComponent(RemoteController)
+class RemoveComponent(Component):
 
     pass

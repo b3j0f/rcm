@@ -154,7 +154,7 @@ class IntentController(Controller):
         return result
 
 
-class Intent(object):
+class BasicIntent(object):
     """
     Dedicated to intercepts component interface calls.
     """
@@ -165,3 +165,16 @@ class Intent(object):
         """
 
         return interface_caller()
+
+from pycoann.core import Decorator
+
+
+class Intent(Decorator):
+    """
+    Dedicated to associate a business resource to a component intent.
+    """
+
+    def __init__(self, interface_call=None, callee_call=None, dynamic_matching=None):
+        self.interface_call = interface_call
+        self.callee_call = callee_call
+        self.dynamic_matching = dynamic_matching

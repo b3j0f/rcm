@@ -1,4 +1,4 @@
-from pyrcm.core import Interface
+from pyrcm.binding.core import Interface
 from pyrcm.controller.core import Controller
 
 
@@ -40,3 +40,30 @@ class BindingController(Controller):
 
         binding_controller = BindingController.GET_CONTROLLER(component)
         return binding_controller.unbind(interface_name, binding)
+
+from pycoann.core import Decorator
+
+
+class Reference(Decorator):
+    """
+    Decorator dedicated to set a reference into business code.
+    """
+
+    def __init__(self, name=None, interface=None):
+
+        self._super(Reference).__init__()
+        self.name = name
+        self.interface = interface
+
+
+class Service(Decorator):
+    """
+    Decorator dedicated to provides a function such as a Service.
+    """
+
+    def __init__(self, name=None, interface=None, *bindings):
+
+        self._super(Service).__init__()
+        self.name = name
+        self.interface = interface
+        self.bindings = bindings

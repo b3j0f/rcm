@@ -1,5 +1,5 @@
 from pyrcm.core import Component
-from pyrcm.controller import Controller
+from pyrcm.controller.core import Controller
 
 
 class LifecycleController(Controller):
@@ -68,3 +68,16 @@ class LifecycleController(Controller):
 
         if lifecycle_controller is not None:
             lifecycle_controller.stop()
+
+
+from pycoann.core import Decorator
+
+
+class Lifecycle(Decorator):
+    """
+    Decorator which permits to link lifecycle status changement with a \
+    business method.
+    """
+
+    def __init__(self, status):
+        self.status = status

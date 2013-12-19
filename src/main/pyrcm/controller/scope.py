@@ -1,4 +1,4 @@
-from pyrcm.controller import Controller
+from pyrcm.controller.core import Controller
 from pyrcm.controller.name import NameController
 from pyrcm.controller.lifecycle import LifecycleController
 
