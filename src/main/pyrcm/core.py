@@ -1,12 +1,11 @@
 """
 Contains Component definition.
 """
-from pycoann.core import Decorator
 from uuid import uuid1 as uuid
 import inspect
 
 
-class Component(Decorator, dict):
+class Component(dict):
     """
     Component which contains Interfaces.
     Can be used such as:\

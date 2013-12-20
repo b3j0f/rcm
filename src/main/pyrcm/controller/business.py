@@ -1,6 +1,6 @@
 from pyrcm.controller.core import Controller
 from pyrcm.controller.parameter import ParameterController
-from pycoann.core import Decorator, DecoratorWithoutParameters
+from pycoann.core import Annotation, AnnotationWithoutParameters
 from pycoann.binding import Interface
 
 
@@ -65,7 +65,7 @@ from pyrcm.core import Component
 
 
 @MaxCount()
-class ComponentBusiness(Decorator):
+class ComponentBusiness(Annotation):
     """
     Dedicated to decorate a class in order to generate a component with at \
 least a BusinessController and additional controllers and named services.
@@ -146,7 +146,7 @@ class RemoteComponentBusiness(BasicComponentBusiness):
 
 
 @MaxCount()
-class Context(DecoratorWithoutParameters):
+class Context(AnnotationWithoutParameters):
     """
     Used to inject a context component in a component implementation.
     """

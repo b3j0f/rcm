@@ -41,10 +41,10 @@ class BindingController(Controller):
         binding_controller = BindingController.GET_CONTROLLER(component)
         return binding_controller.unbind(interface_name, binding)
 
-from pycoann.core import Decorator
+from pycoann.core import Annotation
 
 
-class Reference(Decorator):
+class Reference(Annotation):
     """
     Decorator dedicated to set a reference into business code.
     """
@@ -56,7 +56,7 @@ class Reference(Decorator):
         self.interface = interface
 
 
-class Service(Decorator):
+class Service(Annotation):
     """
     Decorator dedicated to provides a function such as a Service.
     """

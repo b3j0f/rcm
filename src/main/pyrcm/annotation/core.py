@@ -1,4 +1,4 @@
-from pycoann.core import Decorator, DecoratorWithoutParameters
+from pycoann.core import Annotation
 from pyrcm.core import Component
 from pyrcm.controller.binding import BindingController
 from pyrcm.controller.intent import IntentController
@@ -7,9 +7,10 @@ from pyrcm.controller.parameter import ParameterController
 from pyrcm.controller.name import NameController
 from pyrcm.controller.scope import ScopeController
 from pyrcm.controller.business import BusinessController
+from pyrcm.controller.remote import RemoteController
 
 
-class Configurate(Decorator):
+class Configurate(Annotation):
 
     def __init__(self, *controllers, **interfaces):
 
@@ -35,6 +36,6 @@ class BaseComponent(Component):
 
 
 @BaseComponent(RemoteController)
-class RemoveComponent(Component):
+class RemoteComponent(Component):
 
     pass

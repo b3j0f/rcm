@@ -70,12 +70,12 @@ class LifecycleController(Controller):
             lifecycle_controller.stop()
 
 
-from pycoann.core import Decorator
+from pycoann.core import Annotation
 
 
-class Lifecycle(Decorator):
+class Lifecycle(Annotation):
     """
-    Decorator which permits to link lifecycle status changement with a \
+    Annotation which permits to link lifecycle status changement with a \
     business method.
     """
 

@@ -166,15 +166,17 @@ class BasicIntent(object):
 
         return interface_caller()
 
-from pycoann.core import Decorator
+from pycoann.core import Annotation
 
 
-class Intent(Decorator):
+class Intent(Annotation):
     """
     Dedicated to associate a business resource to a component intent.
     """
 
-    def __init__(self, interface_call=None, callee_call=None, dynamic_matching=None):
+    def __init__(
+        self, interface_call=None, callee_call=None, dynamic_matching=None
+    ):
         self.interface_call = interface_call
         self.callee_call = callee_call
         self.dynamic_matching = dynamic_matching

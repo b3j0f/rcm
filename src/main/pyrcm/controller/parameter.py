@@ -61,14 +61,14 @@ class ParameterController(Controller):
         return result
 
 
-from pycoann.core import Decorator
+from pycoann.core import Annotation
 from pycoann.call import Target
 
 
 @Target(Target.FUNC)
-class Parameter(Decorator):
+class Parameter(Annotation):
     """
-    Decorator which targets class method in order to bind it \
+    Annotation which targets class method in order to bind it \
     with get/set parameter controller calls.
     """
 
