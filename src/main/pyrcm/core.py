@@ -3,14 +3,12 @@ Contains Component definition.
 """
 from uuid import uuid1 as uuid
 import inspect
+import types
 
 
 class Component(dict):
     """
-    Component which contains Interfaces.
-    Can be used such as:\
-* a decorator in order to specialize a component business class.\
-* a dictionary of interfaces by name.
+    Component which contains Interfaces and a business implementation.
     """
 
     class NoSuchInterfaceError(Exception):
@@ -20,7 +18,8 @@ class Component(dict):
 
         def __init__(self, component, name=None, component_type=None):
             message =\
-                Component.NoSuchInterfaceError._GET_MESSAGE(component, name)
+                Component.NoSuchInterfaceError._GET_MESSAGE(
+                    component, name, component_type)
             super(Component.NoSuchInterfaceError, self).__init__(message)
 
         @staticmethod
@@ -38,11 +37,17 @@ class Component(dict):
 
     NAME = 'component'
 
-    def __init__(self, *interfaces, **named_interfaces):
+    IMPLEMENTATION = 'implementation'
+
+    def __init__(
+        self, *interfaces, **named_interfaces
+    ):
         """
         Constructor which register interfaces with generated name \
 and named interfaces.
         """
+
+        self.interfaces = dict()
 
         # register interface with a generated name.
         for interface in interfaces:
@@ -52,11 +57,105 @@ and named interfaces.
         for name, interface in named_interfaces.iteritems():
             self.set_interface(name=name, interface=interface)
 
+    def __delitem__(self, key):
+        result = self.remove_interface(name=key)
+        return result
+
+    def __getitem__(self, key):
+        result = self.get_interface(name=key)
+        return result
+
+    def __setitem__(self, key, value):
+        result = self[key] if key in self else None
+        self.set_interface(name=key, interface=value)
+        return result
+
+    def renew_implementation(self, implementation_type, parameters=dict()):
+        """
+        Instantiate business element and returns it.
+        The instantiation is done with parameters and references of this \
+component.
+        """
+
+        result = implementation_type(**parameters)
+
+        self.set_implementation(result)
+
+        return result
+
+    def get_implementation(self):
+        """
+        Get component implementation.
+        """
+
+        return getattr(self, Component.IMPLEMENTATION, self)
+
+    def set_implementation(self, implementation):
+        """
+        Set component implementation.
+        """
+
+        result = getattr(self, Component.IMPLEMENTATION, None)
+
+        if result is not implementation:
+            setattr(self, Component.IMPLEMENTATION, implementation)
+
+            if implementation is not None:
+
+                business_component = self.get_business_component()
+
+                ComponentAnnotation.apply_on_implementation(
+                    business_component, implementation)
+
+                self.update_implementation(result, implementation)
+
+        return result
+
+    def update_implementation(self, old, new):
+        """
+        Called when this component change of implementation.
+        """
+
+        if old is new:
+            return
+
+        def apply_on_public_methods(implementation, func):
+            """
+            Apply input func on all implementation public methods.
+            func takes in the business component and the method in parameters.
+            """
+
+            business_component = self.get_business_component()
+            field_names = dir(implementation)
+
+            for field_name in field_names:
+                field = getattr(implementation, field_name)
+
+                if inspect.ismethod(field) and field_name[0] != '_':
+                    func(business_component, field)
+
+        # remove old implementation public methods from business component
+        if old is not self and old is not None:
+            apply_on_public_methods(old, lambda c, f: delattr(c, f.__name__))
+
+        # add new implementation public methods to business component
+        if new is not self and new is not None:
+            apply_on_public_methods(
+                new, lambda c, f: setattr(c, f.__name__, f))
+
+    def get_business_component(self):
+        """
+        Get the business component which is self by default.
+        """
+
+        return self
+
     def get_interface(self, name=None, interface_type=None):
         """
-        Get interface registered with the input name or the first which \
-inherits from input interface_type.\
-Raises NoSuchInterfaceError if interface name or interface_type does not exist.
+        Get interface registered with the input name or the first which
+        inherits from input interface_type.
+        Raises NoSuchInterfaceError if interface name or interface_type
+        does not exist.
         """
 
         result = None
@@ -75,25 +174,36 @@ Raises NoSuchInterfaceError if interface name or interface_type does not exist.
             raise Component.NoSuchInterfaceError(self, name=name)
 
         else:
-            result = self[name]
+            result = super(Component, self).__getitem__(name)
 
         return result
 
-    def get_interfaces(self, interface_type=None, include_controllers=False):
+    def get_interfaces(
+        self, interface_types=(object,), include_controllers=False
+    ):
         """
-        Get interface names.
+        Get a set of couple (interface name, interface).
+        interface_types is a type or a tuple of types.
+        include_controllers permits to include controllers if True
+        (False by default).
         """
 
-        result = []
+        result = dict()
+
+        if not isinstance(interface_types, tuple):
+            interface_types = (interface_types,)
+
+        from pyrcm.controller.core import Controller
+
+        if include_controllers and not Controller in interface_types:
+            interface_types += (Controller,)
 
         for name, interface in self.iteritems():
-            if interface_type is not None and \
-                    isinstance(interface, interface_type):
-                result.append(name)
-            elif include_controllers and isinstance(interface, Controller):
-                result.append(name)
-            else:
-                result.append(name)
+            if isinstance(interface, interface_types):
+                if not include_controllers and \
+                        isinstance(interface, Controller):
+                    continue
+                result[name] = interface
 
         return result
 
@@ -132,38 +242,37 @@ else generate a new name for the new interface.
         if name is None:
             name = Component.GENERATE_INTERFACE_NAME(interface, generated=True)
 
-        self[name] = interface
+        super(Component, self).__setitem__(name, interface)
 
         return result
 
-    def remove_interface(self, name):
+    def remove_interface(
+        self, name=None, interface=None, interface_type=types.NoneType
+    ):
         """
         Remove an interface from this component and returns it. \
 Raises a NoSuchInterfaceError in case of name does not exist.
         """
 
-        if name not in self:
-            raise Component.NoSuchInterfaceError(self, name=name)
+        result = None
 
-        result = self[name]
+        if name is None:
+            for interface_name, _interface in self.iteritems():
+                if _interface is interface or \
+                        isinstance(_interface, interface_type):
+                    name = interface_name
+                    break
 
-        del self[name]
+        if name is not None:
+
+            if name not in self:
+                raise Component.NoSuchInterfaceError(self, name=name)
+
+            result = super(Component, self).__getitem__(name)
+
+            super(Component, self).__delitem__(name)
 
         return result
-
-    def start(self):
-        """
-        Start this component. Do nothing by default.
-        """
-
-        pass
-
-    def stop(self):
-        """
-        Stop this component. Do nothing by default.
-        """
-
-        pass
 
     @staticmethod
     def GENERATE_INTERFACE_NAME(interface, generated=False):
@@ -184,3 +293,54 @@ Raises a NoSuchInterfaceError in case of name does not exist.
             result += "_{0}".format(uuid())
 
         return result
+
+from pycoann.core import Annotation
+
+
+class ComponentAnnotation(Annotation):
+    """
+    Annotation dedicated to enrich business with component properties.
+    """
+
+    def apply_on(self, business_component, field):
+        pass
+
+    @classmethod
+    def apply_on_implementation(
+        component_annotation_type, business_component, implementation
+    ):
+
+        annotations = component_annotation_type.get_annotations(implementation)
+
+        for annotation in annotations:
+            annotation.apply_on(business_component, implementation)
+
+        field_names = dir(implementation)
+
+        for field_name in field_names:
+            field = getattr(implementation, field_name)
+            annotations = component_annotation_type.get_annotations(field)
+            for annotation in annotations:
+                annotation.apply_on(business_component, field)
+
+from pycoann.core import AnnotationWithoutParameters
+
+
+class ComponentAnnotationWithoutParameters(
+    AnnotationWithoutParameters, ComponentAnnotation
+):
+    """
+    AnnotationWithoutParameters dedicated to enrich implementation
+    with component properties.
+    """
+
+    pass
+
+
+class Context(ComponentAnnotationWithoutParameters):
+    """
+    Used to inject a context component in a component implementation.
+    """
+
+    def apply_on(self, business_component, set_context_method):
+        set_context_method(business_component)
