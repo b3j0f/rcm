@@ -226,7 +226,12 @@ else generate a new name for the new interface.
 
         super(Component, self).__setitem__(name, interface)
 
+        self.on_set_interface(name, result, interface)
+
         return result
+
+    def on_set_interface(self, name, old, new):
+        pass
 
     def remove_interface(
         self, name=None, interface=None, interface_type=types.NoneType
@@ -254,7 +259,12 @@ Raises a NoSuchInterfaceError in case of name does not exist.
 
             super(Component, self).__delitem__(name)
 
+            self.on_remove_interface(name, result)
+
         return result
+
+    def on_remove_interface(self, name, interface):
+        pass
 
     @staticmethod
     def GENERATE_INTERFACE_NAME(interface, generated=False):
