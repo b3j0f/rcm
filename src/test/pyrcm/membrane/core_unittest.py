@@ -1,46 +1,36 @@
 import unittest
 
 from pyrcm.core import Component
-from pyrcm.controller.core import Controller
+from pyrcm.membrane.core import ComponentMembrane, Membrane, ComponentBusiness
 
 
-class TestController(Controller):
-    pass
-
-
-class controllerTest(unittest.TestCase):
+class MembraneTest(unittest.TestCase):
 
     def setUp(self):
         self.component = Component()
-        self.controller = TestController(self.component)
+        self.membrane = ComponentMembrane(self.component)
 
-    def testComponent(self):
+    def testMembrane(self):
 
-        _controller = TestController.GET_CONTROLLER(self.component)
+        class Impl(object):
+            @Membrane
+            def set_membrane(self, membrane):
+                self.membrane = membrane
 
-        self.assertEquals(self.controller, _controller)
-        component = self.controller.get_component()
-        self.assertTrue(component is self.component)
+            def get_membrane(self):
+                return self.membrane
 
-    def testInterfaces(self):
+        self.component.renew_implementation(Impl)
 
-        interfaces = self.component.get_interfaces()
-        self.assertEquals(len(interfaces), 0)
+        membrane = ComponentMembrane.GET_MEMBRANE(self.component)
+        self.assertTrue(
+            self.component.get_membrane() is membrane)
 
-        interfaces = self.component.get_interfaces(include_controllers=True)
-        self.assertEquals(len(interfaces), 1)
+    def testComponentBusiness(self):
 
-    def testUnicity(self):
-
-        controller2 = TestController(self.component)
-
-        interfaces = self.component.get_interfaces()
-        self.assertEquals(len(interfaces), 0)
-
-        interfaces = self.component.get_interfaces(include_controllers=True)
-
-        self.assertEquals(len(interfaces), 1)
-        self.assertTrue(interfaces.values()[0] is controller2)
+        @ComponentBusiness()
+        class Impl(object):
+            pass
 
 if __name__ == '__main__':
     unittest.main()
