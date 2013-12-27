@@ -113,7 +113,7 @@ least a BusinessController and additional controllers and named services.
         Initialize this decorator with controller types and services.
         """
 
-        self.super(ComponentBusiness).__init__()
+        super(ComponentBusiness, self).__init__()
 
         self.membrane_type = membrane_type
         self.controller_types = controller_types
