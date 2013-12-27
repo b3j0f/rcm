@@ -8,6 +8,9 @@ class ComponentMembrane(Component):
 
     NAME = 'membrane'
 
+    __UPDATE_IMPLEMENTATION__ = 'update_implementation'
+    BUSINESS_UPDATE_IMPLEMENTATION = '_update_business_implementation'
+
     def __init__(self, business_component=None, *controllers):
 
         super(ComponentMembrane, self).__init__()
@@ -69,6 +72,42 @@ class ComponentMembrane(Component):
                 if controller.NAME != controller_name])
 
         del self[controller_name]
+
+    def on_set_interface(self, name, old, new):
+        """
+        Listen update implementation from business component.
+        """
+
+        if name == Component.NAME:
+            self.on_remove_interface(name, old)
+
+            if new is not None:
+                business_update_implementation = \
+                    getattr(new, ComponentMembrane.__UPDATE_IMPLEMENTATION__)
+
+                setattr(
+                    self, ComponentMembrane.BUSINESS_UPDATE_IMPLEMENTATION,
+                    business_update_implementation)
+
+                def update_implementation(old, _new):
+                    business_update_implementation(old, _new)
+                    self.update_business_implementation(old, _new)
+
+    def on_remove_interface(self, name, interface):
+        """
+        Remove listener on business update implementation.
+        """
+
+        if name == Component.NAME and interface is not None:
+            business_update_implementation = \
+                getattr(self, ComponentMembrane.BUSINESS_UPDATE_IMPLEMENTATION)
+            if business_update_implementation is not None:
+                setattr(
+                    interface, ComponentMembrane.__UPDATE_IMPLEMENTATION__,
+                    business_update_implementation)
+
+    def update_business_implementation(self, old, new):
+        print 'plop', old, new
 
     @staticmethod
     def GET_MEMBRANE(component):
