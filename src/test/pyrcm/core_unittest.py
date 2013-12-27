@@ -135,6 +135,15 @@ class CoreTest(unittest.TestCase):
             def get_a(self):
                 return self.a
 
+            from pyrcm.core import Context
+
+            @Context
+            def set_context(self, context):
+                self.context = context
+
+            def get_context(self):
+                return self.context
+
         class ImplB(object):
             def __init__(self):
                 pass
@@ -146,6 +155,7 @@ class CoreTest(unittest.TestCase):
         self.component.set_implementation(impl)
         implementation = self.component.get_implementation()
         self.assertTrue(implementation is impl)
+        self.assertTrue(implementation.get_context() is self.component)
         self.assertTrue(hasattr(self.component, 'get_a'))
 
         self.component.set_implementation(impl)
