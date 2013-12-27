@@ -102,10 +102,8 @@ component.
 
             if implementation is not None:
 
-                business_component = self.get_business_component()
-
                 ComponentAnnotation.apply_on_implementation(
-                    business_component, implementation)
+                    self, implementation)
 
                 self.update_implementation(result, implementation)
 
@@ -125,14 +123,13 @@ component.
             func takes in the business component and the method in parameters.
             """
 
-            business_component = self.get_business_component()
             field_names = dir(implementation)
 
             for field_name in field_names:
                 field = getattr(implementation, field_name)
 
                 if inspect.ismethod(field) and field_name[0] != '_':
-                    func(business_component, field)
+                    func(self, field)
 
         # remove old implementation public methods from business component
         if old is not self and old is not None:
@@ -142,13 +139,6 @@ component.
         if new is not self and new is not None:
             apply_on_public_methods(
                 new, lambda c, f: setattr(c, f.__name__, f))
-
-    def get_business_component(self):
-        """
-        Get the business component which is self by default.
-        """
-
-        return self
 
     def get_interface(self, name=None, interface_type=None):
         """
@@ -179,7 +169,7 @@ component.
         return result
 
     def get_interfaces(
-        self, interface_types=(object,), include_controllers=False
+        self, interface_types=(object,)
     ):
         """
         Get a set of couple (interface name, interface).
@@ -193,16 +183,8 @@ component.
         if not isinstance(interface_types, tuple):
             interface_types = (interface_types,)
 
-        from pyrcm.controller.core import Controller
-
-        if include_controllers and not Controller in interface_types:
-            interface_types += (Controller,)
-
         for name, interface in self.iteritems():
             if isinstance(interface, interface_types):
-                if not include_controllers and \
-                        isinstance(interface, Controller):
-                    continue
                 result[name] = interface
 
         return result
