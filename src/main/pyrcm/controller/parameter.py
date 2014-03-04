@@ -1,7 +1,7 @@
-from pyrcm.controller import Controller
+from pyrcm.controller.core import ComponentController
 
 
-class ParameterController(Controller):
+class ParameterController(ComponentController):
     """
     Dedicated to manage component parameters.
     """
@@ -62,10 +62,8 @@ class ParameterController(Controller):
 
 
 from pycoann.core import Annotation
-from pycoann.call import Target
 
 
-@Target(Target.FUNC)
 class Parameter(Annotation):
     """
     Annotation which targets class method in order to bind it \

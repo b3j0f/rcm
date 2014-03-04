@@ -70,7 +70,7 @@ and named interfaces.
         self.set_interface(name=key, interface=value)
         return result
 
-    def renew_implementation(self, implementation_type, parameters=dict()):
+    def renew_implementation(self, implementation_type, **parameters):
         """
         Instantiate business element and returns it.
         The instantiation is done with parameters and references of this \
@@ -103,7 +103,7 @@ component.
             if implementation is not None:
 
                 ComponentAnnotation.apply_on_implementation(
-                    self, implementation)
+                    self, result, implementation)
 
                 self.update_implementation(result, implementation)
 
@@ -120,7 +120,7 @@ component.
         def apply_on_public_methods(implementation, func):
             """
             Apply input func on all implementation public methods.
-            func takes in the business component and the method in parameters.
+            Func takes in the business component and the method in parameters.
             """
 
             field_names = dir(implementation)
@@ -133,19 +133,20 @@ component.
 
         # remove old implementation public methods from business component
         if old is not self and old is not None:
-            apply_on_public_methods(old, lambda c, f: delattr(c, f.__name__))
+            apply_on_public_methods(
+                old, lambda c, f: delattr(c, f.__name__))
 
         # add new implementation public methods to business component
         if new is not self and new is not None:
             apply_on_public_methods(
                 new, lambda c, f: setattr(c, f.__name__, f))
 
-    def get_interface(self, name=None, interface_type=None):
+    def get_interface(self, name=None, interface_type=None, error=True):
         """
         Get interface registered with the input name or the first which
         inherits from input interface_type.
-        Raises NoSuchInterfaceError if interface name or interface_type
-        does not exist.
+        If error is True, raises NoSuchInterfaceError if interface name or interface_type
+        does not exist. Else returns None.
         """
 
         result = None
@@ -155,16 +156,19 @@ component.
                 if isinstance(interface, interface_type):
                     result = interface
                     break
-            if result is None:
+            if result is None and error:
                 raise Component.NoSuchInterfaceError(
                     self,
                     component_type=interface_type)
 
-        elif name not in self:
+        elif name not in self and error:
             raise Component.NoSuchInterfaceError(self, name=name)
 
         else:
-            result = super(Component, self).__getitem__(name)
+            try:
+                result = super(Component, self).__getitem__(name)
+            except KeyError:
+                pass
 
         return result
 
@@ -231,14 +235,17 @@ else generate a new name for the new interface.
         return result
 
     def on_set_interface(self, name, old, new):
+        """
+        Called after setting an interface.
+        """
         pass
 
     def remove_interface(
-        self, name=None, interface=None, interface_type=types.NoneType
+        self, name=None, interface=None, interface_type=types.NoneType, error=True
     ):
         """
         Remove an interface from this component and returns it. \
-Raises a NoSuchInterfaceError in case of name does not exist.
+        If error, raises a NoSuchInterfaceError in case of name does not exist.
         """
 
         result = None
@@ -252,7 +259,7 @@ Raises a NoSuchInterfaceError in case of name does not exist.
 
         if name is not None:
 
-            if name not in self:
+            if name not in self and error:
                 raise Component.NoSuchInterfaceError(self, name=name)
 
             result = super(Component, self).__getitem__(name)
@@ -264,6 +271,9 @@ Raises a NoSuchInterfaceError in case of name does not exist.
         return result
 
     def on_remove_interface(self, name, interface):
+        """
+        Called after removing an interface.
+        """
         pass
 
     @staticmethod
@@ -294,26 +304,61 @@ class ComponentAnnotation(Annotation):
     Annotation dedicated to enrich business with component properties.
     """
 
-    def apply_on(self, business_component, field):
+    __PARAM_NAMES_WITH_INDEX__ = dict()
+
+    def _push_param(self, name, param, argspec, kwargs):
+        """
+        Fill input kwargs with param value and name.
+        If name is None, a default param index is got from self
+        __PARAM_NAMES_WITH_INDEX__ static dictionary in order to
+        find the right position in argspec.args arguments.
+        """
+
+        self_param = getattr(self, name, None)
+
+        kwargs_index = None
+
+        if self_param is not None:
+            if self_param in argspec.args or argspec.keywords is not None:
+                kwargs_index = self_param
+        else:
+            index = type(self).__PARAM_NAMES_WITH_INDEX__.get(name)
+            if len(argspec.args) > index:
+                kwargs_index = argspec.args[index]
+
+        if kwargs_index is not None:
+            kwargs[kwargs_index] = param
+
+    def apply_on(self, component, old_impl, new_impl):
+        """
+        Apply self annotation to input implementation
+        in the context of input component.
+        """
+
         pass
 
     @classmethod
     def apply_on_implementation(
-        component_annotation_type, business_component, implementation
+        component_annotation_type, component, old_impl, new_impl
     ):
+        """
+        Static method which is called
+        when a component implementation is renewed.
+        """
 
-        annotations = component_annotation_type.get_annotations(implementation)
+        annotations = component_annotation_type.get_annotations(new_impl)
 
         for annotation in annotations:
-            annotation.apply_on(business_component, implementation)
+            annotation.apply_on(component, old_impl, new_impl)
 
-        field_names = dir(implementation)
+        field_names = dir(new_impl)
 
         for field_name in field_names:
-            field = getattr(implementation, field_name)
-            annotations = component_annotation_type.get_annotations(field)
+            new_field = getattr(new_impl, field_name, None)
+            old_field = getattr(old_impl, field_name, None)
+            annotations = component_annotation_type.get_annotations(new_field)
             for annotation in annotations:
-                annotation.apply_on(business_component, field)
+                annotation.apply_on(component, old_field, new_field)
 
 from pycoann.core import AnnotationWithoutParameters
 
@@ -334,5 +379,5 @@ class Context(ComponentAnnotationWithoutParameters):
     Used to inject a context component in a component implementation.
     """
 
-    def apply_on(self, business_component, set_context_method):
-        set_context_method(business_component)
+    def apply_on(self, component, old_impl, new_impl):
+        new_impl(component)

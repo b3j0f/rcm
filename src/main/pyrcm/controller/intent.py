@@ -1,4 +1,4 @@
-from pyrcm.controller import Controller
+from pyrcm.controller.core import Controller
 import re
 
 

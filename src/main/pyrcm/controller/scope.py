@@ -1,11 +1,9 @@
-from pyrcm.controller.core import Controller
+from pyrcm.controller.core import ComponentController
 from pyrcm.controller.name import NameController
 from pyrcm.controller.lifecycle import LifecycleController
 
 
-class ScopeController(Controller):
-
-    NAME = '/scope-controller'
+class ScopeController(ComponentController):
 
     def __init__(self, component):
 

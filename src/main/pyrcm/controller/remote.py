@@ -1,7 +1,7 @@
-from pyrcm.controller import Controller
+from pyrcm.controller.core import ComponentController
 
 
-class RemoteController(Controller):
+class RemoteController(ComponentController):
     """
     Controller dedicated to manage component remote access.
     """

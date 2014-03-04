@@ -1,9 +1,8 @@
 from pyrcm.core import Component
-from pyrcm.controller.core import Controller
-from pyrcm.controller.scope import ScopeController
+from pyrcm.controller.core import ComponentController
 
 
-class NameController(Controller):
+class NameController(ComponentController):
     """
     Controller dedicated to manage component name.
     """
@@ -17,14 +16,15 @@ class NameController(Controller):
 
         pass
 
-    def __init__(self, component, name=None):
+    def __init__(self, membrane=None, name=None):
         """
         Set component name.
         """
 
-        super(NameController, self).__init__(component)
+        super(NameController, self).__init__(membrane)
+
         self._name = name if name is not None else \
-            Component.GENERATE_INTERFACE_NAME(component)
+            Component.GENERATE_INTERFACE_NAME(membrane)
 
     def get_name(self):
         """
@@ -42,9 +42,11 @@ class NameController(Controller):
         if self._name == name:
             return
 
+        from pyrcm.controller.scope import ScopeController
+
         try:
             super_components =\
-                ScopeController.GET_SUPER_COMPONENTS(self.get_component())
+                ScopeController.GET_SUPER_COMPONENTS(self)
             for component in super_components:
                 sub_components = ScopeController.GET_SUB_COMPONENTS(component)
                 if self.component in sub_components:
@@ -54,7 +56,7 @@ class NameController(Controller):
                         if children_name == name:
                             raise NameController.NameControllerError(
                                 "Two components have the same name %s." % name)
-        except Controller.NoSuchControllerError:
+        except ComponentController.NoSuchControllerError:
             pass
 
         self._name = name
@@ -85,3 +87,16 @@ class NameController(Controller):
             result = name_controller.set_name(name)
 
         return result
+
+from pyrcm.core import ComponentAnnotationWithoutParameters
+
+
+class ComponentName(ComponentAnnotationWithoutParameters):
+    """
+    Binds getter and setter implementation methods to the name controller.
+    """
+
+    def apply_on(self, component, name_method):
+
+        name = NameController.GET_NAME(component)
+        name_method(name)

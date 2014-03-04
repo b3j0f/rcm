@@ -8,24 +8,36 @@ class ComponentMembrane(Component):
 
     NAME = 'membrane'
 
+    """
+    Key for business component update implementation method.
+    """
     __UPDATE_IMPLEMENTATION__ = 'update_implementation'
-    BUSINESS_UPDATE_IMPLEMENTATION = '_update_business_implementation'
+
+    """
+    Key for business component update implementation method.
+    """
+    __UPDATE_IMPLEMENTATION = '_update_implementation'
 
     def __init__(self, business_component=None, *controllers):
 
         super(ComponentMembrane, self).__init__()
 
         if business_component is not None:
-            self[Component.NAME] = business_component
-            business_component.set_interface(
-                name=ComponentMembrane.NAME, interface=self)
+            self.set_business_component(business_component)
 
         self.controllers = tuple()
         self.add_controllers(-1, *controllers)
 
     def get_business_component(self):
 
-        return self[Component.NAME]
+        return self.get_interface(name=Component.NAME, error=False)
+
+    def set_business_component(self, business_component):
+
+        if self.get_business_component() is not business_component:
+            self[Component.NAME] = business_component
+            business_component.set_interface(
+                name=ComponentMembrane.NAME, interface=self)
 
     def get_controllers(self):
         """
@@ -38,29 +50,50 @@ class ComponentMembrane(Component):
         Add controllers at the given index position (at the end by default).
         """
 
-        self_controllers = list(self.controllers)
+        if not isinstance(index, int):
+            controllers = (index,) + controllers
+
         controllers = list(controllers)
+
+        if index is None:
+            index = len(self.controllers)
 
         while controllers:
             controller = controllers.pop()
-            self[controller.NAME] = controller
+            added = self.add_controller(controller=controller, index=index)
+            if added:
+                index += 1
+
+    def add_controller(self, controller, index=None):
+        """
+        Try to add a controller at the given index position
+        (at the end by default) if not already present in self controllers.
+        Returns True if the controller has been added.
+        """
+
+        result = False
+
+        if controller not in self.controllers:
+            self_controllers = list(self.controllers)
             if index is None:
                 self_controllers.append(controller)
             else:
                 self_controllers.insert(index, controller)
+            result = True
 
-        self.controllers = tuple(self_controllers)
+            self.set_interface(interface=controller)
 
-    def add_controller(self, controller, index=None):
-        """
-        Add a controller at the given index position (at the end by default).
-        """
+        return result
 
-        self_controllers = list(self.controllers)
-        if index is None:
-            self_controllers.append(controller)
+    def __iadd__(self, controller):
+        if isinstance(controller, list) or \
+                isinstance(controller, tuple) or \
+                isinstance(controller, set):
+            controllers = tuple(controller)
+            self.add_controllers(None, *controllers)
         else:
-            self_controllers.insert(index, controller)
+            self.add_controller(controller)
+        return self
 
     def remove_controller(self, controller_name):
         """
@@ -73,6 +106,10 @@ class ComponentMembrane(Component):
 
         del self[controller_name]
 
+    def __isub__(self, controller):
+        self.remove_controller(controller)
+        return self
+
     def on_set_interface(self, name, old, new):
         """
         Listen update implementation from business component.
@@ -82,16 +119,20 @@ class ComponentMembrane(Component):
             self.on_remove_interface(name, old)
 
             if new is not None:
-                business_update_implementation = \
+                business_component_update_implementation = \
                     getattr(new, ComponentMembrane.__UPDATE_IMPLEMENTATION__)
 
                 setattr(
-                    self, ComponentMembrane.BUSINESS_UPDATE_IMPLEMENTATION,
-                    business_update_implementation)
+                    self, ComponentMembrane.__UPDATE_IMPLEMENTATION,
+                    business_component_update_implementation)
 
-                def update_implementation(old, _new):
-                    business_update_implementation(old, _new)
+                def update_business_implementation(old, _new):
+                    business_component_update_implementation(old, _new)
                     self.update_business_implementation(old, _new)
+
+                setattr(
+                    new, ComponentMembrane.__UPDATE_IMPLEMENTATION__,
+                    update_business_implementation)
 
     def on_remove_interface(self, name, interface):
         """
@@ -100,14 +141,20 @@ class ComponentMembrane(Component):
 
         if name == Component.NAME and interface is not None:
             business_update_implementation = \
-                getattr(self, ComponentMembrane.BUSINESS_UPDATE_IMPLEMENTATION)
+                getattr(self, ComponentMembrane.__UPDATE_IMPLEMENTATION)
             if business_update_implementation is not None:
                 setattr(
                     interface, ComponentMembrane.__UPDATE_IMPLEMENTATION__,
                     business_update_implementation)
 
     def update_business_implementation(self, old, new):
-        print 'plop', old, new
+        """
+        Called when the business component update its implementation.
+        The call is redirected to all controllers in the order of adding.
+        """
+
+        for controller in self.controllers:
+            controller.update_business_implementation(old, new)
 
     @staticmethod
     def GET_MEMBRANE(component):

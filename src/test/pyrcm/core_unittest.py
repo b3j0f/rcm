@@ -179,7 +179,7 @@ class CoreTest(unittest.TestCase):
         self.assertTrue(hasattr(self.component, 'get_a'))
 
         impl = self.component.renew_implementation(
-            ImplA, parameters={'a': 1})
+            ImplA, a=1)
         self.assertTrue(type(impl) is ImplA)
         implementation = self.component.get_implementation()
         self.assertTrue(implementation is impl)

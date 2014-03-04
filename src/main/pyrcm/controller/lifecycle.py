@@ -1,8 +1,8 @@
 from pyrcm.core import Component
-from pyrcm.controller.core import Controller
+from pyrcm.controller.core import ComponentController
 
 
-class LifecycleController(Controller):
+class LifecycleController(ComponentController):
     """
     Dedicated to manage component lifecycle.
     """
