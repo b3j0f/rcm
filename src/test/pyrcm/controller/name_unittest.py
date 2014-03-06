@@ -1,16 +1,18 @@
 import unittest
 from pyrcm.core import Component
 from pyrcm.membrane.core import ComponentMembrane
-from pyrcm.controller.name import NameController, ComponentName
+from pyrcm.controller.name import \
+    NameController, GetComponentName, SetComponentName
 
 
 class Business(object):
 
-    @ComponentName()
+    @GetComponentName()
     def get_name(self):
-        return self.name if hasattr(self, 'name') else type(self).__name__
+        return self.name if hasattr(self, 'name') \
+            else type(self).__name__
 
-    @ComponentName()
+    @SetComponentName()
     def set_name(self, name):
         self.name = name
 
@@ -45,7 +47,9 @@ class NameTest(unittest.TestCase):
 
         self.controller.set_name(self.name)
         self.assertEquals(self.name, self.controller.get_name())
-        self.assertEquals(self.component.get_implementation().name, self.controller.get_name())
+        self.assertEquals(
+            self.component.get_implementation().name,
+            self.controller.get_name())
 
 if __name__ == '__main__':
     unittest.main()

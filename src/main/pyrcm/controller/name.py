@@ -94,9 +94,24 @@ class NameController(ComponentController):
 from pyrcm.core import ComponentAnnotation
 
 
-class ComponentName(ComponentAnnotation):
+class GetComponentName(ComponentAnnotation):
     """
-    Binds getter and setter implementation methods to the name controller.
+    Binds getter implementation methods to the name controller.
+    """
+    def apply_on(self, component, old_impl, new_impl):
+
+        controller = NameController.GET_CONTROLLER(component)
+
+        name = new_impl()
+
+        controller.set_name(name)
+
+        controller.getters.add(new_impl)
+
+
+class SetComponentName(ComponentAnnotation):
+    """
+    Binds setter implementation methods to the name controller.
     """
 
     __PVALUE__ = 'pname'
@@ -118,12 +133,9 @@ class ComponentName(ComponentAnnotation):
             else self.name
 
         param_values_by_name = {
-            ComponentName.__PVALUE__: name
+            SetComponentName.__PVALUE__: name
         }
 
-        name = self._call_callee(new_impl, param_values_by_name)
+        self._call_callee(new_impl, param_values_by_name)
 
-        if name is not None:
-            controller.set_name(name)
-        else:
-            controller.setters.add(new_impl)
+        controller.setters.add(new_impl)
