@@ -61,6 +61,9 @@ class NameController(ComponentController):
 
         self._name = name
 
+        for setter in self.setters:
+            setter(self._name)
+
     @staticmethod
     def GET_NAME(component):
         """
@@ -88,15 +91,39 @@ class NameController(ComponentController):
 
         return result
 
-from pyrcm.core import ComponentAnnotationWithoutParameters
+from pyrcm.core import ComponentAnnotation
 
 
-class ComponentName(ComponentAnnotationWithoutParameters):
+class ComponentName(ComponentAnnotation):
     """
     Binds getter and setter implementation methods to the name controller.
     """
 
-    def apply_on(self, component, name_method):
+    __PVALUE__ = 'pname'
 
-        name = NameController.GET_NAME(component)
-        name_method(name)
+    __PARAM_NAMES_WITH_INDEX__ = {
+        __PVALUE__: 0
+    }
+
+    def __init__(self, name=None, pname=None):
+
+        self.name = name
+        self.pname = pname
+
+    def apply_on(self, component, old_impl, new_impl):
+
+        controller = NameController.GET_CONTROLLER(component)
+
+        name = controller.get_name() if self.name is None \
+            else self.name
+
+        param_values_by_name = {
+            ComponentName.__PVALUE__: name
+        }
+
+        name = self._call_callee(new_impl, param_values_by_name)
+
+        if name is not None:
+            controller.set_name(name)
+        else:
+            controller.setters.add(new_impl)

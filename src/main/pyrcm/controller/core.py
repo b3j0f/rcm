@@ -1,6 +1,6 @@
 from pyrcm.core import Component
 from pyrcm.membrane.core import ComponentMembrane
-from inspect import getargspec
+from inspect import getmembers
 
 
 class ComponentController(Component):
@@ -26,6 +26,9 @@ class ComponentController(Component):
         if membrane is not None:
             self.set_membrane(membrane)
 
+        self.getters = set()
+        self.setters = set()
+
     def get_membrane(self):
         """
         Returns self membrane.
@@ -45,9 +48,9 @@ class ComponentController(Component):
         its implementation.
         """
 
-        fields_by_name = vars(new)
+        members = getmembers(new)
 
-        for name, field in fields_by_name.iteritems():
+        for name, field in members:
             old_field = getattr(old, name, None)
 
             if self._is_setter(name, old_field, field):
@@ -112,9 +115,12 @@ class Controller(ComponentAnnotationWithoutParameters):
     a reference to the business component controller.
     """
 
+    __PVALUE__ = 'pvalue'
+    __PNAME__ = 'pname'
+
     __PARAM_NAMES_WITH_INDEX__ = {
-        'pvalue': 0,
-        'pname': 1
+        __PVALUE__: 0,
+        __PNAME__: 1
     }
 
     def __init__(self, name=None, type=None, pname=None, pvalue=None):
@@ -123,7 +129,9 @@ class Controller(ComponentAnnotationWithoutParameters):
         self.pname = pname
         self.pvalue = pvalue
 
-    def apply_on(self, component, old_impl, new_impl):
+    def apply_on(
+        self, component, old_field, new_field
+    ):
 
         controller = None
 
@@ -137,11 +145,9 @@ class Controller(ComponentAnnotationWithoutParameters):
 
             controller = self.type.GET_CONTROLLER(membrane)
 
-        kwargs = dict()
+        param_values_by_name = {
+            Controller.__PVALUE__: self.name,
+            Controller.__PNAME__: controller
+        }
 
-        argspec = getargspec(new_impl)
-
-        self._push_param(self.pname, self.name, argspec, kwargs)
-        self._push_param(self.pvalue, controller, argspec, kwargs)
-
-        new_impl(**kwargs)
+        self._call_callee(new_field, param_values_by_name)

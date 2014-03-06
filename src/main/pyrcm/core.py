@@ -88,7 +88,9 @@ component.
         Get component implementation.
         """
 
-        return getattr(self, Component.IMPLEMENTATION, self)
+        result = getattr(self, Component.IMPLEMENTATION, self)
+
+        return result
 
     def set_implementation(self, implementation):
         """
@@ -123,10 +125,9 @@ component.
             Func takes in the business component and the method in parameters.
             """
 
-            field_names = dir(implementation)
+            members = inspect.getmembers(implementation)
 
-            for field_name in field_names:
-                field = getattr(implementation, field_name)
+            for field_name, field in members:
 
                 if inspect.ismethod(field) and field_name[0] != '_':
                     func(self, field)
@@ -306,6 +307,16 @@ class ComponentAnnotation(Annotation):
 
     __PARAM_NAMES_WITH_INDEX__ = dict()
 
+    def _call_callee(self, callee, param_values_by_name):
+
+        kwargs = dict()
+        argspec = inspect.getargspec(callee)
+
+        for name, value in param_values_by_name.iteritems():
+            self._push_param(name, value, argspec, kwargs)
+
+        return callee(**kwargs)
+
     def _push_param(self, name, param, argspec, kwargs):
         """
         Fill input kwargs with param value and name.
@@ -322,7 +333,7 @@ class ComponentAnnotation(Annotation):
             if self_param in argspec.args or argspec.keywords is not None:
                 kwargs_index = self_param
         else:
-            index = type(self).__PARAM_NAMES_WITH_INDEX__.get(name)
+            index = type(self).__PARAM_NAMES_WITH_INDEX__.get(name) + 1 # - self
             if len(argspec.args) > index:
                 kwargs_index = argspec.args[index]
 
@@ -351,14 +362,13 @@ class ComponentAnnotation(Annotation):
         for annotation in annotations:
             annotation.apply_on(component, old_impl, new_impl)
 
-        field_names = dir(new_impl)
+        members = inspect.getmembers(new_impl)
 
-        for field_name in field_names:
-            new_field = getattr(new_impl, field_name, None)
-            old_field = getattr(old_impl, field_name, None)
-            annotations = component_annotation_type.get_annotations(new_field)
+        for name, field in members:
+            old_field = getattr(old_impl, name, None)
+            annotations = component_annotation_type.get_annotations(field)
             for annotation in annotations:
-                annotation.apply_on(component, old_field, new_field)
+                annotation.apply_on(component, old_field, field)
 
 from pycoann.core import AnnotationWithoutParameters
 
