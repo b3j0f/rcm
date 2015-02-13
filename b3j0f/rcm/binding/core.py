@@ -34,10 +34,12 @@ class BindingController(Controller):
     """Dedicated to manage component interface bindings.
     """
 
-    def bind(self, interface_name, binding):
+    def bind(self, component, binding):
         """
         Bind a binding to a component interface_name.
         """
+
+        for component in self.components:
 
         interface = self.get_component().get(interface_name, None)
 

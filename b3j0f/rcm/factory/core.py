@@ -24,8 +24,9 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-from pyrcm.core import Component
-from pyrcm.controller.name import NameController
+from b3j0f.rcm.core import Component
+from b3j0f.rcm.controller.name import NameController
+from b3j0f.rcm.controller.impl import Input, Output
 
 
 class Factory(Component):
@@ -36,11 +37,11 @@ class Factory(Component):
 
 class FactoryManager(dict):
 
-    @Reference(name=Factory.NAME)
+    @Input(name=Factory.NAME)
     def set_factory(self, factory):
         factory_name = NameController.GET_NAME(factory)
         self[factory_name] = factory
 
-    @Service()
+    @Output()
     def get_factory(self, name):
         return self.factories

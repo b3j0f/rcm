@@ -24,44 +24,23 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-from b3j0f.annotation import Annotation
-from b3j0f.rcm import Component
-from b3j0f.rcm.controller.binding import BindingController
-from b3j0f.rcm.controller.intent import IntentController
-from b3j0f.rcm.controller.lifecycle import LifecycleController
-from b3j0f.rcm.controller.parameter import ParameterController
-from b3j0f.rcm.controller.name import NameController
-from b3j0f.rcm.controller.scope import ScopeController
-from b3j0f.rcm.controller.business import BusinessController
-from b3j0f.rcm.controller.remote import RemoteController
+"""
+Regroup all controller annotations.
+"""
 
+__all__ = [
+    'ImplAnnotation', 'Controllers',  # Controller annotation
+    'Impl', 'Context',  # impl controller annotations
+    'Property', 'GetProperty', 'SetProperty',  # property controller annotation
+    'Binding', 'Input', 'Output',  # binding controller annotations
+    'Lifecycle', 'Before', 'After',  # lifecycle controller annotations
+    'Name', 'GetName', 'SetName',  # name controller annotations
+]
 
-class Configurate(Annotation):
-
-    def __init__(self, *controllers, **interfaces):
-
-        super(Configurate, self).__init__()
-        self.controllers = controllers
-        self.interfaces = interfaces
-
-
-@Configurate(
-    IntentController,
-    LifecycleController,
-    ParameterController,
-    NameController,
-    ScopeController,
-    BusinessController,
-    BindingController)
-class BaseComponent(Component):
-    """
-    Component with default controllers.
-    """
-
-    pass
-
-
-@BaseComponent(RemoteController)
-class RemoteComponent(Component):
-
-    pass
+from b3j0f.rcm.controller.core import ImplAnnotation, Controllers
+from b3j0f.rcm.controller.impl import (
+    Impl, Context, Property, GetProperty, SetProperty
+)
+from b3j0f.rcm.controller.binding import Binding, Input, Output
+from b3j0f.rcm.controller.lifecycle import Lifecycle, Before, After
+from b3j0f.rcm.controller.name import Name, GetName, SetName

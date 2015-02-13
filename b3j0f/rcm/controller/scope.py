@@ -24,9 +24,11 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
+__all__ = ['ScopeController', 'Scope', 'Add', 'Remove']
+
 from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.name import NameController
-from b3j0f.rcm.controller.impl import Context
+from b3j0f.rcm.controller.impl import Context, ParameterizedImplAnnotation
 from b3j0f.rcm.controller.lifecycle import LifecycleController
 
 
@@ -153,3 +155,17 @@ class Scope(Context):
     def __init__(self, name=ScopeController.get_name(), *args, **kwargs):
 
         super(Scope, self).__init__(name=name, *args, **kwargs)
+
+
+class Add(ParameterizedImplAnnotation):
+    """Fired when related component is added to a new parent component.
+    """
+
+    pass
+
+
+class Remove(ParameterizedImplAnnotation):
+    """Fired when related component is removed from a parent component.
+    """
+
+    pass

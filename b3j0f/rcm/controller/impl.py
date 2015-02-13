@@ -30,17 +30,17 @@
 __all__ = [
     'ImplController',  # impl controller
     # impl annotations
-    'Impl', 'ImplAnnotation', 'ParameterizedImplAnnotation', 'Context',
+    'Impl', 'ParameterizedImplAnnotation', 'Context',
     'getter_name', 'setter_name',  # util function
     'PropertyController',  # property controller
-    'Property', 'GetProperty', 'SetProperty'  # property annotations
+    'Property', 'GetProperty', 'SetProperty',  # property annotations
 ]
 
-from b3j0f.rcm.core import Component
-from b3j0f.controller.core import Controller
-from b3j0f.annotation import Annotation
+from b3j0f.annotation.check import Target
 from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
+from b3j0f.rcm.core import Component
+from b3j0f.rcm.controller.core import Controller, ImplAnnotation
 
 from inspect import isclass
 
@@ -69,6 +69,14 @@ class ImplController(Controller):
     def renew_impl(self, component=None, cls=None, params=None):
         """Instantiate business element and returns it.
 
+        Instantiation parameters depend on 3 levels of customisation in this
+        order (related to a component-driven approach):
+
+        - specific parameters ``params`` given in this method.
+        - dynamic parameters given by the property controller.
+        - dynamic parameters given by GetProperty annotations from cls and
+        from cls constructor.
+
         :param cls: new cls to use. If None, use self.cls.
         :type cls: type or str
         :param dict params: new impl parameters which are specific to this impl
@@ -95,6 +103,13 @@ class ImplController(Controller):
                         value = pc.properties[name]
                         params[name] = value
                 # update params with GetProperty annotations
+                # from cls
+                gps = GetProperty.get_annotations(self._cls)
+                for gp in gps:
+                        param = gp.name if gp.param is None else gp.param
+                        if param not in params:
+                            params[param] = gps.params[gp.name]
+                # and from the constructor
                 try:
                     constructor = getattr(
                         self._cls, '__init__', getattr(
@@ -111,11 +126,10 @@ class ImplController(Controller):
                             params[param] = gps.params[gp.name]
         # save impl and result
         result = self.impl = self._cls(**params)
-        # apply business annotations on impl
+        # (un)apply business annotations on impl
         if isinstance(component, Component):
-            ImplAnnotation.apply(
-                component=component, impl=self.impl, prev_impl=prev_impl
-            )
+            ImplAnnotation.unapply(component=component, impl=prev_impl)
+            ImplAnnotation.apply(component=component, impl=self.impl)
 
         return result
 
@@ -156,53 +170,71 @@ class ImplController(Controller):
         # and impl
         self._impl = value
 
+    @staticmethod
+    def get_cls(cls, component):
+        """Get ImplController cls from input component.
 
-class ImplAnnotation(Annotation):
-    """Annotation dedicated to Impl implementations.
+        :param Component component: component from where get class impl.
+        """
+
+        result = None
+
+        ic = ImplController.get_controller(component=component)
+        if ic is not None:
+            result = ic.cls
+
+        return result
+
+    @staticmethod
+    def get_impl(cls, component):
+        """Get ImplController impl from input component.
+
+        :param Component component: component from where get impl.
+        """
+
+        result = None
+
+        ic = ImplController.get_controller(component=component)
+        if ic is not None:
+            result = ic.impl
+
+        return result
+
+
+@Target(type)
+class Ports(ImplAnnotation):
+    """Annotation in charge of binding ports in a component ports.
     """
 
-    def apply_on(
-        self, component, impl, prev_impl=None, attr=None, prev_attr=None
-    ):
-        """Callback when Impl component renew its implementation.
+    PORTS = 'ports'
 
-        :param Component component: business implementation component.
-        :param impl: component business implementation.
-        :param prev_impl: previous component business implementation.
-        :param attr: business implementation attribute.
-        :param prev_attr: previous business implementation attribute.
+    __slots__ = (PORTS, ) + ImplAnnotation.__slots__
+
+    def __init__(self, ports, *args, **kwargs):
         """
-
-        raise NotImplementedError()
-
-    @classmethod
-    def apply(cls, component, impl, prev_impl=None, check=None):
-        """Apply all cls annotations on component and impl.
-
-        :param Component component: business implementation component.
-        :param impl: component business implementation.
-        :param prev_impl: previous component business implementation.
-        :param check: check function which takes in parameter an annotation in
-        order to do annotation.apply_on. If None, annotations are applied.
+        :param ports: ports to bind to component.
+        :type ports: dict
         """
+        super(Ports, self).__init__(*args, **kwargs)
 
-        annotations = cls.get_annotations(impl)
-        for annotation in annotations:
-            if check is None or check(annotation):
-                annotation.apply_on(
-                    component=component, impl=impl, prev_impl=prev_impl
-                )
+        self.ports = ports
 
-        for field in dir(impl):
-            attr = getattr(impl, field)
-            prev_attr = getattr(prev_impl, field, None)
-            annotations = cls.get_annotations(field, ctx=impl)
-            for annotation in annotations:
-                if check is None or check(annotation):
-                    annotation.apply_on(
-                        component=component, impl=impl, prev_impl=prev_impl,
-                        attr=attr, prev_attr=prev_attr
-                    )
+    def apply_on(self, component, *args, **kwargs):
+
+        # iterate on all self ports
+        self_ports = self.ports
+        for port_name in self_ports:
+            port = self_ports[port_name]
+            # bind it with its name
+            component[port_name] = port
+
+    def unapply_on(self, component, *args, **kwargs):
+
+        # iterate on all self ports
+        self_ports = self.ports
+        for port_name in self_ports:
+            # bind it with its name
+            del component[port_name]
 
 
 class ParameterizedImplAnnotation(ImplAnnotation):
@@ -220,30 +252,20 @@ class ParameterizedImplAnnotation(ImplAnnotation):
 
         self.param = param
 
-    def get_resource(
-        self, component, impl, prev_impl=None, attr=None, prev_attr=None
-    ):
+    def get_resource(self, component, impl, attr=None):
         """Get a resource to inject in a routine call in the scope of a
         component, impl, prev_impl, attr and prev_attr.
 
         :param Component component: business implementation component.
         :param impl: component business implementation.
-        :param prev_impl: previous component business implementation.
         :param attr: business implementation attribute.
-        :param prev_attr: previous business implementation attribute.
         """
 
         return component
 
-    def apply_on(
-        self, component, impl, prev_impl=None, attr=None, prev_attr=None,
-        *args, **kwargs
-    ):
+    def apply_on(self, component, impl, attr=None, *args, **kwargs):
         # get the right resource to inject
-        resource = self.get_resource(
-            component=component, impl=impl, prev_impl=prev_impl,
-            attr=attr, prev_attr=prev_attr
-        )
+        resource = self.get_resource(component=component, impl=impl, attr=attr)
         # identify the right target element to inject resource
         target = impl if attr is None else attr
         # inject the resource in the target

@@ -27,3 +27,4 @@
 __all__ = ['Controller']
 
 from b3j0f.rcm.controller.core import Controller
+from b3j0f.rcm.controller.impl import Impl

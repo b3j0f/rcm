@@ -24,72 +24,80 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
+from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
-from b3j0f.annotation import Annotation
+from b3j0f.rcm.controller.impl import ParameterizedImplAnnotation, Context
 
 
 class BindingController(Controller):
     """Dedicated to manage component interface bindings.
     """
 
-    def bind(self, interface_name, binding):
+    __slots__ = Controller.__slots__
+
+    class BindingError(Exception):
+        pass
+
+    def bind(self, port_name, binding):
         """
         Bind a binding to a component interface_name.
         """
 
-        interface = self.get_component().get(interface_name, None)
+        check = lambda ann: ann.name == port_name
 
-        if isinstance(interface, Interface):
-            binding = binding(interface)
+        for component in self.components:
+            # set binding to component
+            component[port_name] = binding
+            # apply Input annotations
+            if isinstance(binding, InputPort):
+                Input.apply(component=component, check=check)
+            # apply Output annotations
+            elif isinstance(binding, OutputPort):
+                Output.apply(component=component, check=check)
 
-    def unbind(self, interface_name, binding_name):
+            else:
+                raise BindingController.BindingError()
+
+    def unbind(self, port_name):
         """
-        Unbind a binding_name from an interface_name.
+        Unbind a binding_name from an port_name.
         """
 
-        interface = self.get_component().get(interface_name, None)
+        check = lambda ann: ann.name == port_name
 
-        if isinstance(interface, Interface):
-            del interface[binding_name]
+        for component in self.components:
+
+            Input.unapply(component=component, check=check)
+
+            Output.unapply(component=component, check=check)
+
+            del component[port_name]
 
     @staticmethod
-    def BIND(component, interface_name, binding):
+    def bind_to(component, port_name, binding):
 
-        binding_controller = BindingController.GET_CONTROLLER(component)
-        binding_controller.bind(interface_name, binding)
+        bc = BindingController.get_controller(component)
+        if bc is not None:
+            bc.bind(port_name, binding)
 
     @staticmethod
-    def UNBIND(component, interface_name, binding):
+    def unbind_from(component, port_name):
 
-        binding_controller = BindingController.GET_CONTROLLER(component)
-        return binding_controller.unbind(interface_name, binding)
+        bc = BindingController.get_controller(component)
+        if bc is not None:
+            bc.unbind(port_name)
 
 
-class Reference(Annotation):
+class Binding(Context):
+    """Inject Binding controller in component implementation.
     """
-    Decorator dedicated to set a reference into business code.
-    """
+    __slots__ = Context.__slots__
 
-    def __init__(self, name=None, interface=None):
+    def __init__(self, name=BindingController.get_name(), *args, **kwargs):
 
-        self._super(Reference).__init__()
-        self.name = name
-        self.interface = interface
-
-
-class Service(Annotation):
-    """
-    Decorator dedicated to provides a function such as a Service.
-    """
-
-    def __init__(self, name=None, interface=None, *bindings):
-
-        self._super(Service).__init__()
-        self.name = name
-        self.interface = interface
-        self.bindings = bindings
+        super(Binding, self).__init__(name=name, *args, **kwargs)
 
 
 class InputPort(Component):
@@ -99,13 +107,13 @@ class InputPort(Component):
     __slots__ = Component.__slots__
 
 
-class Input(ImplAnnotation):
+class Input(ParameterizedImplAnnotation):
     """Impl In injector which uses a name in order to inject a In Port.
     """
 
     NAME = 'name'  #: input port name field name
 
-    __slots__ = (NAME, ) + ImplAnnotation.__slots__
+    __slots__ = (NAME, ) + ParameterizedImplAnnotation.__slots__
 
     def __init__(self, name, *args, **kwargs):
 
@@ -124,14 +132,24 @@ class OutputPort(Component):
 
     __slots__ = Component.__slots__
 
+    def bind(self, component, port_name, *args, **kwargs):
 
-class Output(ImplAnnotation):
+        impl = ImplController.get_impl(component=component)
+        if impl is not None:
+            Output.unapply(component=component, impl=impl)
+
+    def unbind(self, component, port_name, *args, **kwargs):
+
+        
+
+
+class Output(ParameterizedImplAnnotation):
     """Impl Out descriptor.
     """
 
     RESOURCE = '_resource'  #: output port resource field name
 
-    __slots__ = (RESOURCE, ) + ImplAnnotation.__slots__
+    __slots__ = (RESOURCE, ) + ParameterizedImplAnnotation.__slots__
 
     def __init__(self, resource, *args, **kwargs):
 

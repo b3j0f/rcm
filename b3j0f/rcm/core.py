@@ -74,6 +74,11 @@ class Component(dict):
 
     def __setitem__(self, key, value):
 
+        # unbind old component
+        if key in self:
+            old_value = self[key]
+            if isinstance(old_value, Component):
+                old_value.unbind(component=self, port_name=key)
         # if value is a component
         if isinstance(value, Component):
             # bind it to self
