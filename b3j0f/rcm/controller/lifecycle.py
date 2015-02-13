@@ -24,84 +24,158 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-from b3j0f.rcm import Component
-from b3j0f.rcm.controller import ComponentController
-from b3j0f.rcm.impl import Business
+from b3j0f.rcm.controller.core import Controller
+from b3j0f.rcm.controller.impl import (
+    Impl, ParameterizedImplAnnotation, Context
+)
 
 
-class LifecycleController(ComponentController):
+class LifecycleController(Controller):
+    """Dedicated to manage component lifecycle with custom lifecycle.
+
+    Default START and STOP status are defined.
     """
-    Dedicated to manage component lifecycle.
-    """
-
-    NAME = '/lifecycle-controller'
 
     START = 'START'
     STOP = 'STOP'
 
-    def __init__(self):
+    STATUS = '_status'  #: status field name
+
+    __slots__ = (STATUS, ) + Controller.__slots__
+
+    def __init__(self, *args, **kwargs):
+
         self._status = LifecycleController.STOP
 
-    def set_status(self, status):
-        """
-        Change of lifecycle status.
-        """
-
-        self._status = status
-
-    def get_status(self):
-        """
-        Get component lifecycle status.
+    @property
+    def status(self):
+        """Get component lifecycle status.
         """
 
         return self._status
 
+    @status.setter
+    def status(self, value):
+        """Change of lifecycle status.
+
+        :param str value: new status.
+        """
+
+        # do something only if value != self.status
+        if value != self._status:
+            # array of (impl, component)
+            impl_with_components = []
+            for component in self.components:
+                # get impl
+                try:
+                    implCtrl = Impl.get_controller(component=component)
+                except KeyError:
+                    pass
+                else:
+                    impl = implCtrl.impl
+                    # save impl with components in order to apply Before/After
+                    impl_with_components.append((impl, component))
+            # if impl_with_components is not empty, create the check lambda fn
+            if impl_with_components:
+                check = lambda ann: ann.status in [None, value]
+            # apply before annotations
+            for impl, component in impl_with_components:
+                Before.apply(
+                    component=component,
+                    impl=impl,
+                    check=check
+                )
+            # change value
+            self._status = value
+            # apply after annotations
+            for impl, component in impl_with_components:
+                After.apply(
+                    component=component,
+                    impl=impl,
+                    check=check
+                )
+
     def start(self):
+        """Start all interfaces which are components.
         """
-        Start all interfaces which are components.
-        """
 
-        interfaces = self.get_component().values()
-
-        for interface in interfaces:
-            if isinstance(interface, Component) and interface != self:
-                interface.start()
-
-        self.set_status(LifecycleController.START)
+        self.status = LifecycleController.START
 
     def stop(self):
+        """Stop all interfaces which are components.
         """
-        Stop all interfaces which are components.
-        """
 
-        interfaces = self.get_component().values()
-
-        for interface in interfaces:
-            if isinstance(interface, Component) and interface != self:
-                interface.stop()
-
-        self.set_status(LifecycleController.STOP)
+        self.status = LifecycleController.STOP
 
     @staticmethod
-    def START(component):
-        lifecycle_controller = LifecycleController.GET_CONTROLLER(component)
+    def set_status(component, value):
 
-        if lifecycle_controller is not None:
-            lifecycle_controller.start()
+        controller = LifecycleController.get_controller(component)
+
+        if controller is not None:
+            controller.status = value
 
     @staticmethod
-    def STOP(component):
-        lifecycle_controller = LifecycleController.GET_CONTROLLER(component)
+    def set_start(component):
+        """Start all component lifecycle controllers.
+        """
 
-        if lifecycle_controller is not None:
-            lifecycle_controller.stop()
+        LifecycleController.SET_STATUS(LifecycleController.START)
+
+    @staticmethod
+    def set_stop(component):
+        """Stop all component lifecycle controllers.
+        """
+
+        LifecycleController.SET_STATUS(LifecycleController.STOP)
 
 
-class Lifecycle(Business.BusinessAnnotation):
+class Lifecycle(Context):
+    """Inject lifecycle controller in an implementation.
     """
-    Annotation which permits to link lifecycle status changement with a \
-    business method.
+
+    __slots__ = Context.__slots__
+
+    def __init__(self, name=LifecycleController.get_name(), *args, **kwargs):
+
+        super(Lifecycle, self).__init__(name=name, *args, **kwargs)
+
+
+class LifecycleAnnotation(ParameterizedImplAnnotation):
+    """Base annotation for Before/After change of lifecycle status.
     """
 
-    def __init__(self, status):
+    STATUS = 'status'
+
+    __slots__ = (STATUS, ) + ParameterizedImplAnnotation.__slots__
+
+    def __init__(self, status=None, *args, **kwargs):
+
+        super(LifecycleAnnotation, self).__init__(*args, **kwargs)
+
         self.status = status
+
+    def get_resource(self, component, *args, **kwargs):
+
+        result = self.status
+
+        if result is None:
+            lc_ctrl = LifecycleController.get_controller(component=component)
+            if lc_ctrl is not None:
+                result = lc_ctrl.status
+
+        return result
+
+
+class Before(LifecycleAnnotation):
+    """Fire method before a lifecycle change of status.
+    """
+
+    __slots__ = LifecycleAnnotation.__slots__
+
+
+class After(LifecycleAnnotation):
+    """Fire method after a lifecycle change of status.
+    """
+
+    __slots__ = LifecycleAnnotation.__slots__

@@ -24,16 +24,20 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-from b3j0f.rcm import Component
-from b3j0f.rcm.controller import ComponentController
+from b3j0f.rcm.controller.composite import ScopeController
+from b3j0f.rcm.controller.core import Controller
+from b3j0f.rcm.controller.impl import (
+    ParameterizedImplAnnotation, ImplAnnotation, Context
+)
 
 
-class NameController(ComponentController):
+class NameController(Controller):
+    """Controller dedicated to manage component name.
     """
-    Controller dedicated to manage component name.
-    """
 
-    NAME = 'name-controller'
+    NAME = '_name'
+
+    __slots__ = (NAME, ) + Controller.__slots__
 
     class NameControllerError(Exception):
         """
@@ -42,126 +46,121 @@ class NameController(ComponentController):
 
         pass
 
-    def __init__(self, membrane=None, name=None):
+    def __init__(self, name=None, *args, **kwargs):
         """
-        Set component name.
+        :param str name: component name.
         """
 
-        super(NameController, self).__init__(membrane)
+        super(NameController, self).__init__(*args, **kwargs)
 
-        self._name = name if name is not None else \
-            Component.GENERATE_INTERFACE_NAME(membrane)
+        self._name = name
 
-    def get_name(self):
-        """
-        Get self component name.
+    @property
+    def name(self):
+        """Get component name.
         """
 
         return self._name
 
-    def set_name(self, name):
+    @name.setter
+    def name(self, value):
+        """Change of component name only if there are not other components at
+        the same level which have the same name.
         """
-        Change self component name with input name only if other components \
-        in the same parent have not the same name than the input name.
-        """
 
-        if self._name == name:
-            return
-
-        from pyrcm.controller.scope import ScopeController
-
-        try:
-            super_components =\
-                ScopeController.GET_SUPER_COMPONENTS(self)
-            for component in super_components:
-                sub_components = ScopeController.GET_SUB_COMPONENTS(component)
-                if self.component in sub_components:
-                    for children_component in sub_components:
-                        children_name =\
-                            NameController.get_name(children_component)
-                        if children_name == name:
-                            raise NameController.NameControllerError(
-                                "Two components have the same name %s." % name)
-        except ComponentController.NoSuchControllerError:
-            pass
-
-        self._name = name
-
-        for setter in self.setters:
-            setter(self._name)
+        if self._name != value:
+            for component in self.components:
+                ctrl = ScopeController.get_controller(component=component)
+                if ctrl is not None:
+                    pcomponents = ctrl.parent_components
+                    for pcomponent in pcomponents:
+                        pctrl = ScopeController.get_controller(
+                            component=pcomponent
+                        )
+                        ccomponents = pctrl.children_components
+                        for ccomponent in ccomponents:
+                            if ccomponent is not self:
+                                nctrl = NameController.get_controller(
+                                    component=ccomponent
+                                )
+                                if nctrl is not None and nctrl.name == value:
+                                    raise NameController.NameControllerError(
+                                        "Impossible to rename {0} by {1}. {2}"
+                                        .format(
+                                            component,
+                                            value,
+                                            "{0} has the same name".format(
+                                                ccomponent
+                                            )
+                                        )
+                                    )
 
     @staticmethod
-    def GET_NAME(component):
-        """
-        Get component name.
+    def get_name(component):
+        """Get component name.
         """
 
         result = None
 
-        name_controller = NameController.GET_CONTROLLER(component)
+        name_controller = NameController.get_controller(component)
 
-        result = name_controller.get_name()
+        if name_controller is not None:
+            result = name_controller.name
 
         return result
 
     @staticmethod
-    def SET_NAME(component, name):
+    def set_name(component, name):
         """
         Change component name.
         """
 
-        name_controller = NameController.GET_CONTROLLER(component)
+        name_controller = NameController.get_controller(component)
 
         if name_controller is not None:
-            result = name_controller.set_name(name)
+            name_controller.name = name
+
+
+class Name(Context):
+    """Inject Name controller in an implementation.
+    """
+
+    __slots__ = Context.__slots__
+
+    def __init__(self, name=NameController.get_name(), *args, **kwargs):
+
+        super(Name, self).__init__(name=name, *args, **kwargs)
+
+
+class SetName(ParameterizedImplAnnotation):
+    """Bind setter implementation methods to the name controller.
+    """
+
+    __slots__ = ParameterizedImplAnnotation.__slots__
+
+    def get_resource(self, component, *args, **kwargs):
+
+        result = None
+
+        nc = NameController.get_controller(component=component)
+
+        if nc is not None:
+            result = nc.name
 
         return result
 
-from pyrcm.core import ComponentAnnotation
 
-
-class GetComponentName(ComponentAnnotation):
-    """
-    Binds getter implementation methods to the name controller.
-    """
-    def apply_on(self, component, old_impl, new_impl):
-
-        controller = NameController.GET_CONTROLLER(component)
-
-        name = new_impl()
-
-        controller.set_name(name)
-
-        controller.getters.add(new_impl)
-
-
-class SetComponentName(ComponentAnnotation):
-    """
-    Binds setter implementation methods to the name controller.
+class GetName(ImplAnnotation):
+    """Bind getter implementation methods to the name controller.
     """
 
-    __PVALUE__ = 'pname'
+    __slots__ = ImplAnnotation.__slots__
 
-    __PARAM_NAMES_WITH_INDEX__ = {
-        __PVALUE__: 0
-    }
+    def apply_on(self, component, attr, *args, **kwargs):
 
-    def __init__(self, name=None, pname=None):
+        name = attr()
 
-        self.name = name
-        self.pname = pname
+        nc = NameController.get_controller(component=component)
 
-    def apply_on(self, component, old_impl, new_impl):
-
-        controller = NameController.GET_CONTROLLER(component)
-
-        name = controller.get_name() if self.name is None \
-            else self.name
-
-        param_values_by_name = {
-            SetComponentName.__PVALUE__: name
-        }
-
-        self._call_callee(new_impl, param_values_by_name)
-
-        controller.setters.add(new_impl)
+        if nc is not None:
+            nc.name = name

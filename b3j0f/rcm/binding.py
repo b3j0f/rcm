@@ -24,10 +24,11 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
+from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
 from b3j0f.rcm.core import Component
+from b3j0f.rcm.controller.impl import ImplAnnotation
 from b3j0f.rcm.controller.core import Controller
-from b3j0f.annotation import Annotation
 
 
 class BindingController(Controller):
@@ -65,31 +66,6 @@ class BindingController(Controller):
 
         binding_controller = BindingController.GET_CONTROLLER(component)
         return binding_controller.unbind(interface_name, binding)
-
-
-class Reference(Annotation):
-    """
-    Decorator dedicated to set a reference into business code.
-    """
-
-    def __init__(self, name=None, interface=None):
-
-        self._super(Reference).__init__()
-        self.name = name
-        self.interface = interface
-
-
-class Service(Annotation):
-    """
-    Decorator dedicated to provides a function such as a Service.
-    """
-
-    def __init__(self, name=None, interface=None, *bindings):
-
-        self._super(Service).__init__()
-        self.name = name
-        self.interface = interface
-        self.bindings = bindings
 
 
 class InputPort(Component):
