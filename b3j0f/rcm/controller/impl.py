@@ -24,13 +24,16 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-"""Contains Impl component definition.
+"""Contains Impl and Property controller definition.
 """
 
 __all__ = [
-    'ImplController',
-    'ImplAnnotation', 'ParameterizedImplAnnotation', 'Context',
-    'getter_name', 'setter_name'
+    'ImplController',  # impl controller
+    # impl annotations
+    'Impl', 'ImplAnnotation', 'ParameterizedImplAnnotation', 'Context',
+    'getter_name', 'setter_name',  # util function
+    'PropertyController',  # property controller
+    'Property', 'GetProperty', 'SetProperty'  # property annotations
 ]
 
 from b3j0f.rcm.core import Component
@@ -63,18 +66,49 @@ class ImplController(Controller):
 
         self.cls = cls
 
-    def renew_impl(self, component=None, cls=None, params={}):
+    def renew_impl(self, component=None, cls=None, params=None):
         """Instantiate business element and returns it.
 
         :param cls: new cls to use. If None, use self.cls.
         :type cls: type or str
-        :param dict params: new impl parameters.
+        :param dict params: new impl parameters which are specific to this impl
+            and chosen instead of those ones from the property controller or
+            GetProperty annotations.
         :return: new impl.
         """
+        # init params.
+        if params is None:
+            params = {}
         # save prev impl
         prev_impl = self.impl
         # save cls
         self.cls = cls
+        # get properties from the property controller and from the annotations
+        if component is not None:
+            # start to get params from property controller
+            pc = PropertyController.get_controller(component=component)
+            if pc is not None:
+                # update params with the property controller
+                for name in pc.properties:
+                    # update params if property is not specified in params
+                    if name not in params:
+                        value = pc.properties[name]
+                        params[name] = value
+                # update params with GetProperty annotations
+                try:
+                    constructor = getattr(
+                        self._cls, '__init__', getattr(
+                            self._cls, '__new__'
+                        )
+                    )
+                except AttributeError:
+                    pass
+                else:
+                    gps = GetProperty.get_annotations(constructor)
+                    for gp in gps:
+                        param = gp.name if gp.param is None else gp.param
+                        if param not in params:
+                            params[param] = gps.params[gp.name]
         # save impl and result
         result = self.impl = self._cls(**params)
         # apply business annotations on impl
@@ -294,3 +328,79 @@ def setter_name(setter):
     """
 
     return _accessor_name('set')
+
+
+class PropertyController(Controller):
+    """Dedicated to manage component parameters.
+    """
+
+    PROPERTIES = 'properties'  #: properties field name
+
+    __slots__ = (PROPERTIES, ) + Controller.__slots__
+
+    def __init__(self, properties=None, *args, **kwargs):
+
+        super(PropertyController, self).__init__(*args, **kwargs)
+        self.properties = {} if properties is None else properties
+
+
+class Property(Context):
+    """Inject a PropertyController in an implementation.
+    """
+
+    __slots__ = Context.__slots__
+
+    def __init__(self, name=PropertyController.get_name(), *args, **kwargs):
+
+        super(Property, self).__init__(name=name, *args, **kwargs)
+
+
+class _PropertyAnnotation(ParameterizedImplAnnotation):
+
+    NAME = 'name'  #: name field name
+
+    __slots__ = (NAME, ) + ParameterizedImplAnnotation.__slots__
+
+    def __init__(self, name, *args, **kwargs):
+
+        super(_PropertyAnnotation, self).__init__(*args, **kwargs)
+
+        self.name = name
+
+
+class SetProperty(_PropertyAnnotation):
+    """Set a property value from an implementation attr.
+    """
+
+    __slots__ = _PropertyAnnotation.__slots__
+
+    def get_resource(self, component, attr, *args, **kwargs):
+
+        pc = PropertyController.get_controller(component=component)
+
+        if pc is not None:
+            # get the right name
+            name = setter_name(attr) if self.name is None else self.name
+            # and the right property
+            result = pc.properties[name]
+
+        return result
+
+
+class GetProperty(_PropertyAnnotation):
+    """Get a property value from an implementation attr.
+    """
+
+    __slots__ = _PropertyAnnotation.__slots__
+
+    def apply_on(self, component, attr, *args, **kwargs):
+
+        pc = PropertyController.get_controller(component=component)
+
+        if pc is not None:
+            # get attr result
+            value = attr()
+            # get the right name
+            name = getter_name(attr) if self.name is None else self.name
+            # udate property controller
+            pc.properties[name] = value
