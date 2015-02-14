@@ -33,6 +33,8 @@ from b3j0f.utils.version import basestring
 
 from uuid import uuid4 as uuid
 
+from collections import Iterable
+
 
 class Component(dict):
     """Component which contains named ports and an id.
@@ -56,7 +58,7 @@ class Component(dict):
         # save interfaces
         for name in named_ports:
             port = named_ports[name]
-            self.set_port(name=name, port=port)
+            self[name] = port
 
     def __hash__(self):
 
@@ -86,6 +88,47 @@ class Component(dict):
         # and call super __setitem__
         super(Component, self).__setitem__(key, value)
 
+    def __repr__(self):
+
+        result = super(Component, self).__repr__()
+
+        result = '{0}({1}'.format(self.__class__, result)
+
+        for slot in self.__slots__:
+            attr = getattr(self, slot, None)
+            result = '{0}, {1}={2}'.format(result, slot, attr)
+
+        result += ')'
+
+        return result
+
+    def update(self, values=None, **kwargs):
+        # bind manually all ports
+        if isinstance(values, dict):
+            for name in values:
+                value = values[name]
+                self[name] = value
+
+        for name in kwargs:
+            value = kwargs[name]
+            self[name] = value
+
+    def setdefault(self, key, default=None):
+
+        if default is None:
+            result = super(Component, self).setdefault(key, default)
+        else:
+            if key not in self:  # bind manually all ports
+                self[key] = default
+            result = self[key]
+
+        return result
+
+    def clear(self):
+        # unbind manually all ports
+        for name in self.keys():
+            del self[name]
+
     def bind(self, component, port_name):
         """Callback method before self is bound to a component.
 
@@ -111,14 +154,16 @@ class Component(dict):
 
         return self._id
 
-    def get_ports(self, names=None, types=None):
+    def get_ports(self, names=None, types=None, select=lambda *p: True):
         """Get ports related to names and types.
 
         :param names: port names to search for.
         :type names: str or list
         :param types: port types to search for.
-        :type types: type or tuple
+        :type types: type or iterable of types
         :param bool raiseError: raise an error if no port is found.
+        :param select: boolean selection function which takes a name and a port
+        in parameters. True by default.
 
         :return: dict of ports by name.
         """
@@ -128,6 +173,8 @@ class Component(dict):
         # ensure types is a tuple of classes
         if types is None:
             types = (object, )
+        elif isinstance(types, Iterable):
+            types = tuple(types)
         # if names exist
         if names is not None:
             # ensure names such as a str
@@ -139,25 +186,27 @@ class Component(dict):
                     # get port
                     port = self[name]
                     # add port to result if isinstance(port, types)
-                    if isinstance(port, types):
+                    if isinstance(port, types) and select(name, port):
                         result[name] = self[name]
         else:
             # for all ports
             for name in self:
                 port = self[name]
                 # if isinstance(port, types), add port to result
-                if isinstance(port, types):
+                if isinstance(port, types) and select(name, port):
                     result[name] = port
 
         return result
 
     @classmethod
-    def get_cls_ports(cls, component, names=None):
+    def get_cls_ports(cls, component, names=None, select=lambda *p: True):
         """Get all component ports which inherits from this class.
 
         :param Component component: component from where get ports.
         :param names: port names to get.
         :type names: str or list
+        :param select: boolean selection function which takes a name and a port
+        in parameters. True by default.
         """
 
-        return component.get_ports(names=names, types=cls)
+        return component.get_ports(names=names, types=cls, select=select)

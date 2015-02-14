@@ -1,191 +1,287 @@
-import unittest
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
-from pyrcm.core import Component
+# --------------------------------------------------------------------
+# The MIT License (MIT)
+#
+# Copyright (c) 2014 Jonathan Labéjof <jonathan.labejof@gmail.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+# --------------------------------------------------------------------
+
+from unittest import main
+
+from b3j0f.utils.ut import UTCase
+from b3j0f.rcm.core import Component
 
 
-class CoreTest(unittest.TestCase):
+class ComponentTest(UTCase):
+
+    class TestPort(Component):
+
+        def __init__(self, componentest, *args, **kwargs):
+            super(ComponentTest.TestPort, self).__init__(*args, **kwargs)
+            self.componentest = componentest
+
+        def bind(self, component, port_name, *args, **kwargs):
+
+            self.componentest.bindcount -= 1
+
+        def unbind(self, component, port_name, *args, **kwargs):
+
+            self.componentest.unbindcount -= 1
 
     def setUp(self):
+
         self.component = Component()
+        self.named_ports = {
+            'test': ComponentTest.TestPort(self),
+            'example': ComponentTest.TestPort(self),
+            'component': Component(),
+            'one': 1,
+            'none': None
+        }
+        self.number_of_testport = len(
+            [
+                port for port in self.named_ports.values()
+                if isinstance(port, ComponentTest.TestPort)
+            ]
+        )
+        self.bindcount = self.number_of_testport
+        self.unbindcount = self.number_of_testport
 
-    def test_generate_name(self):
-        s = set()
+    def test_generated_id(self):
+        """
+        Test generated ids.
+        """
 
-        count = 1000
+        count = 5000
 
-        xr = range(count)
+        ids = set()
+        for i in range(count):
+            ids.add(Component().id)
 
-        for i in xr:
-            generated_name =\
-                Component.GENERATE_INTERFACE_NAME(
-                    interface=CoreTest, generated=True)
-            s.add(generated_name)
+        self.assertEqual(len(ids), count)
 
-        self.assertEquals(len(s), count)
+    def test_id(self):
+        """
+        Test specific id.
+        """
 
-    def test_interfaces(self):
+        testid = 'test'
+        ctest = Component(_id=testid)
+        self.assertEqual(ctest.id, testid)
 
-        interfaces = self.component.get_interfaces()
-        self.assertEquals(len(interfaces), 0)
-        self.assertEquals(len(self.component), 0)
+        exampleid = 'example'
+        cexample = Component(_id=exampleid)
+        self.assertEqual(cexample.id, exampleid)
 
-        component = Component(None, None)
-        interfaces = component.get_interfaces()
+        self.assertNotEqual(cexample.id, ctest.id)
 
-        self.assertEquals(len(component), 2)
-        self.assertEquals(len(interfaces), 2)
+    def _test_existing_ports(self):
+        """
+        Test named ports.
 
-        component = Component(a=None, b=None)
-        interfaces = component.get_interfaces()
+        :param init: initialization function.
+        """
 
-        self.assertEquals(len(component), 2)
-        self.assertEquals(len(interfaces), 2)
+        self.assertEqual(len(self.component), len(self.named_ports))
+        for name in self.named_ports:
+            self.assertIn(name, self.component)
+            port = self.component[name]
+            self.assertIs(port, self.named_ports[name])
 
-        component = Component(1, None, a=None, b=1)
-        interfaces = component.get_interfaces()
+        self.assertEqual(self.bindcount, 0)
+        self.assertEqual(self.unbindcount, self.number_of_testport)
 
-        self.assertEquals(len(component), 4)
-        self.assertEquals(len(interfaces), 4)
+    def _init_component_with_ports(self):
+        """
+        Fill self component with self ports.
+        """
 
-        self.assertTrue(component.has_interface('a'))
-        self.assertTrue(component.has_interface('b'))
-        self.assertFalse(component.has_interface('c'))
+        self.component = Component(**self.named_ports)
+        self._test_existing_ports()
 
-        for name in interfaces:
-            has_interface = component.has_interface(name)
-            self.assertTrue(has_interface)
+    def test_clear(self):
+        """
+        Test clear method.
+        """
 
-        for name in component:
-            has_interface = component.has_interface(name)
-            self.assertTrue(has_interface)
+        self._init_component_with_ports()
+        self.component.clear()
+        self.assertEqual(len(self.component), 0)
+        self.assertEqual(self.bindcount, 0)
+        self.assertEqual(self.unbindcount, 0)
 
-        interfaces = component.get_interfaces(int)
+    def test_setdefault(self):
+        """
+        Test setdefault.
+        """
 
-        self.assertEquals(len(interfaces), 2)
+        bindcount = self.number_of_testport
 
-        interfaces = component.get_interfaces(type(None))
+        # test setdefault
+        for index, name in enumerate(self.named_ports):
+            port = self.named_ports[name]
+            p = self.component.setdefault(name, port)
+            self.assertIs(port, p)
+            if isinstance(port, ComponentTest.TestPort):
+                bindcount -= 1
+            self.assertEqual(self.bindcount, bindcount)
+            self.assertEqual(self.unbindcount, self.number_of_testport)
+            p = self.component.setdefault(name, port)
+            self.assertIs(port, p)
+            self.assertEqual(self.bindcount, bindcount)
+            self.assertEqual(self.unbindcount, self.number_of_testport)
 
-        self.assertEquals(len(interfaces), 2)
+    def test_init_ports(self):
+        """
+        Test to init ports.
+        """
 
-        interfaces = component.get_interfaces((int,))
+        self._init_component_with_ports()
 
-        self.assertEquals(len(interfaces), 2)
+    def test_update_ports(self):
+        """
+        Test to update ports.
+        """
 
-        interfaces_names = component.get_interface_names(None)
+        self.component.update(self.named_ports)
+        self._test_existing_ports()
 
-        self.assertEquals(len(interfaces_names), 2)
+    def test_bind_ports(self):
+        """
+        Test to bind ports.
+        """
 
-    def test_set_interface(self):
+        for name in self.named_ports:
+            port = self.named_ports[name]
+            self.component[name] = port
+        self._test_existing_ports()
 
-        self.component.set_interface(None)
+    def test_unbind_port(self):
+        """
+        Test to unbind ports.
+        """
 
-        self.assertEquals(len(self.component), 1)
+        self._init_component_with_ports()
 
-        self.component[None] = None
+        for name in self.named_ports:
+            self.assertIn(name, self.component)
+            del self.component[name]
+            self.assertNotIn(name, self.component)
 
-        self.assertEquals(len(self.component), 2)
+        self.assertEqual(len(self.component), 0)
 
-        a = 'a'
+    def test_get_ports_default(self):
+        """
+        Test get_ports method without parameters.
+        """
 
-        self.component.set_interface(None, name=a)
+        self._init_component_with_ports()
 
-        has_interface = self.component.has_interface(a)
-        self.assertTrue(has_interface)
-        self.assertEquals(len(self.component), 3)
+        ports = self.component.get_ports()
 
-        self.component[a] = None
+        self.assertEqual(ports, self.named_ports)
 
-        has_interface = self.component.has_interface(a)
-        self.assertTrue(has_interface)
-        self.assertEquals(len(self.component), 3)
+    def test_get_ports_name(self):
+        """
+        Test get_ports method with name.
+        """
 
-    def test_remove_interface(self):
+        self._init_component_with_ports()
 
-        a = 'a'
-        b = 'b'
-        self.component[a] = a
-        self.component[b] = b
+        for name in self.named_ports:
+            ports = self.component.get_ports(names=name)
+            self.assertEqual(len(ports), 1)
+            self.assertIn(name, ports)
 
-        has_interface_a = self.component.has_interface(a)
-        self.assertTrue(has_interface_a)
-        self.assertEquals(len(self.component), 2)
+    def test_get_ports_names(self):
+        """
+        Test get_ports method with names.
+        """
 
-        ra = self.component.remove_interface(name=a)
+        self._init_component_with_ports()
+        names = self.named_ports.keys()[1:]
+        ports = self.component.get_ports(names=names)
 
-        has_interface_a = self.component.has_interface(a)
-        self.assertFalse(has_interface_a)
-        self.assertEquals(len(self.component), 1)
-        self.assertTrue(ra is a)
+        self.assertEqual(len(ports), len(self.named_ports) - 1)
+        for name in names:
+            self.assertIn(name, ports)
 
-        del self.component[b]
+    def test_get_ports_type(self):
+        """
+        Test get_ports method with type.
+        """
 
-        has_interface_b = self.component.has_interface(b)
-        self.assertFalse(has_interface_b)
-        self.assertEquals(len(self.component), 0)
+        self._init_component_with_ports()
 
-    def test_implementation(self):
+        _type = ComponentTest.TestPort
+        ports = self.component.get_ports(types=_type)
 
-        implementation = self.component.get_implementation()
-        self.assertTrue(implementation is self.component)
+        self.assertEqual(len(ports), self.number_of_testport)
+        for name in ports:
+            port = ports[name]
+            self.assertTrue(isinstance(port, _type))
 
-        class ImplA(object):
-            def __init__(self, a=None):
-                self.a = a
+    def test_get_ports_types(self):
+        """
+        Test get_ports method with types.
+        """
 
-            def get_a(self):
-                return self.a
+        self._init_component_with_ports()
 
-            from pyrcm.core import Context
+        types = []
 
-            @Context
-            def set_context(self, context):
-                self.context = context
+        for name in self.named_ports:
+            port = self.named_ports[name]
+            if not isinstance(port, Component):
+                types.append(port.__class__)
 
-            def get_context(self):
-                return self.context
+        self.assertTrue(types)
+        ports = self.component.get_ports(types=types)
 
-        class ImplB(object):
-            def __init__(self):
-                pass
+        self.assertEqual(len(ports), len(types))
 
-            def get_b(self):
-                pass
+        for name in ports:
+            port = ports[name]
+            self.assertFalse(isinstance(port, Component))
 
-        impl = ImplA()
-        self.component.set_implementation(impl)
-        implementation = self.component.get_implementation()
-        self.assertTrue(implementation is impl)
-        self.assertTrue(implementation.get_context() is self.component)
-        self.assertTrue(hasattr(self.component, 'get_a'))
+    def test_get_ports_select(self):
+        """
+        Test get_ports method with a combination of names and types.
+        """
 
-        self.component.set_implementation(impl)
-        implementation = self.component.get_implementation()
-        self.assertTrue(implementation is impl)
-        self.assertTrue(hasattr(self.component, 'get_a'))
+        self._init_component_with_ports()
 
-        impl = ImplB()
-        self.component.set_implementation(impl)
-        implementation = self.component.get_implementation()
-        self.assertTrue(implementation is impl)
-        self.assertFalse(hasattr(self.component, 'get_a'))
-        self.assertTrue(hasattr(self.component, 'get_b'))
+        components_count = len(
+            [
+                port for port in self.named_ports.values()
+                if isinstance(port, Component)
+            ]
+        )
 
-        impl = self.component.renew_implementation(ImplA)
+        ports = self.component.get_ports(
+            select=lambda name, port: isinstance(port, Component)
+        )
 
-        self.assertTrue(type(impl) is ImplA)
-        implementation = self.component.get_implementation()
-        self.assertTrue(implementation is impl)
-        self.assertFalse(hasattr(self.component, 'get_b'))
-        self.assertTrue(hasattr(self.component, 'get_a'))
-
-        impl = self.component.renew_implementation(
-            ImplA, a=1)
-        self.assertTrue(type(impl) is ImplA)
-        implementation = self.component.get_implementation()
-        self.assertTrue(implementation is impl)
-        self.assertTrue(hasattr(self.component, 'get_a'))
-        a = self.component.get_a()
-        self.assertTrue(a is 1)
+        self.assertEqual(len(ports), components_count)
 
 if __name__ == '__main__':
-    unittest.main()
+    main()
