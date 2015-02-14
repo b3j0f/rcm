@@ -24,6 +24,8 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
+__all__ = ['NameController', 'Name', 'SetName', 'GetName']
+
 from b3j0f.rcm.controller.composite import ScopeController
 from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (

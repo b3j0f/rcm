@@ -3,7 +3,7 @@
 # --------------------------------------------------------------------
 # The MIT License (MIT)
 #
-# Copyright (c) 2014 Jonathan Labéjof <jonathan.labejof@gmail.com>
+# Copyright (c) 2015 Jonathan Labéjof <jonathan.labejof@gmail.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,7 @@
 __all__ = ['DescriptorManager', 'Descriptor']
 
 from b3j0f.rcm.core import Component
+from b3j0f.rcm.controller.binding import Output
 
 
 class DescriptorManager(Component):

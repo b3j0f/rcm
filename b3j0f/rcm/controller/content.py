@@ -30,7 +30,6 @@ from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.name import NameController
 from b3j0f.rcm.controller.impl import Context, ParameterizedImplAnnotation
-from b3j0f.rcm.controller.lifecycle import LifecycleController
 
 
 class ContentController(Controller):
@@ -61,12 +60,13 @@ class ContentController(Controller):
     @content.setter
     def content(self, value):
 
-        if isinstance(value, Component):
-            value = {value}
-        else:
-            value = set(value)
+        self._content = set()
 
-        self._content |= value
+        if isinstance(value, Component):
+            value = [value]
+
+        for component in value:
+            self += component
 
     def __iadd__(self, value):
 
@@ -97,24 +97,8 @@ class ContentController(Controller):
 
         self._content -= value
 
-    def start(self):
-        """
-        Starts all sub components.
-        """
-        sub_components = self.get_sub_components()
-
-        for sub_component in sub_components:
-            LifecycleController.START(sub_component)
-
-    def stop(self):
-        """
-        Stop all sub components.
-        """
-
-        sub_components = self.get_sub_components()
-
-        for sub_component in sub_components:
-            LifecycleController.STOP(sub_component)
+        for component in value:
+            Remove.apply(component=component)
 
     @staticmethod
     def get_content(component):

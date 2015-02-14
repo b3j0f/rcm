@@ -134,13 +134,11 @@ class OutputPort(Component):
 
     def bind(self, component, port_name, *args, **kwargs):
 
-        impl = ImplController.get_impl(component=component)
-        if impl is not None:
-            Output.unapply(component=component, impl=impl)
+        Output.apply(component=component)
 
     def unbind(self, component, port_name, *args, **kwargs):
 
-        
+        Output.unapply(component=component)
 
 
 class Output(ParameterizedImplAnnotation):

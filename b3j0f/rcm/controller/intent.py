@@ -24,22 +24,22 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
+__all__ = ['IntentController', 'Intent']
+
+from b3j0f.aop import weave, unweave
+from b3j0f.rcm.controller.impl import Context
 from b3j0f.rcm.controller.core import Controller
 
 from re import compile
 
 
 class IntentController(Controller):
+    """Component intent controller. Manages interception of component interface
+    calls.
     """
-    Component intent controller. Manages interception of \
-    component interface calls.
-    """
-
-    NAME = '/intent-controller'
 
     class InterfaceCall(object):
-        """
-        Interface call for Interface call interception.
+        """Interface call for Interface call interception.
 
         Contains an interface_name, a callee_name, \
         called arguments (args and kwargs), \
@@ -193,17 +193,11 @@ class BasicIntent(object):
 
         return interface_caller()
 
-from pycoann.core import Annotation
 
-
-class Intent(Annotation):
-    """
-    Dedicated to associate a business resource to a component intent.
+class Intent(Context):
+    """Inject an IntentController into a component implementation.
     """
 
-    def __init__(
-        self, interface_call=None, callee_call=None, dynamic_matching=None
-    ):
-        self.interface_call = interface_call
-        self.callee_call = callee_call
-        self.dynamic_matching = dynamic_matching
+    def __init__(self, name=IntentController.get_name(), *args, **kwargs):
+
+        super(Intent, self).__init__(name=name, *args, **kwargs)

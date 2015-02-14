@@ -34,6 +34,7 @@ from b3j0f.rcm.controller.impl import (
     Impl, ParameterizedImplAnnotation, Context
 )
 from b3j0f.rcm.controller.binding import OutputPort
+from b3j0f.rcm.controller.content import ContentController
 from b3j0f.aop import weave, unweave
 
 
@@ -51,6 +52,10 @@ class LifecycleController(Controller):
     If memory is used in order to save calls to the business, it is possible to
     choose the memory stack size and the logical order of keeping (KEEP_LAST,
     KEEP_FIRST).
+
+    When a lifecycle controller is halted, the state can be propagated to all
+    sub components in the condition a content controller (see boolean propagate
+    attribute).
     """
 
     class LifecycleError(Exception):
@@ -116,22 +121,27 @@ class LifecycleController(Controller):
     HALTING_STATUSES = '_halting_statuses'  #: halting_status field name
 
     STATUS = '_status'  #: status field name
+    PROPAGATE = 'propagate'  #: propagation of changing of status field name
 
+    DEFAULT_KEEP_LAST = False
     DEFAULT_MEM_SIZE = 50  #: default mem size
+    DEFAULT_PROPAGATE = True  #: default propagate value
 
     _LOCK = '_lock'  #: private lock field name
     _CALLSTACK = '_callstack'  #: private callstack field name
 
     __slots__ = (
-        STATUS, KEEP_LAST, MEM_SIZE, HALTING_STATUSES, _LOCK, _CALLSTACK
+        STATUS, KEEP_LAST, MEM_SIZE, HALTING_STATUSES, PROPAGATE,  # public
+        _LOCK, _CALLSTACK  # private
     ) + Controller.__slots__
 
     def __init__(
         self,
         status=STOP,
-        keep_last=False,
+        keep_last=DEFAULT_KEEP_LAST,
         mem_size=DEFAULT_MEM_SIZE,
         halting_status=[STOP],
+        propagate=DEFAULT_PROPAGATE,
         *args, **kwargs
     ):
 
@@ -139,6 +149,7 @@ class LifecycleController(Controller):
         self.keep_last = keep_last
         self.mem_size = mem_size
         self.halting_status = halting_status
+        self.propagate = propagate
         self._lock = Lock()
         self._callstack = []
 
@@ -251,10 +262,13 @@ class LifecycleController(Controller):
         """
 
         self._lock.acquire()
+
         # do something only if value != self.status
         if value != self._status:
+
             # array of (impl, component)
             impl_with_components = []
+
             for component in self.components:
                 # get impl
                 try:
@@ -265,9 +279,11 @@ class LifecycleController(Controller):
                     impl = implCtrl.impl
                     # save impl with components in order to apply Before/After
                     impl_with_components.append((impl, component))
+
             # if impl_with_components is not empty, create the check lambda fn
             if impl_with_components:
                 check = lambda ann: ann.status in [None, value]
+
             # apply before annotations
             for impl, component in impl_with_components:
                 Before.apply(
@@ -277,6 +293,7 @@ class LifecycleController(Controller):
                 )
             # change value
             self._status = value
+
             # apply after annotations
             for impl, component in impl_with_components:
                 After.apply(
@@ -284,6 +301,7 @@ class LifecycleController(Controller):
                     impl=impl,
                     check=check
                 )
+
             # if lifecycle controller enters in an halting status
             if value in self._halting_statuses:
                 # weave advices
@@ -291,6 +309,7 @@ class LifecycleController(Controller):
                     ports = OutputPort.get_cls_ports(component=component)
                     for port in ports:
                         weave(port, advices=self.intercept)
+
             else:
                 # clean call stack
                 self.clear()
@@ -299,6 +318,15 @@ class LifecycleController(Controller):
                     ports = OutputPort.get_cls_ports(component=component)
                     for port in ports:
                         unweave(port, advices=self.intercept)
+
+            # propagate new status if necessary
+            if self.propagate:
+                content = ContentController.get_content(component=component)
+                for component in content:
+                    LifecycleController.set_status(
+                        component=component,
+                        status=value
+                    )
 
         self._lock.release()
 
