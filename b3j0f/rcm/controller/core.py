@@ -24,10 +24,9 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-__all__ = ['Controller', 'ImplAnnotation', 'Controllers']
+__all__ = ['Controller']
 
 from b3j0f.utils.path import getpath
-from b3j0f.annotation import Annotation
 from b3j0f.rcm.core import Component
 
 
@@ -120,127 +119,3 @@ class Controller(Component):
         result = component.get(cls.get_name())
 
         return result
-
-
-class ImplAnnotation(Annotation):
-    """Annotation dedicated to Impl implementations.
-    """
-
-    def apply_on(self, component, impl, attr=None):
-        """Callback when Impl component renew its implementation.
-
-        :param Component component: business implementation component.
-        :param impl: component business implementation.
-        :param attr: business implementation attribute.
-        """
-
-        pass
-
-    def unapply_on(self, component, impl, attr=None):
-        """Callback when Impl component change of implementation.
-
-        :param Component component: business implementation component.
-        :param impl: component business implementation.
-        :param attr: business implementation attribute.
-        """
-
-        pass
-
-    @classmethod
-    def _process(cls, component, impl, check=None, _apply=True):
-        """Apply all cls annotations on component and impl.
-
-        :param Component component: business implementation component.
-        :param impl: component business implementation.
-        :param check: check function which takes in parameter an annotation in
-        order to do annotation.apply_on. If None, annotations are applied.
-        """
-
-        annotations = cls.get_annotations(impl)
-        for annotation in annotations:
-            if check is None or check(annotation):
-                if _apply:
-                    annotation.apply_on(component=component, impl=impl)
-                else:
-                    annotation.unapply_on(component=component, impl=impl)
-
-        for field in dir(impl):
-            attr = getattr(impl, field)
-            annotations = cls.get_annotations(field, ctx=impl)
-            for annotation in annotations:
-                if check is None or check(annotation):
-                    if _apply:
-                        annotation.apply_on(
-                            component=component, impl=impl, attr=attr
-                        )
-                    else:
-                        annotation.unapply_on(
-                            component=component, impl=impl, attr=attr
-                        )
-
-    @classmethod
-    def apply(cls, component, impl, check=None):
-        """Apply all cls annotations on component and impl.
-
-        :param Component component: business implementation component.
-        :param impl: component business implementation.
-        :param check: check function which takes in parameter an annotation in
-        order to do annotation.apply_on. If None, annotations are applied.
-        """
-
-        return cls._process(
-            component=component, impl=impl, check=check, _apply=True
-        )
-
-    @classmethod
-    def unapply(cls, component, impl, check=None):
-        """Unapply all cls annotations on component and impl.
-
-        :param Component component: business implementation component.
-        :param impl: component business implementation.
-        :param check: check function which takes in parameter an annotation in
-        order to do annotation.apply_on. If None, annotations are applied.
-        """
-
-        return cls._process(
-            component=component, impl=impl, check=check, _apply=False
-        )
-
-
-class Controllers(ImplAnnotation):
-    """Component implementatoin annotation in charge of specifying component
-    controllers.
-    """
-
-    CONTROLLERS = 'controllers'
-
-    __slots__ = (CONTROLLERS, ) + ImplAnnotation.__slots__
-
-    def __init__(self, controllers, *args, **kwargs):
-        """
-        :param controllers: controllers to bind to component.
-        :type controllers: Controller, Controller class or list of previous
-        objects.
-        """
-        super(Controllers, self).__init__(*args, **kwargs)
-
-        self.controllers = controllers
-
-    def apply_on(self, component, *args, **kwargs):
-
-        # iterate on all self controllers
-        for controller in self.controllers:
-            # if controller is a Controller class, then instantiate it
-            if issubclass(controller, Controller):
-                controller = controller()
-            # if controller is an instance of Controller
-            if isinstance(controller, Controller):
-                # bind it with its name
-                component[controller.get_name()] = controller
-
-    def unapply_on(self, component, *args, **kwargs):
-
-        # iterate on all self controllers
-        for controller in self.controllers:
-            # unbind it with its name
-            del component[controller.get_name()]

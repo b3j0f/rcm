@@ -24,11 +24,12 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-from pyrcm.core import Component
+__all__ = ['DescriptorManager', 'Descriptor']
+
+from b3j0f.rcm.core import Component
 
 
-@Component
-class DescriptorManager(object):
+class DescriptorManager(Component):
     """
     Dedicated to manage descriptors.
     """
@@ -36,12 +37,13 @@ class DescriptorManager(object):
     pass
 
 
-class Descriptor(object):
+class Descriptor(Component):
     """
-    Dedicated to get a component description or get a component from a \
+    Dedicated to get a component description or get a component from a
     description.
     """
 
+    @Output()
     def get_description(self, component):
         """
         Get a description from input component.
@@ -49,6 +51,7 @@ class Descriptor(object):
 
         raise NotImplementedError()
 
+    @Output()
     def get_component(self, description):
         """
         Get a component from a description.

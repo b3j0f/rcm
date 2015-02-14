@@ -37,10 +37,49 @@ __all__ = [
     'Name', 'GetName', 'SetName',  # name controller annotations
 ]
 
-from b3j0f.rcm.controller.core import ImplAnnotation, Controllers
+from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (
-    Impl, Context, Property, GetProperty, SetProperty
+    ImplAnnotation, Impl, Context, Property, GetProperty, SetProperty
 )
 from b3j0f.rcm.controller.binding import Binding, Input, Output
 from b3j0f.rcm.controller.lifecycle import Lifecycle, Before, After
 from b3j0f.rcm.controller.name import Name, GetName, SetName
+
+
+class Controllers(ImplAnnotation):
+    """Component implementatoin annotation in charge of specifying component
+    controllers.
+    """
+
+    CONTROLLERS = 'controllers'
+
+    __slots__ = (CONTROLLERS, ) + ImplAnnotation.__slots__
+
+    def __init__(self, controllers, *args, **kwargs):
+        """
+        :param controllers: controllers to bind to component.
+        :type controllers: Controller, Controller class or list of previous
+        objects.
+        """
+        super(Controllers, self).__init__(*args, **kwargs)
+
+        self.controllers = controllers
+
+    def apply_on(self, component, *args, **kwargs):
+
+        # iterate on all self controllers
+        for controller in self.controllers:
+            # if controller is a Controller class, then instantiate it
+            if issubclass(controller, Controller):
+                controller = controller()
+            # if controller is an instance of Controller
+            if isinstance(controller, Controller):
+                # bind it with its name
+                component[controller.get_name()] = controller
+
+    def unapply_on(self, component, *args, **kwargs):
+
+        # iterate on all self controllers
+        for controller in self.controllers:
+            # unbind it with its name
+            del component[controller.get_name()]

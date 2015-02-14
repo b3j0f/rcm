@@ -30,17 +30,18 @@
 __all__ = [
     'ImplController',  # impl controller
     # impl annotations
-    'Impl', 'ParameterizedImplAnnotation', 'Context',
+    'ImplAnnotation', 'Impl', 'ParameterizedImplAnnotation', 'Context',
     'getter_name', 'setter_name',  # util function
     'PropertyController',  # property controller
     'Property', 'GetProperty', 'SetProperty',  # property annotations
 ]
 
+from b3j0f.annotation import Annotation
 from b3j0f.annotation.check import Target
 from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
 from b3j0f.rcm.core import Component
-from b3j0f.rcm.controller.core import Controller, ImplAnnotation
+from b3j0f.rcm.controller.core import Controller
 
 from inspect import isclass
 
@@ -199,6 +200,95 @@ class ImplController(Controller):
             result = ic.impl
 
         return result
+
+
+class ImplAnnotation(Annotation):
+    """Annotation dedicated to Impl implementations.
+    """
+
+    def apply_on(self, component, impl, attr=None):
+        """Callback when Impl component renew its implementation.
+
+        :param Component component: business implementation component.
+        :param impl: component business implementation.
+        :param attr: business implementation attribute.
+        """
+
+        pass
+
+    def unapply_on(self, component, impl, attr=None):
+        """Callback when Impl component change of implementation.
+
+        :param Component component: business implementation component.
+        :param impl: component business implementation.
+        :param attr: business implementation attribute.
+        """
+
+        pass
+
+    @classmethod
+    def _process(cls, component, impl=None, check=None, _apply=True):
+        """Apply all cls annotations on component and impl.
+
+        :param Component component: business implementation component.
+        :param impl: component business implementation.
+        :param check: check function which takes in parameter an annotation in
+        order to do annotation.apply_on. If None, annotations are applied.
+        """
+
+        if impl is None:
+            impl = ImplController.get_impl(component=component)
+
+        if impl is not None:
+            annotations = cls.get_annotations(impl)
+            for annotation in annotations:
+                if check is None or check(annotation):
+                    if _apply:
+                        annotation.apply_on(component=component, impl=impl)
+                    else:
+                        annotation.unapply_on(component=component, impl=impl)
+
+            for field in dir(impl):
+                attr = getattr(impl, field)
+                annotations = cls.get_annotations(field, ctx=impl)
+                for annotation in annotations:
+                    if check is None or check(annotation):
+                        if _apply:
+                            annotation.apply_on(
+                                component=component, impl=impl, attr=attr
+                            )
+                        else:
+                            annotation.unapply_on(
+                                component=component, impl=impl, attr=attr
+                            )
+
+    @classmethod
+    def apply(cls, component, impl=None, check=None):
+        """Apply all cls annotations on component and impl.
+
+        :param Component component: business implementation component.
+        :param impl: component business implementation.
+        :param check: check function which takes in parameter an annotation in
+        order to do annotation.apply_on. If None, annotations are applied.
+        """
+
+        return cls._process(
+            component=component, impl=impl, check=check, _apply=True
+        )
+
+    @classmethod
+    def unapply(cls, component, impl=None, check=None):
+        """Unapply all cls annotations on component and impl.
+
+        :param Component component: business implementation component.
+        :param impl: component business implementation.
+        :param check: check function which takes in parameter an annotation in
+        order to do annotation.apply_on. If None, annotations are applied.
+        """
+
+        return cls._process(
+            component=component, impl=impl, check=check, _apply=False
+        )
 
 
 @Target(type)

@@ -25,11 +25,15 @@
 # --------------------------------------------------------------------
 
 from json import load
+
 from os.path import exists, join
+
 from sys import path
 
+from b3j0f.rcm.core import Component
+
 PATHS = path[:]
-DEFAULT_FILE_PATH = 'pyrcm.conf'
+DEFAULT_FILE_PATH = 'b3j0f.rcm.conf'
 
 
 def get_config(config_path=DEFAULT_FILE_PATH, paths=PATHS):
@@ -53,7 +57,7 @@ def get_config(config_path=DEFAULT_FILE_PATH, paths=PATHS):
 BOOTSTRAP = 'bootstrap'
 bootstrap = None
 
-from pyrcm.factory import Factory
+from b3j0f.rcm.factory import Factory
 
 
 def get_bootstrap_component(renew=False):
@@ -83,7 +87,7 @@ from pyrcm.binding import BindingManager
 from pyrcm.parser.core import ParserManager
 
 
-class Bootstrap(object):
+class Bootstrap(Component):
 
     def __init__(self, factory, binding):
         pass
