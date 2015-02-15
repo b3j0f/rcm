@@ -52,11 +52,19 @@ class Controller(Component):
 
         super(Controller, self).__init__(*args, **kwargs)
         # set components
-        self.components = set() if components is None else components
+        self._components = set()
+        self.components = components
         # set impl annotation types
         self.impl_ann_types = set() if impl_ann_types is None else set(
             impl_ann_types
         )
+
+    def __del__(self):
+
+        super(Controller, self).__del__()
+        # unbind from self components
+        for component in self.components:
+            Controller.unbind_from(component, self)
 
     @property
     def components(self):
@@ -71,15 +79,18 @@ class Controller(Component):
         :param value: new components to use.
         :type value: Component or iterable of Components
         """
+
         # ensure value is a set of components
-        if isinstance(value, Component):
+        if value is None:
+            value = set()
+        elif isinstance(value, Component):
             value = set([value])
         else:
             value = set(value)
         # unbind from old components
-        old_components = self.components - value
+        old_components = self._components - value
         for component in old_components:
-            del component[self.get_name()]
+            Controller.unbind_from(component, self)
         # update new components
         self._components = value
 
@@ -95,17 +106,38 @@ class Controller(Component):
 
     def bind(self, component, name, *args, **kwargs):
         # add component to self.components
-        self.components.add(component)
+        self._components.add(component)
         # apply impl_ann_types
         for annotation in self.impl_ann_types:
             annotation.apply(component=component)
 
     def unbind(self, component, name, *args, **kwargs):
         # remove component from self.components
-        self.components.remove(component)
+        self._components.remove(component)
         # unapply impl_ann_types
         for annotation in self.impl_ann_types:
             annotation.unapply(component=component)
+
+    @staticmethod
+    def bind_to(component, *controllers):
+        """Bind controllers to input component.
+
+        :param Component component: component where bind ipnut controllers.
+        :param list controllers: controllers to bind to input component.
+        """
+
+        for controller in controllers:
+            component[controller.get_name()] = controller
+
+    @staticmethod
+    def unbind_from(component, *controllers):
+        """Unbind controllers from input component.
+
+        :param Component component: component where unbind input controllers.
+        """
+
+        for controller in controllers:
+            component.pop(controller.get_name(), None)
 
     @classmethod
     def get_controller(cls, component):

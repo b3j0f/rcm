@@ -39,11 +39,11 @@ class ComponentTest(UTCase):
             super(ComponentTest.TestPort, self).__init__(*args, **kwargs)
             self.componentest = componentest
 
-        def bind(self, component, port_name, *args, **kwargs):
+        def bind(self, component, name, *args, **kwargs):
 
             self.componentest.bindcount -= 1
 
-        def unbind(self, component, port_name, *args, **kwargs):
+        def unbind(self, component, name, *args, **kwargs):
 
             self.componentest.unbindcount -= 1
 
@@ -282,6 +282,53 @@ class ComponentTest(UTCase):
         )
 
         self.assertEqual(len(ports), components_count)
+
+    def test__del__(self):
+        """Test to delete component with __del__ method.
+        """
+
+        self._init_component_with_ports()
+
+        self.component.__del__()
+
+        self.assertEqual(len(self.component), 0)
+        self.assertEqual(self.unbindcount, 0)
+
+    def test_del(self):
+        """Test to delete component with del operator.
+        """
+
+        self._init_component_with_ports()
+
+        del self.component
+
+        self.assertEqual(self.unbindcount, 0)
+
+    def test_contains_str(self):
+        """Test contains method with a str.
+        """
+
+        names = 'test', 'example'
+        value = 'testcase'
+
+        self.component[names[0]] = None
+        self.component[names[1]] = value
+
+        self.assertIn(names[0], self.component)
+        self.assertNotIn('not existing', self.component)
+        self.assertIn(names[1], self.component)
+        self.assertIn(value, self.component)
+
+    def test_contains(self):
+        """Test contains method with an object.
+        """
+
+        name = 'test'
+        values = None, Component(), 2
+
+        for value in values:
+            self.component[name] = value
+            self.assertIn(value, self.component)
 
 if __name__ == '__main__':
     main()

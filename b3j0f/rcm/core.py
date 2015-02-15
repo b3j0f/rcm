@@ -62,7 +62,7 @@ class Component(dict):
 
     def __hash__(self):
 
-        return self._id
+        return hash(self._id)
 
     def __delitem__(self, key):
 
@@ -70,7 +70,7 @@ class Component(dict):
         port = self[key]
         if isinstance(port, Component):
             # unbind it from self
-            port.unbind(component=self, port_name=key)
+            port.unbind(component=self, name=key)
         # and call super __delitem__
         super(Component, self).__delitem__(key)
 
@@ -80,11 +80,11 @@ class Component(dict):
         if key in self:
             old_value = self[key]
             if isinstance(old_value, Component):
-                old_value.unbind(component=self, port_name=key)
+                old_value.unbind(component=self, name=key)
         # if value is a component
         if isinstance(value, Component):
             # bind it to self
-            value.bind(component=self, port_name=key)
+            value.bind(component=self, name=key)
         # and call super __setitem__
         super(Component, self).__setitem__(key, value)
 
@@ -99,6 +99,33 @@ class Component(dict):
             result = '{0}, {1}={2}'.format(result, slot, attr)
 
         result += ')'
+
+        return result
+
+    def __del__(self):
+
+        self.clear()
+
+    def __contains__(self, value):
+        """Check if value is in self ports depending on value type:
+
+        - str: search among port names then among ports.
+        - other: search among ports.
+
+        :param value: value to search among ports or port names.
+        :type value: str or object
+        :return: True if value is among self ports.
+        :rtype: bool
+        """
+
+        result = False
+
+        # in case of str, search among keys
+        if isinstance(value, basestring):
+            result = super(Component, self).__contains__(value)
+
+        if not result:  # otherwise, search among values
+            result = value in self.values()
 
         return result
 
@@ -129,20 +156,20 @@ class Component(dict):
         for name in self.keys():
             del self[name]
 
-    def bind(self, component, port_name):
+    def bind(self, component, name):
         """Callback method before self is bound to a component.
 
         :param Component component: new component from where this one is bound.
-        :param str port_name: port name from where self is bound to component.
+        :param str name: port name from where self is bound to component.
         """
 
         pass
 
-    def unbind(self, component, port_name):
+    def unbind(self, component, name):
         """Callback method before self is bound to a component.
 
         :param Component component: component from where this one is unbound.
-        :param str port_name: port name from where self is unbound.
+        :param str name: port name from where self is unbound.
         """
 
         pass

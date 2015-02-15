@@ -81,10 +81,10 @@ def get_bootstrap_component(renew=False):
 
     return bootstrap
 
-from pyrcm.core import Reference, Service
-from pyrcm.factory import FactoryManager
-from pyrcm.binding import BindingManager
-from pyrcm.parser.core import ParserManager
+from b3j0f.rcm.core import Component
+from b3j0f.rcm.factory import FactoryManager
+from b3j0f.rcm.binding import BindingManager
+from b3j0f.rcm.parser.core import ParserManager
 
 
 class Bootstrap(Component):
