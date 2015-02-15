@@ -330,5 +330,22 @@ class ComponentTest(UTCase):
             self.component[name] = value
             self.assertIn(value, self.component)
 
+    def test_pop(self):
+        """Test pop method.
+        """
+
+        name = 'test'
+        value = 1
+
+        self.component[name] = value
+
+        v = self.component.pop(name)
+        self.assertIs(v, value)
+
+        v = self.component.pop(name, None)
+        self.assertIsNone(v)
+
+        self.assertRaises(KeyError, self.component.pop, name)
+
 if __name__ == '__main__':
     main()

@@ -134,14 +134,26 @@ class Port(Component):
 
     @property
     def interfaces(self):
+        """Return an array of self interfaces
+        """
 
-        return self._interfaces
+        return [self._interfaces]
 
     @interfaces.setter
     def interfaces(self, value):
 
         self._lock.acquire()
-        self._interfaces = value
+
+        # ensure interfaces are a set of types
+        if isinstance(value, basestring):
+            value = {lookup(value)}
+        elif isinstance(value, type):
+            value = {value}
+        # convert all str to type
+        self._interfaces = [
+            v if isinstance(v, type) else lookup(v) for v in value
+        ]
+
         self._lock.release()
 
 
@@ -153,7 +165,7 @@ class InputPort(Port):
 
 
 class Input(ParameterizedImplAnnotation):
-    """Impl In injector which uses a name in order to inject a In Port.
+    """InputPort injector which uses a name in order to inject a InputPort.
     """
 
     NAME = 'name'  #: input port name field name

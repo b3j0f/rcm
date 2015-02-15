@@ -156,6 +156,18 @@ class Component(dict):
         for name in self.keys():
             del self[name]
 
+    def pop(self, key, *default):
+        # unbind manually port
+        result = default
+
+        if key in self.keys():
+            result = self[key]
+            del self[key]
+        else:
+            result = super(Component, self).pop(key, *default)
+
+        return result
+
     def bind(self, component, name):
         """Callback method before self is bound to a component.
 

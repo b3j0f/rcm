@@ -70,7 +70,7 @@ class Controller(Component):
     def components(self):
         """Get a copy of components.
         """
-        return set(self._components)
+        return list(self._components)
 
     @components.setter
     def components(self, value):
@@ -91,6 +91,9 @@ class Controller(Component):
         old_components = self._components - value
         for component in old_components:
             Controller.unbind_from(component, self)
+        # bind to new components
+        for component in value:
+            Controller.bind_to(component, self)
         # update new components
         self._components = value
 
@@ -148,6 +151,7 @@ class Controller(Component):
         :rtype: Controller
         """
 
-        result = component.get(cls.get_name())
+        controller_name = cls.get_name()
+        result = component.get(controller_name)
 
         return result
