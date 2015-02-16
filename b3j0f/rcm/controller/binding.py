@@ -24,22 +24,20 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-from abc import ABCMeta
-
-from inspect import getmembers, isroutine, isclass
-
-from functools import wraps
-
 try:
     from threading import Lock
 except ImportError:
     from dummy_threading import Lock
 
-from b3j0f.utils.version import basestring, PY2
+from b3j0f.annotation.check import Target
+from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
+from b3j0f.utils.proxy import get_proxy
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
-from b3j0f.rcm.controller.impl import ParameterizedImplAnnotation, Context
+from b3j0f.rcm.controller.impl import (
+    ParameterizedImplAnnotation, Context, ImplController
+)
 
 
 class BindingController(Controller):
@@ -107,7 +105,7 @@ class Binding(Context):
 
     __slots__ = Context.__slots__
 
-    def __init__(self, name=BindingController.get_name(), *args, **kwargs):
+    def __init__(self, name=BindingController.ctrl_name(), *args, **kwargs):
 
         super(Binding, self).__init__(name=name, *args, **kwargs)
 
@@ -146,9 +144,9 @@ class Port(Component):
 
         # ensure interfaces are a set of types
         if isinstance(value, basestring):
-            value = {lookup(value)}
+            value = set([lookup(value)])
         elif isinstance(value, type):
-            value = {value}
+            value = set([value])
         # convert all str to type
         self._interfaces = [
             v if isinstance(v, type) else lookup(v) for v in value
@@ -208,31 +206,16 @@ class PortBinding(Component):
 
             self.update_proxy()
 
-    def update_proxy(self, interfaces, name):
+    def update_proxy(self, component, interfaces, name):
         """Renew a proxy.
         """
 
         self._lock.acquire()
 
-        # if one interface is a class, generate a class proxy,
-        # otherwise generate a function wrapper
-        content = {}
-        isClass = False
-        for interface in interfaces:
-            if isclass(interface):
-                isClass = True
-                for name, member in getmembers(
-                    interface, lambda m: isroutine(m)
-                ):
-                    content[name] = member
-            elif isroutine(interface):
-                interface_name = interface.__name__
-                content[interface_name] = interface
+        impl = ImplController.get_impl(component)
 
-        if isClass:
-            self._proxy = _ContentProxy(bases=interface)
-        else:
-            self._proxy = _ContentProxyMeta.get_proxy(interfaces)
+        if impl is not None:
+            self._proxy = get_proxy(impl, interfaces)
 
         self._lock.release()
 
@@ -265,63 +248,6 @@ class OutputPort(Port):
         Output.unapply(component=component)
 
 
-class _ContentProxyMeta(ABCMeta):
-    """Meta class for port binding proxies.
-    """
-
-    def __call__(cls, bases, instance, *args, **kwargs):
-        """A proxy may be called with base types and a reference to an
-        instance.
-
-        :param cls: cls to instantiate.
-        :param bases: base types to enrich in the result cls.
-        """
-
-        result = super(OutputPort.ProxyMeta, cls).__call__(*args, **kwargs)
-        # ensure bases are a set of types
-        if issubclass(bases, type):
-            bases = [bases]
-        # enrich cls with base types
-        for base in bases:
-            # register base in cls
-            cls.register(base)
-            # enrich methods/functions
-            for name, member in getmembers(
-                base, lambda member: isroutine(member)
-            ):
-                if not hasattr(cls, name):
-                    proxy = OutputPort.ProxyMeta.get_proxy(member)
-                    if proxy is not None:
-                        setattr(cls, name, proxy)
-
-        return result
-
-    @staticmethod
-    def get_proxy(target, instance=None, name=None):
-
-        @wraps(target, {}, {})
-        def result(*args, **kwargs):
-            if instance is None:
-                result = target(*args, **kwargs)
-            else:
-                result = getattr(instance, name)(*args, **kwargs)
-
-            return result
-
-        return result
-
-if PY2:
-    class _ContentProxy(object):
-        """Output proxy class.
-        """
-
-        __metaclass__ = _ContentProxyMeta
-
-else:
-    class _ContentProxy(object, metaclass=_ContentProxyMeta):
-        """Output proxy class."""
-
-
 class Output(ParameterizedImplAnnotation):
     """Impl Out descriptor.
     """
@@ -346,3 +272,39 @@ class Output(ParameterizedImplAnnotation):
             value = lookup(value)
 
         self._resource = value
+
+
+@Target(type)
+class Ports(ImplAnnotation):
+    """Annotation in charge of binding ports in a component ports.
+    """
+
+    PORTS = 'ports'
+
+    __slots__ = (PORTS, ) + ImplAnnotation.__slots__
+
+    def __init__(self, ports, *args, **kwargs):
+        """
+        :param ports: ports to bind to component.
+        :type ports: dict
+        """
+        super(Ports, self).__init__(*args, **kwargs)
+
+        self.ports = ports
+
+    def apply_on(self, component, *args, **kwargs):
+
+        # iterate on all self ports
+        self_ports = self.ports
+        for port_name in self_ports:
+            port = self_ports[port_name]
+            # bind it with its name
+            component[port_name] = port
+
+    def unapply_on(self, component, *args, **kwargs):
+
+        # iterate on all self ports
+        self_ports = self.ports
+        for port_name in self_ports:
+            # bind it with its name
+            del component[port_name]

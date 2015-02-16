@@ -26,7 +26,7 @@
 
 __all__ = ['NameController', 'Name', 'SetName', 'GetName']
 
-from b3j0f.rcm.controller.composite import ScopeController
+import b3j0f.rcm.controller.content
 from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (
     ParameterizedImplAnnotation, ImplAnnotation, Context
@@ -72,11 +72,13 @@ class NameController(Controller):
 
         if self._name != value:
             for component in self.components:
-                ctrl = ScopeController.get_controller(component=component)
+                ctrl = b3j0f.rcm.controller.content.ContentController.get_controller(
+                    component=component
+                )
                 if ctrl is not None:
                     pcomponents = ctrl.parent_components
                     for pcomponent in pcomponents:
-                        pctrl = ScopeController.get_controller(
+                        pctrl = b3j0f.rcm.controller.content.ContentController.get_controller(
                             component=pcomponent
                         )
                         ccomponents = pctrl.children_components
@@ -129,7 +131,7 @@ class Name(Context):
 
     __slots__ = Context.__slots__
 
-    def __init__(self, name=NameController.get_name(), *args, **kwargs):
+    def __init__(self, name=NameController.ctrl_name(), *args, **kwargs):
 
         super(Name, self).__init__(name=name, *args, **kwargs)
 

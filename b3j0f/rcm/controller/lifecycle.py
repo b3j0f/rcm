@@ -371,7 +371,7 @@ class Lifecycle(Context):
 
     __slots__ = Context.__slots__
 
-    def __init__(self, name=LifecycleController.get_name(), *args, **kwargs):
+    def __init__(self, name=LifecycleController.ctrl_name(), *args, **kwargs):
 
         super(Lifecycle, self).__init__(name=name, *args, **kwargs)
 

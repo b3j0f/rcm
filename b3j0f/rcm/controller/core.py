@@ -98,7 +98,7 @@ class Controller(Component):
         self._components = value
 
     @classmethod
-    def get_name(cls):
+    def ctrl_name(cls):
         """Get controller unique name.
 
         :return: cls python path.
@@ -130,7 +130,7 @@ class Controller(Component):
         """
 
         for controller in controllers:
-            component[controller.get_name()] = controller
+            component[controller.ctrl_name()] = controller
 
     @staticmethod
     def unbind_from(component, *controllers):
@@ -140,7 +140,7 @@ class Controller(Component):
         """
 
         for controller in controllers:
-            component.pop(controller.get_name(), None)
+            component.pop(controller.ctrl_name(), None)
 
     @classmethod
     def get_controller(cls, component):
@@ -151,7 +151,7 @@ class Controller(Component):
         :rtype: Controller
         """
 
-        controller_name = cls.get_name()
+        controller_name = cls.ctrl_name()
         result = component.get(controller_name)
 
         return result

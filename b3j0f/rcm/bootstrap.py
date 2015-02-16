@@ -31,6 +31,10 @@ from os.path import exists, join
 from sys import path
 
 from b3j0f.rcm.core import Component
+from b3j0f.rcm.factory.core import Factory
+from b3j0f.rcm.factory import FactoryManager
+from b3j0f.rcm.binding import BindingManager, InputPort, OutputPort
+from b3j0f.rcm.parser.core import ParserManager
 
 PATHS = path[:]
 DEFAULT_FILE_PATH = 'b3j0f.rcm.conf'
@@ -57,8 +61,6 @@ def get_config(config_path=DEFAULT_FILE_PATH, paths=PATHS):
 BOOTSTRAP = 'bootstrap'
 bootstrap = None
 
-from b3j0f.rcm.factory import Factory
-
 
 def get_bootstrap_component(renew=False):
     """
@@ -81,37 +83,32 @@ def get_bootstrap_component(renew=False):
 
     return bootstrap
 
-from b3j0f.rcm.core import Component
-from b3j0f.rcm.factory import FactoryManager
-from b3j0f.rcm.binding import BindingManager
-from b3j0f.rcm.parser.core import ParserManager
-
 
 class Bootstrap(Component):
 
     def __init__(self, factory, binding):
         pass
 
-    @Reference(interface=FactoryManager)
+    @InputPort(interface=FactoryManager)
     def set_factory(self, factory):
         self.factory = factory
 
-    @Service(interface=FactoryManager)
+    @OutputPort(interface=FactoryManager)
     def get_factory(self):
         return self.factory
 
-    @Reference(interface=BindingManager)
+    @InputPort(interface=BindingManager)
     def set_binding(self, binding):
         self.binding = binding
 
-    @Service(interface=BindingManager)
+    @OutputPort(interface=BindingManager)
     def get_binding(self):
         return self.binding
 
-    @Reference(interface=ParserManager)
+    @InputPort(interface=ParserManager)
     def set_parser(self, parser):
         self.parser = parser
 
-    @Service(interface=ParserManager)
+    @OutputPort(interface=ParserManager)
     def get_parser(self):
         return self.binding

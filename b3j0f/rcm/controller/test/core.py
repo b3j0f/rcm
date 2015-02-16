@@ -95,7 +95,7 @@ class ControllerTest(UTCase):
                 _controller = controller.__class__.get_controller(component)
                 self.assertIs(_controller, controller)
                 # assert controller is missing after unbind it from component
-                del component[controller.get_name()]
+                del component[controller.ctrl_name()]
                 _controller = controller.__class__.get_controller(component)
                 self.assertIsNone(_controller)
                 # assert with not existing controller

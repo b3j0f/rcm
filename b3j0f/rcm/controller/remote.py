@@ -28,8 +28,7 @@ from b3j0f.rcm.controller.core import Controller
 
 
 class RemoteController(Controller):
-    """
-    Controller dedicated to manage component remote access.
+    """Controller dedicated to manage component remote access.
     """
 
     pass

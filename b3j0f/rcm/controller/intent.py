@@ -198,6 +198,6 @@ class Intent(Context):
     """Inject an IntentController into a component implementation.
     """
 
-    def __init__(self, name=IntentController.get_name(), *args, **kwargs):
+    def __init__(self, name=IntentController.ctrl_name(), *args, **kwargs):
 
         super(Intent, self).__init__(name=name, *args, **kwargs)

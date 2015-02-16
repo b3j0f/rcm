@@ -24,8 +24,7 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-"""
-Regroup all controller annotations.
+"""Regroup all controller annotations.
 """
 
 __all__ = [
@@ -75,11 +74,11 @@ class Controllers(ImplAnnotation):
             # if controller is an instance of Controller
             if isinstance(controller, Controller):
                 # bind it with its name
-                component[controller.get_name()] = controller
+                component[controller.ctrl_name()] = controller
 
     def unapply_on(self, component, *args, **kwargs):
 
         # iterate on all self controllers
         for controller in self.controllers:
             # unbind it with its name
-            del component[controller.get_name()]
+            del component[controller.ctrl_name()]

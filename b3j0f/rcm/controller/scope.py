@@ -152,7 +152,7 @@ class Scope(Context):
 
     __slots__ = Context.__slots__
 
-    def __init__(self, name=ScopeController.get_name(), *args, **kwargs):
+    def __init__(self, name=ScopeController.ctrl_name(), *args, **kwargs):
 
         super(Scope, self).__init__(name=name, *args, **kwargs)
 

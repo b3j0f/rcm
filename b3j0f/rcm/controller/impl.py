@@ -32,18 +32,16 @@ __all__ = [
     # impl annotations
     'ImplAnnotation', 'Impl', 'ParameterizedImplAnnotation', 'Context',
     'getter_name', 'setter_name',  # util function
-    'PropertyController',  # property controller
-    'Property', 'GetProperty', 'SetProperty',  # property annotations
 ]
 
+from inspect import isclass
+
 from b3j0f.annotation import Annotation
-from b3j0f.annotation.check import Target
 from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
-
-from inspect import isclass
+import b3j0f.rcm.controller.property
 
 
 class ImplController(Controller):
@@ -95,7 +93,7 @@ class ImplController(Controller):
         # get properties from the property controller and from the annotations
         if component is not None:
             # start to get params from property controller
-            pc = PropertyController.get_controller(component=component)
+            pc = b3j0f.rcm.controller.property.PropertyController.get_controller(component=component)
             if pc is not None:
                 # update params with the property controller
                 for name in pc.properties:
@@ -105,7 +103,7 @@ class ImplController(Controller):
                         params[name] = value
                 # update params with GetProperty annotations
                 # from cls
-                gps = GetProperty.get_annotations(self._cls)
+                gps = b3j0f.rcm.controller.property.GetProperty.get_annotations(self._cls)
                 for gp in gps:
                         param = gp.name if gp.param is None else gp.param
                         if param not in params:
@@ -120,7 +118,7 @@ class ImplController(Controller):
                 except AttributeError:
                     pass
                 else:
-                    gps = GetProperty.get_annotations(constructor)
+                    gps = b3j0f.rcm.controller.property.GetProperty.get_annotations(constructor)
                     for gp in gps:
                         param = gp.name if gp.param is None else gp.param
                         if param not in params:
@@ -291,42 +289,6 @@ class ImplAnnotation(Annotation):
         )
 
 
-@Target(type)
-class Ports(ImplAnnotation):
-    """Annotation in charge of binding ports in a component ports.
-    """
-
-    PORTS = 'ports'
-
-    __slots__ = (PORTS, ) + ImplAnnotation.__slots__
-
-    def __init__(self, ports, *args, **kwargs):
-        """
-        :param ports: ports to bind to component.
-        :type ports: dict
-        """
-        super(Ports, self).__init__(*args, **kwargs)
-
-        self.ports = ports
-
-    def apply_on(self, component, *args, **kwargs):
-
-        # iterate on all self ports
-        self_ports = self.ports
-        for port_name in self_ports:
-            port = self_ports[port_name]
-            # bind it with its name
-            component[port_name] = port
-
-    def unapply_on(self, component, *args, **kwargs):
-
-        # iterate on all self ports
-        self_ports = self.ports
-        for port_name in self_ports:
-            # bind it with its name
-            del component[port_name]
-
-
 class ParameterizedImplAnnotation(ImplAnnotation):
     """Abstract annotation which takes in parameter a param in order to inject
     a resource with a dedicated parameter name in a routine.
@@ -409,7 +371,7 @@ class Impl(Context):
 
     __slots__ = Context.__slots__
 
-    def __init__(self, name=ImplController.get_name(), *args, **kwargs):
+    def __init__(self, name=ImplController.ctrl_name(), *args, **kwargs):
 
         super(Impl, self).__init__(name=name, *args, **kwargs)
 
@@ -440,79 +402,3 @@ def setter_name(setter):
     """
 
     return _accessor_name('set')
-
-
-class PropertyController(Controller):
-    """Dedicated to manage component parameters.
-    """
-
-    PROPERTIES = 'properties'  #: properties field name
-
-    __slots__ = (PROPERTIES, ) + Controller.__slots__
-
-    def __init__(self, properties=None, *args, **kwargs):
-
-        super(PropertyController, self).__init__(*args, **kwargs)
-        self.properties = {} if properties is None else properties
-
-
-class Property(Context):
-    """Inject a PropertyController in an implementation.
-    """
-
-    __slots__ = Context.__slots__
-
-    def __init__(self, name=PropertyController.get_name(), *args, **kwargs):
-
-        super(Property, self).__init__(name=name, *args, **kwargs)
-
-
-class _PropertyAnnotation(ParameterizedImplAnnotation):
-
-    NAME = 'name'  #: name field name
-
-    __slots__ = (NAME, ) + ParameterizedImplAnnotation.__slots__
-
-    def __init__(self, name, *args, **kwargs):
-
-        super(_PropertyAnnotation, self).__init__(*args, **kwargs)
-
-        self.name = name
-
-
-class SetProperty(_PropertyAnnotation):
-    """Set a property value from an implementation attr.
-    """
-
-    __slots__ = _PropertyAnnotation.__slots__
-
-    def get_resource(self, component, attr, *args, **kwargs):
-
-        pc = PropertyController.get_controller(component=component)
-
-        if pc is not None:
-            # get the right name
-            name = setter_name(attr) if self.name is None else self.name
-            # and the right property
-            result = pc.properties[name]
-
-        return result
-
-
-class GetProperty(_PropertyAnnotation):
-    """Get a property value from an implementation attr.
-    """
-
-    __slots__ = _PropertyAnnotation.__slots__
-
-    def apply_on(self, component, attr, *args, **kwargs):
-
-        pc = PropertyController.get_controller(component=component)
-
-        if pc is not None:
-            # get attr result
-            value = attr()
-            # get the right name
-            name = getter_name(attr) if self.name is None else self.name
-            # udate property controller
-            pc.properties[name] = value

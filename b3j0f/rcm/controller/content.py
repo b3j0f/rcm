@@ -28,7 +28,7 @@ __all__ = ['ContentController', 'Content', 'Add', 'Remove']
 
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
-from b3j0f.rcm.controller.name import NameController
+import b3j0f.rcm.controller.name
 from b3j0f.rcm.controller.impl import Context, ParameterizedImplAnnotation
 
 
@@ -74,11 +74,12 @@ class ContentController(Controller):
             value = [value]
 
         names = set(
-            NameController.get_name(component) for component in self._content
+            b3j0f.rcm.controller.name.NameController.get_name(component)
+            for component in self._content
         )
 
         for component in value:
-            cname = NameController.get_name(component)
+            cname = b3j0f.rcm.controller.name.NameController.get_name(component)
             if cname is not None and cname not in names:
                 self._content.add(component)
             else:
@@ -91,7 +92,7 @@ class ContentController(Controller):
     def __isub__(self, value):
 
         if isinstance(value, Component):
-            value = {value}
+            value = set([value])
         else:
             value = set(value)
 
@@ -149,7 +150,7 @@ class Content(Context):
 
     __slots__ = Context.__slots__
 
-    def __init__(self, name=ContentController.get_name(), *args, **kwargs):
+    def __init__(self, name=ContentController.ctrl_name(), *args, **kwargs):
 
         super(Content, self).__init__(name=name, *args, **kwargs)
 
