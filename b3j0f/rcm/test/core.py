@@ -150,6 +150,25 @@ class ComponentTest(UTCase):
             self.assertEqual(self.bindcount, bindcount)
             self.assertEqual(self.unbindcount, self.number_of_testport)
 
+    def test_pop(self):
+        """
+        Test pop method.
+        """
+
+        self._init_component_with_ports()
+
+        self.assertRaises(KeyError, self.component.pop, '')
+
+        poped_value = self.component.pop('', 5)
+        self.assertIs(poped_value, 5)
+
+        for name in self.named_ports:
+            named_port = self.named_ports[name]
+            port = self.component.pop(name)
+            self.assertIs(port, named_port)
+
+        self.assertFalse(self.component)
+
     def test_init_ports(self):
         """
         Test to init ports.
@@ -330,22 +349,87 @@ class ComponentTest(UTCase):
             self.component[name] = value
             self.assertIn(value, self.component)
 
-    def test_pop(self):
-        """Test pop method.
+    def test_get_cls_ports_default(self):
+        """
+        Test get_cls_ports method without parameters.
         """
 
-        name = 'test'
-        value = 1
+        self._init_component_with_ports()
 
-        self.component[name] = value
+        ports = Component.get_cls_ports(self.component)
 
-        v = self.component.pop(name)
-        self.assertIs(v, value)
+        component_ports = {}
+        for name in self.named_ports:
+            port = self.named_ports[name]
+            if isinstance(port, Component):
+                component_ports[name] = port
 
-        v = self.component.pop(name, None)
-        self.assertIsNone(v)
+        self.assertEqual(ports, component_ports)
 
-        self.assertRaises(KeyError, self.component.pop, name)
+    def test_get_cls_ports_name(self):
+        """
+        Test get_cls_ports method with name.
+        """
+
+        self._init_component_with_ports()
+
+        for name in self.named_ports:
+            port = self.named_ports[name]
+            if isinstance(port, Component):
+                ports = Component.get_cls_ports(self.component, names=name)
+                self.assertEqual(len(ports), 1)
+                self.assertIn(name, ports)
+
+    def test_get_cls_ports_names(self):
+        """
+        Test get_cls_ports method with names.
+        """
+
+        self._init_component_with_ports()
+        names = [
+            name for name in self.named_ports
+            if isinstance(self.named_ports[name], Component)
+        ]
+        ports = Component.get_cls_ports(self.component, names=names)
+
+        self.assertEqual(len(ports), len(names))
+        for name in names:
+            self.assertIn(name, ports)
+
+    def test_get_cls_ports_type(self):
+        """
+        Test get_cls_ports method with type.
+        """
+
+        self._init_component_with_ports()
+
+        ports = ComponentTest.TestPort.get_cls_ports(self.component)
+
+        self.assertEqual(len(ports), self.number_of_testport)
+        for name in ports:
+            port = ports[name]
+            self.assertTrue(isinstance(port, ComponentTest.TestPort))
+
+    def test_get_cls_ports_select(self):
+        """
+        Test get_cls_ports method with a combination of names and types.
+        """
+
+        self._init_component_with_ports()
+
+        components_count = len(
+            [
+                port for port in self.named_ports.values()
+                if isinstance(port, Component)
+            ]
+        )
+
+        ports = Component.get_cls_ports(
+            self.component,
+            select=lambda name, port: isinstance(port, Component)
+        )
+
+        self.assertEqual(len(ports), components_count)
 
 if __name__ == '__main__':
     main()

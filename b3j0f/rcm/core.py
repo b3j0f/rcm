@@ -157,9 +157,9 @@ class Component(dict):
             del self[name]
 
     def pop(self, key, *default):
-        # unbind manually port
-        result = default
 
+        result = default
+        # unbind manually port
         if key in self.keys():
             result = self[key]
             del self[key]
