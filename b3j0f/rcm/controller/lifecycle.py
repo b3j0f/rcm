@@ -33,7 +33,7 @@ from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (
     Impl, ParameterizedImplAnnotation, Context
 )
-from b3j0f.rcm.controller.binding import OutputPort
+from b3j0f.rcm.controller.binding import OutputProxy
 from b3j0f.rcm.controller.content import ContentController
 from b3j0f.aop import weave, unweave
 
@@ -45,7 +45,7 @@ class LifecycleController(Controller):
     Default START and STOP status are defined.
 
     Even if it is possible to play with different statuses, the lifecycle
-    controller uses a list of halting_statuses (contains STOP by default).
+    controller uses a list of idle_statuses (contains STOP by default).
     If such status is encountered, the lifecycle will intercept any ports bound
     to the component implementation and keep in memory calls or drop them in
     raising a LifecycleError.
@@ -93,7 +93,7 @@ class LifecycleController(Controller):
         def proceed(self):
             """Proceed this call.
 
-            Wait until LifecycleController leave an halting_status or this is
+            Wait until LifecycleController leave an idle_status or this is
             disabled.
 
             :return: joinpoint proceeding result.
@@ -101,7 +101,7 @@ class LifecycleController(Controller):
             """
             result = None
 
-            self.lc.condition.wait()
+            self.condition.wait()
 
             if self.enabled:
                 result = self.joinpoint.proceed()
@@ -118,7 +118,7 @@ class LifecycleController(Controller):
     START = 'START'  #: START status value
     STOP = 'STOP'  #: STOP status value
 
-    HALTING_STATUSES = '_halting_statuses'  #: halting_status field name
+    IDLE_STATUSES = '_idle_statuses'  #: idle_status field name
 
     STATUS = '_status'  #: status field name
     PROPAGATE = 'propagate'  #: propagation of changing of status field name
@@ -126,12 +126,13 @@ class LifecycleController(Controller):
     DEFAULT_KEEP_LAST = False
     DEFAULT_MEM_SIZE = 50  #: default mem size
     DEFAULT_PROPAGATE = True  #: default propagate value
+    DEFAULT_IDLE_STATUSES = set([STOP])  #: default idle statuses
 
     _LOCK = '_lock'  #: private lock field name
     _CALLSTACK = '_callstack'  #: private callstack field name
 
     __slots__ = (
-        STATUS, KEEP_LAST, MEM_SIZE, HALTING_STATUSES, PROPAGATE,  # public
+        STATUS, KEEP_LAST, MEM_SIZE, IDLE_STATUSES, PROPAGATE,  # public
         _LOCK, _CALLSTACK  # private
     ) + Controller.__slots__
 
@@ -140,7 +141,7 @@ class LifecycleController(Controller):
         status=STOP,
         keep_last=DEFAULT_KEEP_LAST,
         mem_size=DEFAULT_MEM_SIZE,
-        halting_status=[STOP],
+        idle_statuses=DEFAULT_IDLE_STATUSES,
         propagate=DEFAULT_PROPAGATE,
         *args, **kwargs
     ):
@@ -148,7 +149,7 @@ class LifecycleController(Controller):
         self.status = status
         self.keep_last = keep_last
         self.mem_size = mem_size
-        self.halting_status = halting_status
+        self.idle_statuses = idle_statuses
         self.propagate = propagate
         self._lock = Lock()
         self._callstack = []
@@ -167,7 +168,7 @@ class LifecycleController(Controller):
         result = None
 
         # if this is halted
-        if self._status in self._halting_statuses:
+        if self._status in self._idle_statuses:
             # if mem_size is 0, raise a RuntimeError
             if self._mem_size == 0:
                 raise LifecycleController.LifecycleError(
@@ -237,15 +238,20 @@ class LifecycleController(Controller):
         self._lock.release()
 
     @property
-    def halting_statuses(self):
-        return self._halting_statuses
+    def idle_statuses(self):
+        return self._idle_statuses
 
-    @halting_statuses.setter
-    def halting_statuses(self, value):
+    @idle_statuses.setter
+    def idle_statuses(self, value):
 
         self._lock.acquire()
-        self._halting_statuses = value
+        self._idle_statuses = value
         self._lock.release()
+
+    @property
+    def idle(self):
+
+        return self._status in self._idle_statuses
 
     @property
     def status(self):
@@ -302,11 +308,11 @@ class LifecycleController(Controller):
                     check=check
                 )
 
-            # if lifecycle controller enters in an halting status
-            if value in self._halting_statuses:
+            # if lifecycle controller enters in an idle status
+            if self.idle:
                 # weave advices
                 for component in self.components:
-                    ports = OutputPort.get_cls_ports(component=component)
+                    ports = OutputProxy.get_cls_ports(component=component)
                     for port in ports:
                         weave(port, advices=self.intercept)
 
@@ -315,7 +321,7 @@ class LifecycleController(Controller):
                 self.clear()
                 # unweave advices
                 for component in self.components:
-                    ports = OutputPort.get_cls_ports(component=component)
+                    ports = OutputProxy.get_cls_ports(component=component)
                     for port in ports:
                         unweave(port, advices=self.intercept)
 

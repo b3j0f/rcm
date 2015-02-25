@@ -28,7 +28,7 @@ __all__ = ['ContentController', 'Content', 'Add', 'Remove']
 
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
-import b3j0f.rcm.controller.name
+from b3j0f.rcm.controller.name import NameController
 from b3j0f.rcm.controller.impl import Context, ParameterizedImplAnnotation
 
 
@@ -74,12 +74,12 @@ class ContentController(Controller):
             value = [value]
 
         names = set(
-            b3j0f.rcm.controller.name.NameController.get_name(component)
+            NameController.get_name(component)
             for component in self._content
         )
 
         for component in value:
-            cname = b3j0f.rcm.controller.name.NameController.get_name(component)
+            cname = NameController.get_name(component)
             if cname is not None and cname not in names:
                 self._content.add(component)
             else:

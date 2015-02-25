@@ -26,7 +26,7 @@
 
 """Contains definition of main controllers.
 """
-"""
+
 __all__ = [
     'Controller',
     'ImplController',
@@ -40,10 +40,7 @@ __all__ = [
 ]
 
 from b3j0f.rcm.controller.core import Controller
-import b3j0f.rcm.controller.impl as impl
-ImplController = impl.ImplController
-del b3j0f.rcm.controller.impl
-#from b3j0f.rcm.controller.impl import ImplController
+from b3j0f.rcm.controller.impl import ImplController
 from b3j0f.rcm.controller.binding import BindingController
 from b3j0f.rcm.controller.lifecycle import LifecycleController
 from b3j0f.rcm.controller.name import NameController
@@ -51,4 +48,3 @@ from b3j0f.rcm.controller.remote import RemoteController
 from b3j0f.rcm.controller.intent import IntentController
 from b3j0f.rcm.controller.content import ContentController
 from b3j0f.rcm.controller.property import PropertyController
-"""

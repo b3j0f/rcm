@@ -36,14 +36,16 @@ class ComponentTest(UTCase):
     class TestPort(Component):
 
         def __init__(self, componentest, *args, **kwargs):
+
             super(ComponentTest.TestPort, self).__init__(*args, **kwargs)
+
             self.componentest = componentest
 
-        def bind(self, component, name, *args, **kwargs):
+        def on_bind(self, component, name, *args, **kwargs):
 
             self.componentest.bindcount -= 1
 
-        def unbind(self, component, name, *args, **kwargs):
+        def on_unbind(self, component, name, *args, **kwargs):
 
             self.componentest.unbindcount -= 1
 

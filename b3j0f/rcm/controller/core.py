@@ -26,7 +26,6 @@
 
 __all__ = ['Controller']
 
-from b3j0f.utils.path import getpath
 from b3j0f.rcm.core import Component
 
 
@@ -64,7 +63,7 @@ class Controller(Component):
         super(Controller, self).__del__()
         # unbind from self components
         for component in self.components:
-            Controller.unbind_from(component, self)
+            Controller.unbind_all(component, self)
 
     @property
     def components(self):
@@ -90,10 +89,10 @@ class Controller(Component):
         # unbind from old components
         old_components = self._components - value
         for component in old_components:
-            Controller.unbind_from(component, self)
+            Controller.unbind_all(component, self)
         # bind to new components
         for component in value:
-            Controller.bind_to(component, self)
+            Controller.bind_all(component, self)
         # update new components
         self._components = value
 
@@ -105,16 +104,20 @@ class Controller(Component):
         :rtype: str
         """
 
-        return getpath(cls)
+        cls_name = cls.__name__
 
-    def bind(self, component, name, *args, **kwargs):
+        result = "/{0}".format(cls_name)
+
+        return result
+
+    def on_bind(self, component, name, *args, **kwargs):
         # add component to self.components
         self._components.add(component)
         # apply impl_ann_types
         for annotation in self.impl_ann_types:
             annotation.apply(component=component)
 
-    def unbind(self, component, name, *args, **kwargs):
+    def on_unbind(self, component, name, *args, **kwargs):
         # remove component from self.components
         self._components.remove(component)
         # unapply impl_ann_types
@@ -122,8 +125,8 @@ class Controller(Component):
             annotation.unapply(component=component)
 
     @staticmethod
-    def bind_to(component, *controllers):
-        """Bind controllers to input component.
+    def bind_all(component, *controllers):
+        """Bind all controllers to input component.
 
         :param Component component: component where bind ipnut controllers.
         :param list controllers: controllers to bind to input component.
@@ -133,8 +136,8 @@ class Controller(Component):
             component[controller.ctrl_name()] = controller
 
     @staticmethod
-    def unbind_from(component, *controllers):
-        """Unbind controllers from input component.
+    def unbind_all(component, *controllers):
+        """Unbind all controllers from input component.
 
         :param Component component: component where unbind input controllers.
         """

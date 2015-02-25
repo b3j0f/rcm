@@ -30,7 +30,9 @@ __all__ = [
 ]
 
 from b3j0f.rcm.controller.core import Controller
-import b3j0f.rcm.controller.impl
+from b3j0f.rcm.controller.impl import (
+    Context, ParameterizedImplAnnotation, getter_name, setter_name
+)
 
 
 class PropertyController(Controller):
@@ -47,11 +49,11 @@ class PropertyController(Controller):
         self.properties = {} if properties is None else properties
 
 
-class Property(b3j0f.rcm.controller.impl.Context):
+class Property(Context):
     """Inject a PropertyController in an implementation.
     """
 
-    __slots__ = impl.Context.__slots__
+    __slots__ = Context.__slots__
 
     def __init__(
         self, name=PropertyController.ctrl_name(), *args, **kwargs
@@ -60,11 +62,11 @@ class Property(b3j0f.rcm.controller.impl.Context):
         super(Property, self).__init__(name=name, *args, **kwargs)
 
 
-class _PropertyAnnotation(impl.ParameterizedImplAnnotation):
+class _PropertyAnnotation(ParameterizedImplAnnotation):
 
     NAME = 'name'  #: name field name
 
-    __slots__ = (NAME, ) + impl.ParameterizedImplAnnotation.__slots__
+    __slots__ = (NAME, ) + ParameterizedImplAnnotation.__slots__
 
     def __init__(self, name, *args, **kwargs):
 
@@ -85,7 +87,7 @@ class SetProperty(_PropertyAnnotation):
 
         if pc is not None:
             # get the right name
-            name = impl.setter_name(attr) if self.name is None else self.name
+            name = setter_name(attr) if self.name is None else self.name
             # and the right property
             result = pc.properties[name]
 
@@ -106,6 +108,6 @@ class GetProperty(_PropertyAnnotation):
             # get attr result
             value = attr()
             # get the right name
-            name = impl.getter_name(attr) if self.name is None else self.name
+            name = getter_name(attr) if self.name is None else self.name
             # udate property controller
             pc.properties[name] = value

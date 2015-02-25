@@ -28,61 +28,72 @@
 from unittest import main
 
 from b3j0f.utils.ut import UTCase
+from b3j0f.utils.path import getpath
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
-from b3j0f.rcm.controller.name import (
-    NameController, GetName, SetName
+from b3j0f.rcm.controller.impl import (
+    ImplController, Impl, ImplAnnotation, ParameterizedImplAnnotation, Context
 )
-from b3j0f.rcm.controller.impl import ImplController
 
 
-class Business(object):
-
-    @GetName()
-    def get_name(self):
-        return self.name if hasattr(self, 'name') else type(self).__name__
-
-    @SetName()
-    def set_name(self, name):
-        self.name = name
-
-
-class NameTest(UTCase):
+class ImplControllerTest(UTCase):
+    """Test impl controller.
+    """
 
     def setUp(self):
-        self.name = 'NameTest'
-        self.component = Component()
-        self.controller = NameController(name=self.name)
-        self.implController = ImplController()
-        Controller.bind_to(
-            self.component, self.controller, self.implController
-        )
 
-    def testNameController(self):
+        self.controller = ImplController()
 
-        self.assertEquals(self.controller.name, self.name)
-        self.assertEquals(NameController.get_name(self.component), self.name)
+    def test_cls_str(self):
+        """Test cls property with a name.
+        """
 
-        self.name += self.name
+        self.controller.cls = getpath(ImplControllerTest)
+        self.assertIs(self.controller.cls, ImplControllerTest)
 
-        self.controller.name = self.name
+    def test_cls_cls(self):
+        """Test cls property with cls.
+        """
 
-        self.assertEquals(self.controller.name, self.name)
-        self.assertEquals(NameController.get_name(self.component), self.name)
+        self.controller.cls = ImplControllerTest
+        self.assertIs(self.controller.cls, ImplControllerTest)
 
-    def testContextName(self):
+    def test_cls_none(self):
+        """Test to Nonify cls property.
+        """
 
-        self.assertEquals(self.name, self.controller.name)
+        self.test_cls_cls()
 
-        ImplController.update_impl(self.component, Business)
-        self.assertEquals(Business.__name__, self.controller.name)
+        self.controller.cls = None
+        self.assertIsNone(self.controller.cls)
 
-        self.controller.set_name(self.name)
-        self.assertEquals(self.name, self.controller.name)
-        self.assertEquals(
-            self.component.get_implementation().name,
-            self.controller.name
-        )
+    def test_impl(self):
+        """Test impl.
+        """
+
+        impl = object()
+
+        self.controller.impl = impl
+        self.assertIs(self.controller.impl, impl)
+        self.assertIs(self.controller.impl.__class__, object)
+
+    def test_impl_none(self):
+        """Test to nonify an impl.
+        """
+
+        self.test_impl()
+
+        self.controller.impl = None
+        self.assertIs(self.controller.impl, None)
+        self.assertIs(self.controller.cls, None)
+
+    def test_update(self):
+        """Test to update the controller.
+        """
+
+        class TestImplAnnotation(ImplAnnotation):
+            """
+            """
 
 if __name__ == '__main__':
     main()

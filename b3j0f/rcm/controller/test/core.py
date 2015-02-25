@@ -49,15 +49,15 @@ class ControllerTest(UTCase):
 
             self.controllertest = controllertest
 
-        def bind(self, *args, **kwargs):
+        def on_bind(self, *args, **kwargs):
 
-            super(ControllerTest.TestController, self).bind(*args, **kwargs)
+            super(ControllerTest.TestController, self).on_bind(*args, **kwargs)
 
             self.controllertest.bindcount += 1
 
-        def unbind(self, *args, **kwargs):
+        def on_unbind(self, *args, **kwargs):
 
-            super(ControllerTest.TestController, self).unbind(*args, **kwargs)
+            super(ControllerTest.TestController, self).on_unbind(*args, **kwargs)
 
             self.controllertest.unbindcount += 1
 
@@ -87,7 +87,7 @@ class ControllerTest(UTCase):
 
         # bind controllers to components
         for component in self.components:
-            Controller.bind_to(component, *self.controllers)
+            Controller.bind_all(component, *self.controllers)
 
         for controller in self.controllers:
             for component in self.components:
@@ -112,7 +112,7 @@ class ControllerTest(UTCase):
         for component in self.components:
             controllers = Controller.get_cls_ports(component)
             self.assertFalse(controllers)
-            Controller.bind_to(component, *self.controllers)
+            Controller.bind_all(component, *self.controllers)
             controllers = Controller.get_cls_ports(component)
             self.assertEqual(len(controllers), len(self.controllers))
 
@@ -126,10 +126,10 @@ class ControllerTest(UTCase):
 
         # unbind controllers from components
         for component in self.components:
-            Controller.bind_to(component, *self.controllers)
+            Controller.bind_all(component, *self.controllers)
             controllers = Controller.get_cls_ports(component)
             self.assertEqual(len(controllers), len(self.controllers))
-            Controller.unbind_from(component, *self.controllers)
+            Controller.unbind_all(component, *self.controllers)
             controllers = Controller.get_cls_ports(component)
             self.assertFalse(controllers)
 
@@ -149,7 +149,7 @@ class ControllerTest(UTCase):
             self.assertFalse(controller.components)
         # bind controllers to components
         for component in self.components:
-            Controller.bind_to(component, *self.controllers)
+            Controller.bind_all(component, *self.controllers)
 
         for controller in self.controllers:
             components = controller.components
@@ -180,7 +180,7 @@ class ControllerTest(UTCase):
         """
 
         for component in self.components:
-            Controller.bind_to(component, *self.controllers)
+            Controller.bind_all(component, *self.controllers)
 
         for controller in self.controllers:
             controller.__del__()

@@ -37,11 +37,13 @@ __all__ = [
 from inspect import isclass
 
 from b3j0f.annotation import Annotation
+from b3j0f.annotation.check import Target
 from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
-import b3j0f.rcm.controller.property
+
+from re import compile as re_compile
 
 
 class ImplController(Controller):
@@ -51,21 +53,32 @@ class ImplController(Controller):
 
     CLS = '_cls'  #: cls field name
     IMPL = '_impl'  #: impl field name
+    #: private property module field name
+    _PROPERTY = '_property'
 
-    __slots__ = (CLS, IMPL, ) + Controller.__slots__
+    __slots__ = (CLS, IMPL, _PROPERTY) + Controller.__slots__
 
-    def __init__(self, cls=None, *args, **kwargs):
+    def __init__(self, cls=None, impl=None, *args, **kwargs):
         """
         :param cls: class to use.
         :type cls: str or type
+        :param impl: class implementation.
         :param dict named_ports: named ports.
         """
 
         super(ImplController, self).__init__(*args, **kwargs)
 
+        # init private params
+        self._impl = None
+        self._cls = None
+        # init cls
         self.cls = cls
+        self.impl = impl
+        # import property module
+        import b3j0f.rcm.controller.property as prop
+        self._property = prop
 
-    def renew_impl(self, component=None, cls=None, params=None):
+    def update(self, component=None, cls=None, params=None):
         """Instantiate business element and returns it.
 
         Instantiation parameters depend on 3 levels of customisation in this
@@ -93,7 +106,9 @@ class ImplController(Controller):
         # get properties from the property controller and from the annotations
         if component is not None:
             # start to get params from property controller
-            pc = b3j0f.rcm.controller.property.PropertyController.get_controller(component=component)
+            pc = self._property.PropertyController.get_controller(
+                component=component
+            )
             if pc is not None:
                 # update params with the property controller
                 for name in pc.properties:
@@ -103,7 +118,7 @@ class ImplController(Controller):
                         params[name] = value
                 # update params with GetProperty annotations
                 # from cls
-                gps = b3j0f.rcm.controller.property.GetProperty.get_annotations(self._cls)
+                gps = self._property.GetProperty.get_annotations(self._cls)
                 for gp in gps:
                         param = gp.name if gp.param is None else gp.param
                         if param not in params:
@@ -118,7 +133,9 @@ class ImplController(Controller):
                 except AttributeError:
                     pass
                 else:
-                    gps = b3j0f.rcm.controller.property.GetProperty.get_annotations(constructor)
+                    gps = self._property.GetProperty.get_annotations(
+                        constructor
+                    )
                     for gp in gps:
                         param = gp.name if gp.param is None else gp.param
                         if param not in params:
@@ -147,15 +164,21 @@ class ImplController(Controller):
         :type value: str or type.
         :raises: TypeError in case of value is not a class.
         """
-        # if value is a str, try to find the right class
-        if isinstance(value, basestring):
-            value = lookup(value)
-        # update value only if value is a class
-        if isclass(value):
-            self._cls = value
-            self._impl = None  # and nonify the impl
-        else:  # raise TypeError if value is not a class
-            raise TypeError('value {0} must be a class'.format(value))
+
+        if value is not None:
+            # if value is a str, try to find the right class
+            if isinstance(value, basestring):
+                value = lookup(value)
+            # update value only if value is a class
+            if isclass(value):
+                self._cls = value
+                self._impl = None  # and nonify the impl
+            else:  # raise TypeError if value is not a class
+                raise TypeError('value {0} must be a class'.format(value))
+
+        else:  # clean cls and impl
+            self._cls = None  # nonify cls
+            self._impl = None  # nonify impl
 
     @property
     def impl(self):
@@ -164,13 +187,18 @@ class ImplController(Controller):
     @impl.setter
     def impl(self, value):
 
-        # update cls
-        self.cls = value.__class__
-        # and impl
-        self._impl = value
+        if value is not None:
+            # update cls
+            self._cls = value.__class__
+            # and impl
+            self._impl = value
+
+        else:
+            self._cls = None  # nonify cls
+            self._impl = None  # nonify impl
 
     @staticmethod
-    def get_cls(cls, component):
+    def get_cls(component):
         """Get ImplController cls from input component.
 
         :param Component component: component from where get class impl.
@@ -185,7 +213,7 @@ class ImplController(Controller):
         return result
 
     @staticmethod
-    def get_impl(cls, component):
+    def get_impl(component):
         """Get ImplController impl from input component.
 
         :param Component component: component from where get impl.
@@ -196,6 +224,17 @@ class ImplController(Controller):
         ic = ImplController.get_controller(component=component)
         if ic is not None:
             result = ic.impl
+
+        return result
+
+    @staticmethod
+    def update_impl(component, cls=None, params=None):
+
+        result = None
+
+        ic = ImplController.get_controller(component=component)
+        if ic is not None:
+            result = ic.update(component, cls, params)
 
         return result
 
@@ -300,7 +339,7 @@ class ParameterizedImplAnnotation(ImplAnnotation):
 
     def __init__(self, param=None, *args, **kwargs):
 
-        super(Context, self).__init__(*args, **kwargs)
+        super(ParameterizedImplAnnotation, self).__init__(*args, **kwargs)
 
         self.param = param
 
@@ -402,3 +441,272 @@ def setter_name(setter):
     """
 
     return _accessor_name('set')
+
+
+class Port(Component):
+    """Base class for InputPort and OutputPort.
+
+    Its role is to bind the component with the environment resources.
+
+    It uses interfaces in order to describe what is promoted.
+    """
+
+    CMP_PORT_SEPARATOR = ':'  #: char separator between a component and port
+
+    INTERFACES = '_interfaces'  #: interfaces field name
+    _SOURCES = '_sources'  #: source ports
+    _LOCK = '_lock'  #: private lock field name
+
+    __slots__ = (
+        INTERFACES,  # public attributes
+        _LOCK, _SOURCES  # private attributes
+    ) + Component.__slots__
+
+    def __init__(
+        self, interfaces=None, sources=None, *args, **kwargs
+    ):
+
+        super(Port, self).__init__(*args, **kwargs)
+
+        self._lock = Lock()
+        self.interfaces = interfaces
+        self._sources = []
+        self.sources = sources
+
+    @property
+    def interfaces(self):
+        """Return an array of self interfaces
+        """
+
+        return [self._interfaces]
+
+    @interfaces.setter
+    def interfaces(self, value):
+        """Update interfaces with a list of interface names/types.
+
+        :param value:
+        :type value: list or str
+        """
+
+        self._lock.acquire()
+
+        # ensure interfaces are a set of types
+        if isinstance(value, basestring):
+            value = set([lookup(value)])
+        elif isinstance(value, type):
+            value = set([value])
+        # convert all str to tuple of types
+        self._interfaces = (
+            v if isinstance(v, type) else lookup(v) for v in value
+        )
+
+        self._lock.release()
+
+    def promote(self, component, sources):
+        """Promote this port to input component ports where names match with
+        input sources.
+
+        :param Component component: component from where find sources.
+        :param sources: sources to promote.
+        :type sources: list or str of type [port_name/]sub_port_name
+        """
+
+        #ensure sources are a list of str
+        if isinstance(sources, basestring):
+            sources = [sources]
+
+        for source in sources:
+            # first, identify component name with ports
+            splitted_source = source.split(Port.CMP_PORT_SEPARATOR)
+            if len(splitted_source) == 1:
+                # by default, search among the impl controller
+                component_rc = re_compile(
+                    '^{0}'.format(ImplController.ctrl_name())
+                )
+                port_rc = re_compile(splitted_source[0])
+            else:
+                component_rc = re_compile(splitted_source[0])
+                port_rc = re_compile(splitted_source[1])
+
+            ports = self._component_cls().get_cls_ports(
+                component=component,
+                select=lambda name, component:
+                    component_rc.match(name)
+                    and self._component_filter(name, component)
+            )
+            # bind port
+            for name in ports:
+                port = ports[name]
+                if port_rc.match(name) and self._port_filter(name, port):
+                    self[name] = port
+
+    def _component_cls(self):
+
+        return Component
+
+    def _port_cls(self):
+
+        return Port
+
+    def _component_filter(self, name, component):
+
+        return True
+
+    def _port_filter(self, name, port):
+
+        return True
+
+
+class InputPort(Port):
+    """Input port.
+    """
+
+    __slots__ = Port.__slots__
+
+
+class Input(ParameterizedImplAnnotation):
+    """InputPort injector which uses a name in order to inject a InputPort.
+    """
+
+    NAME = 'name'  #: input port name field name
+
+    __slots__ = (NAME, ) + ParameterizedImplAnnotation.__slots__
+
+    def __init__(self, name, *args, **kwargs):
+
+        super(Input, self).__init__(*args, **kwargs)
+
+        self.name = name
+
+    def get_port_name(self, *args, **kwargs):
+
+        return self.name
+
+
+class PortBinding(Component):
+    """Port binding which describe the mean to promote component content.
+
+    Such port binding has a name and a proxy.
+    The proxy is generated thanks to the bound port interfaces and the content
+    to promote.
+    """
+
+    NAME = 'name'  #: binding name field name
+    PROXY = '_proxy'  #: proxy value field name
+
+    __slots__ = (NAME, PROXY) + Component.__slots__
+
+    def __init__(self, name, *args, **kwargs):
+
+        super(PortBinding, self).__init__(*args, **kwargs)
+
+        self.name = name
+
+    def bind(self, component, port_name, *args, **kwargs):
+
+        if isinstance(component, OutputPort):
+
+            self.update_proxy()
+
+    def update_proxy(self, component, interfaces, name):
+        """Renew a proxy.
+        """
+
+        self._lock.acquire()
+
+        impl = ImplController.get_impl(component)
+
+        if impl is not None:
+            self._proxy = get_proxy(impl, interfaces)
+
+        self._lock.release()
+
+    def del_proxy(self):
+        """Delete self proxy.
+        """
+        pass
+
+    def unbind(self, component, port_name, *args, **kwargs):
+
+        if isinstance(component, OutputPort):
+
+            self.del_proxy()
+
+
+class OutputPort(Port):
+    """Output port which provides component content thanks to port bindings.
+
+    Those bindings are bound to the output port such as any component.
+    """
+
+    __slots__ = Component.__slots__
+
+    def bind(self, component, port_name, *args, **kwargs):
+
+        Output.apply(component=component)
+
+    def unbind(self, component, port_name, *args, **kwargs):
+
+        Output.unapply(component=component)
+
+
+class Output(ParameterizedImplAnnotation):
+    """Impl Out descriptor.
+    """
+
+    RESOURCE = '_resource'  #: output port resource field name
+
+    __slots__ = (RESOURCE, ) + ParameterizedImplAnnotation.__slots__
+
+    def __init__(self, resource, *args, **kwargs):
+
+        self.resource = resource
+
+    @property
+    def resource(self):
+
+        return self._resource
+
+    @resource.setter
+    def resource(self, value):
+
+        if isinstance(value, basestring):
+            value = lookup(value)
+
+        self._resource = value
+
+
+@Target(type)
+class Ports(ImplAnnotation):
+    """Annotation in charge of binding ports in a component ports.
+    """
+
+    PORTS = 'ports'
+
+    __slots__ = (PORTS, ) + ImplAnnotation.__slots__
+
+    def __init__(self, ports, *args, **kwargs):
+        """
+        :param ports: ports to bind to component.
+        :type ports: dict
+        """
+        super(Ports, self).__init__(*args, **kwargs)
+
+        self.ports = ports
+
+    def apply_on(self, component, *args, **kwargs):
+
+        # iterate on all self ports
+        self_ports = self.ports
+        for port_name in self_ports:
+            port = self_ports[port_name]
+            # bind it with its name
+            component[port_name] = port
+
+    def unapply_on(self, component, *args, **kwargs):
+
+        # iterate on all self ports
+        self_ports = self.ports
+        for port_name in self_ports:
+            # bind it with its name
+            del component[port_name]

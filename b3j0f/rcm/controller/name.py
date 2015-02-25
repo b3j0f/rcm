@@ -26,7 +26,6 @@
 
 __all__ = ['NameController', 'Name', 'SetName', 'GetName']
 
-import b3j0f.rcm.controller.content
 from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (
     ParameterizedImplAnnotation, ImplAnnotation, Context
@@ -37,7 +36,10 @@ class NameController(Controller):
     """Controller dedicated to manage component name.
     """
 
-    NAME = '_name'
+    NAME = '_name'  #: name attribute field name
+
+    #: content controller field name
+    CONTENT_CONTROLLER = '_content_controller'
 
     __slots__ = (NAME, ) + Controller.__slots__
 
@@ -56,6 +58,8 @@ class NameController(Controller):
         super(NameController, self).__init__(*args, **kwargs)
 
         self._name = name
+        from b3j0f.rcm.controller.content import ContentController
+        self._content_controller = ContentController
 
     @property
     def name(self):
@@ -72,13 +76,13 @@ class NameController(Controller):
 
         if self._name != value:
             for component in self.components:
-                ctrl = b3j0f.rcm.controller.content.ContentController.get_controller(
+                ctrl = self._content_controller.get_controller(
                     component=component
                 )
                 if ctrl is not None:
                     pcomponents = ctrl.parent_components
                     for pcomponent in pcomponents:
-                        pctrl = b3j0f.rcm.controller.content.ContentController.get_controller(
+                        pctrl = self._content_controller.get_controller(
                             component=pcomponent
                         )
                         ccomponents = pctrl.children_components

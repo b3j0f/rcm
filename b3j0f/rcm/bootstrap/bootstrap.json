@@ -1,0 +1,31 @@
+{
+    "bootstrap": {
+        "impl": "b3j0f.rcm.bootstrap.Bootstrap",
+        "services": {
+            "service_1": {
+                "interface": "b3j0f.rcm.test.interface",
+                "binding": "python"
+            }
+        },
+        "references": {
+            "reference1": {
+                "interface": "b3j0f.rcm.test.interface",
+                    "bindings": {
+                    }
+                }
+            }
+        },
+        "type": "instance",
+        "contents": [
+            {
+                "name": "test1",
+                "intents": ["b3j0f.rcm.test.intent"],
+                "controllers": ["b3j0f.rcm.test.controller"],
+                "impl": "b3j0f.rcm.test.implementation",
+                "service": {
+
+                }
+            }
+        ]
+    }
+}
