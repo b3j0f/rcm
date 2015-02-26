@@ -29,10 +29,9 @@ from unittest import main
 
 from b3j0f.utils.ut import UTCase
 from b3j0f.utils.path import getpath
-from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (
-    ImplController, Impl, ImplAnnotation, ParameterizedImplAnnotation, Context
+    ImplController, ImplAnnotation
 )
 
 
@@ -40,9 +39,29 @@ class ImplControllerTest(UTCase):
     """Test impl controller.
     """
 
+    class TestImplAnnotation(ImplAnnotation):
+
+        def __init__(self, implcontrollertest, *args, **kwargs):
+
+            super(ImplControllerTest.TestImplAnnotation, self).__init__(
+                *args, **kwargs
+            )
+
+            self.implcontrollertest = implcontrollertest
+
+        def apply(self, *args, **kwargs):
+
+            self.implcontrollertest.count += 1
+
+        def unapply(self, *args, **kwargs):
+
+            self.implcontrollertest.count -= 1
+
     def setUp(self):
 
+        self.count = 0
         self.controller = ImplController()
+        Controller.bind_all(self.controller, self.controller)
 
     def test_cls_str(self):
         """Test cls property with a name.
@@ -68,14 +87,19 @@ class ImplControllerTest(UTCase):
         self.assertIsNone(self.controller.cls)
 
     def test_impl(self):
-        """Test impl.
+        """Test impl with impl annotation.
         """
 
         impl = object()
 
+        annotation = ImplControllerTest.TestImplAnnotation(self)
+        annotation(object)
+        annotation(object.__hash__, ctx=impl.__class__)
+
         self.controller.impl = impl
         self.assertIs(self.controller.impl, impl)
         self.assertIs(self.controller.impl.__class__, object)
+        self.assertEqual(self.count, 2)
 
     def test_impl_none(self):
         """Test to nonify an impl.
@@ -86,14 +110,57 @@ class ImplControllerTest(UTCase):
         self.controller.impl = None
         self.assertIs(self.controller.impl, None)
         self.assertIs(self.controller.cls, None)
+        self.assertEqual(self.count, 0)
 
-    def test_update(self):
+    def test_instantiate(self):
         """Test to update the controller.
         """
 
-        class TestImplAnnotation(ImplAnnotation):
-            """
-            """
+        @ImplControllerTest.TestImplAnnotation(self)
+        class TestImpl(object):
+
+            @ImplControllerTest.TestImplAnnotation(self)
+            def __init__(self, a, b=1):
+
+                self.a = a
+                self.b = b
+
+        self.controller.cls = TestImpl
+
+        self.assertRaises(
+            ImplController.ImplError, self.controller.instantiate
+        )
+
+        new_impl = self.controller.instantiate(params={'a': 0})
+        self.assertEqual(new_impl.a, 0)
+        self.assertEqual(new_impl.b, 1)
+        self.assertEqual(self.count, 2)
+
+    def test_get_resource_stateful(self):
+        """Test to get a resource with stateful.
+        """
+
+        self.controller.stateful = True
+
+        self.controller.cls = object
+
+        res0 = self.controller.get_resource()
+        res1 = self.controller.get_resource()
+
+        self.assertIs(res0, res1)
+
+    def test_get_resource_stateless(self):
+        """Test to get a resource with stateful.
+        """
+
+        self.controller.stateful = False
+
+        self.controller.cls = object
+
+        res0 = self.controller.get_resource()
+        res1 = self.controller.get_resource()
+
+        self.assertIsNot(res0, res1)
 
 if __name__ == '__main__':
     main()

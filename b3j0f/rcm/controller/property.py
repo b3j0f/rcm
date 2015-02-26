@@ -29,8 +29,10 @@ __all__ = [
     'Property', 'GetProperty', 'SetProperty',  # property annotations
 ]
 
+from b3j0f.aop import weave, unweave
 from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (
+    ImplController,
     Context, ParameterizedImplAnnotation, getter_name, setter_name
 )
 
@@ -47,6 +49,76 @@ class PropertyController(Controller):
 
         super(PropertyController, self).__init__(*args, **kwargs)
         self.properties = {} if properties is None else properties
+
+    def enrich_instantiation_params(self, jp, *args, **kwargs):
+        """Enrich instantiation params with self properties.
+        """
+
+        # enrich joinpoint params
+        params = jp.kwargs['params']
+        ic = jp.kwargs['self'] if 'self' in jp.kwargs else jp.args[0]
+
+        # enrich with dynamic properties
+        for name in self.properties:
+            if name not in params:
+                prop = self.properties[name]
+                params[name] = prop
+
+        # enrich with GetProperty annotations from cls
+        gps = GetProperty.get_annotations(ic.cls)
+        for gp in gps:
+                param = gp.name if gp.param is None else gp.param
+                if param not in params:
+                    params[param] = gps.params[gp.name]
+        # and from the constructor
+        try:
+            constructor = getattr(
+                self._cls, '__init__', getattr(
+                    self._cls, '__new__'
+                )
+            )
+        except AttributeError:
+            pass
+        else:
+            gps = GetProperty.get_annotations(
+                constructor
+            )
+            for gp in gps:
+                param = gp.name if gp.param is None else gp.param
+                if param not in params:
+                    params[param] = gps.params[gp.name]
+
+        result = jp.proceed()
+
+        return result
+
+    def on_bind(self, component, *args, **kwargs):
+
+        super(PropertyController, self).on_bind(
+            component=component, *args, **kwargs
+        )
+
+        # weave enrich_instantiation_params on IC instantiate method
+        ic = ImplController.get_controller(component=component)
+        if ic is not None:
+            weave(
+                target=ic.instantiate, ctx=ic,
+                advices=self.enrich_instantiation_params
+            )
+
+    def on_unbind(self, component, *args, **kwargs):
+
+        super(PropertyController, self).on_unbind(
+            component=component, *args, **kwargs
+        )
+
+        # unweave enrich_instantiation_params on IC instantiate method
+        ic = ImplController.get_controller(component=component)
+        if ic is not None:
+            unweave(
+                target=ic.instantiate, ctx=ic,
+                advices=self.enrich_instantiation_params
+            )
 
 
 class Property(Context):

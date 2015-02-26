@@ -24,27 +24,22 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-try:
-    from threading import Lock
-except ImportError:
-    from dummy_threading import Lock
+__all__ = [
+    'BindingController', 'PromotedInputProxy', 'PromotedOutputProxy',
+    'Binding'
+]
 
-from re import compile as re_compile
-
-from b3j0f.annotation.check import Target
-from b3j0f.utils.version import basestring
-from b3j0f.utils.path import lookup
 from b3j0f.utils.proxy import get_proxy
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (
-    ParameterizedImplAnnotation, Context, ImplController, ImplAnnotation
+    Context, ImplController,
+    InputProxy, OutputProxy, Proxy
 )
 
 
 class BindingController(Controller):
-    """Dedicated to manage component interface bindings between proxies of
-    ports.
+    """Manage component interface bindings between proxies of ports.
     """
 
     __slots__ = Controller.__slots__
@@ -52,54 +47,60 @@ class BindingController(Controller):
     class BindingError(Exception):
         pass
 
-    def bind(self, port_name, binding):
+    def bind(self, inputproxy, outputproxy):
         """
-        Bind a binding to a component interface_name.
+        Bind an input to an output.
+
+        :param InputProxy inputproxy:
+        :param OutputProxy outputproxy:
         """
 
-        check = lambda ann: ann.name == port_name
+        inputproxy.bind(outputproxy)
 
-        for component in self.components:
-            # set binding to component
-            component[port_name] = binding
-            # apply Input annotations
-            if isinstance(binding, InputProxy):
-                Input.apply(component=component, check=check)
-            # apply Output annotations
-            elif isinstance(binding, OutputProxy):
-                Output.apply(component=component, check=check)
+    def promote(self, component, port_name, proxy):
+        """Promote input proxy to input component port name.
 
+        :param Component component: component from where bind a new proxy.
+        :param str port_name: port name to bind to input proxy.
+        :param Proxy proxy: proxy to bind to port name.
+        """
+
+        # check if old port exists
+        old_port = component.get(port_name, None)
+        if old_port is not None:
+            if isinstance(old_port, Proxy):
+                old_port[port_name] = proxy
+        else:
+            if isinstance(proxy, InputProxy):
+                port = PromotedInputProxy()
+            elif isinstance(proxy, OutputProxy):
+                port = PromotedOutputProxy()
             else:
-                raise BindingController.BindingError()
+                raise TypeError(
+                    "Input proxy may be an InputPort or OutputPort"
+                )
+            port[port_name] = proxy
+            component[port_name] = port
 
-    def unbind(self, port_name):
+    def unpromote(self, component, port_name):
+        """Unpromote port_name.
         """
-        Unbind a binding_name from an port_name.
-        """
 
-        check = lambda ann: ann.name == port_name
-
-        for component in self.components:
-
-            Input.unapply(component=component, check=check)
-
-            Output.unapply(component=component, check=check)
-
-            del component[port_name]
+        del component[port_name]
 
     @staticmethod
-    def bind_to(component, port_name, binding):
+    def promote_to(component, port_name, binding):
 
         bc = BindingController.get_controller(component)
         if bc is not None:
-            bc.bind(port_name, binding)
+            bc.promote(port_name, binding)
 
     @staticmethod
-    def unbind_from(component, port_name):
+    def unpromote_from(component, port_name):
 
         bc = BindingController.get_controller(component)
         if bc is not None:
-            bc.unbind(port_name)
+            bc.unpromote(port_name)
 
 
 class Binding(Context):
@@ -111,146 +112,6 @@ class Binding(Context):
     def __init__(self, name=BindingController.ctrl_name(), *args, **kwargs):
 
         super(Binding, self).__init__(name=name, *args, **kwargs)
-
-
-class Proxy(Component):
-    """Base class for InputProxy and OutputProxy.
-
-    Its role is to bind the component with the environment resources.
-
-    It uses interfaces in order to describe what is promoted.
-    """
-
-    CMP_PORT_SEPARATOR = ':'  #: char separator between a component and port
-
-    INTERFACES = '_interfaces'  #: interfaces field name
-    _SOURCES = '_sources'  #: source proxy
-    _LOCK = '_lock'  #: private lock field name
-
-    __slots__ = (
-        INTERFACES,  # public attributes
-        _LOCK, _SOURCES  # private attributes
-    ) + Component.__slots__
-
-    def __init__(
-        self, interfaces=None, sources=None, *args, **kwargs
-    ):
-
-        super(Proxy, self).__init__(*args, **kwargs)
-
-        self._lock = Lock()
-        self.interfaces = interfaces
-        self._sources = []
-        self.sources = sources
-
-    @property
-    def interfaces(self):
-        """Return an array of self interfaces
-        """
-
-        return [self._interfaces]
-
-    @interfaces.setter
-    def interfaces(self, value):
-        """Update interfaces with a list of interface names/types.
-
-        :param value:
-        :type value: list or str
-        """
-
-        self._lock.acquire()
-
-        # ensure interfaces are a set of types
-        if isinstance(value, basestring):
-            value = set([lookup(value)])
-        elif isinstance(value, type):
-            value = set([value])
-        # convert all str to tuple of types
-        self._interfaces = (
-            v if isinstance(v, type) else lookup(v) for v in value
-        )
-
-        self._lock.release()
-
-    def promote(self, component, sources):
-        """Promote this port to input component proxy where names match with
-        input sources.
-
-        :param Component component: component from where find sources.
-        :param sources: sources to promote.
-        :type sources: list or str of type [port_name/]sub_port_name
-        """
-
-        #ensure sources are a list of str
-        if isinstance(sources, basestring):
-            sources = [sources]
-
-        for source in sources:
-            # first, identify component name with proxy
-            splitted_source = source.split(Proxy.CMP_PORT_SEPARATOR)
-            if len(splitted_source) == 1:
-                # by default, search among the impl controller
-                component_rc = re_compile(
-                    '^{0}'.format(ImplController.ctrl_name())
-                )
-                port_rc = re_compile(splitted_source[0])
-            else:
-                component_rc = re_compile(splitted_source[0])
-                port_rc = re_compile(splitted_source[1])
-
-            proxy = self._component_cls().get_cls_proxy(
-                component=component,
-                select=lambda name, component:
-                    component_rc.match(name)
-                    and self._component_filter(name, component)
-            )
-            # bind port
-            for name in proxy:
-                port = proxy[name]
-                if port_rc.match(name) and self._port_filter(name, port):
-                    self[name] = port
-
-    def _component_cls(self):
-
-        return Component
-
-    def _port_cls(self):
-
-        return Proxy
-
-    def _component_filter(self, name, component):
-
-        return True
-
-    def _port_filter(self, name, port):
-
-        return True
-
-
-class InputProxy(Proxy):
-    """Input port.
-    """
-
-    __slots__ = Proxy.__slots__
-
-
-class Input(ParameterizedImplAnnotation):
-    """InputProxy injector which uses a name in order to inject a InputProxy.
-    """
-
-    NAME = 'name'  #: input port name field name
-
-    __slots__ = (NAME, ) + ParameterizedImplAnnotation.__slots__
-
-    def __init__(self, name, *args, **kwargs):
-
-        super(Input, self).__init__(*args, **kwargs)
-
-        self.name = name
-
-    def get_port_name(self, *args, **kwargs):
-
-        return self.name
 
 
 class ProxyBinding(Component):
@@ -303,80 +164,36 @@ class ProxyBinding(Component):
             self.del_proxy()
 
 
-class OutputProxy(Proxy):
+class PromotedProxy(object):
+    """Promoted Proxy.
+    """
+
+    def get_proxy(self):
+        """Get proxy related to self ports of proxy.
+        """
+
+        result = []
+
+        for source in Proxy.get_cls_ports(self):
+            source_proxy = source.get_proxy()
+            result.append(source_proxy)
+
+        return result
+
+
+class PromotedOutputProxy(OutputProxy, PromotedProxy):
     """Output port which provides component content thanks to port bindings.
 
     Those bindings are bound to the output port such as any component.
     """
 
-    __slots__ = Component.__slots__
-
-    def bind(self, component, port_name, *args, **kwargs):
-
-        Output.apply(component=component)
-
-    def unbind(self, component, port_name, *args, **kwargs):
-
-        Output.unapply(component=component)
+    __slots__ = OutputProxy.__slots__
 
 
-class Output(ParameterizedImplAnnotation):
-    """Impl Out descriptor.
+class PromotedInputProxy(InputProxy, PromotedProxy):
+    """Output port which provides component content thanks to port bindings.
+
+    Those bindings are bound to the output port such as any component.
     """
 
-    RESOURCE = '_resource'  #: output port resource field name
-
-    __slots__ = (RESOURCE, ) + ParameterizedImplAnnotation.__slots__
-
-    def __init__(self, resource, *args, **kwargs):
-
-        self.resource = resource
-
-    @property
-    def resource(self):
-
-        return self._resource
-
-    @resource.setter
-    def resource(self, value):
-
-        if isinstance(value, basestring):
-            value = lookup(value)
-
-        self._resource = value
-
-
-@Target(type)
-class Proxys(ImplAnnotation):
-    """Annotation in charge of binding proxy in a component proxy.
-    """
-
-    PROXY = 'proxy'
-
-    __slots__ = (PROXY, ) + ImplAnnotation.__slots__
-
-    def __init__(self, proxy, *args, **kwargs):
-        """
-        :param proxy: proxy to bind to component.
-        :type proxy: dict
-        """
-        super(Proxys, self).__init__(*args, **kwargs)
-
-        self.proxy = proxy
-
-    def apply_on(self, component, *args, **kwargs):
-
-        # iterate on all self proxy
-        self_proxy = self.proxy
-        for port_name in self_proxy:
-            port = self_proxy[port_name]
-            # bind it with its name
-            component[port_name] = port
-
-    def unapply_on(self, component, *args, **kwargs):
-
-        # iterate on all self proxy
-        self_proxy = self.proxy
-        for port_name in self_proxy:
-            # bind it with its name
-            del component[port_name]
+    __slots__ = InputProxy.__slots__

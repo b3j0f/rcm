@@ -34,16 +34,22 @@ __all__ = [
     'getter_name', 'setter_name',  # util function
 ]
 
-from inspect import isclass
+try:
+    from threading import Lock
+except ImportError:
+    from dummy_threading import Lock
+
+from re import compile as re_compile
+
+from inspect import isclass, getmembers, isroutine
 
 from b3j0f.annotation import Annotation
 from b3j0f.annotation.check import Target
 from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
+from b3j0f.utils.proxy import get_proxy
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
-
-from re import compile as re_compile
 
 
 class ImplController(Controller):
@@ -51,15 +57,19 @@ class ImplController(Controller):
     business implementation.
     """
 
+    STATEFUL = 'stateful'  #: stateful property
     CLS = '_cls'  #: cls field name
     IMPL = '_impl'  #: impl field name
-    #: private property module field name
-    _PROPERTY = '_property'
 
-    __slots__ = (CLS, IMPL, _PROPERTY) + Controller.__slots__
+    __slots__ = (STATEFUL, CLS, IMPL) + Controller.__slots__
 
-    def __init__(self, cls=None, impl=None, *args, **kwargs):
+    class ImplError(Exception):
+        """Handle impl errors.
         """
+
+    def __init__(self, stateful=True, cls=None, impl=None, *args, **kwargs):
+        """
+        :param bool stateful: stateful property.
         :param cls: class to use.
         :type cls: str or type
         :param impl: class implementation.
@@ -68,17 +78,28 @@ class ImplController(Controller):
 
         super(ImplController, self).__init__(*args, **kwargs)
 
+        # init public properties
+        self.stateful = stateful
         # init private params
         self._impl = None
         self._cls = None
         # init cls
         self.cls = cls
         self.impl = impl
-        # import property module
-        import b3j0f.rcm.controller.property as prop
-        self._property = prop
 
-    def update(self, component=None, cls=None, params=None):
+    def get_resource(self, component=None, params=None):
+        """Get resource.
+        """
+        result = None
+
+        if self.stateful:
+            result = self._impl
+        else:
+            result = self.instantiate(component=component, params=params)
+
+        return result
+
+    def instantiate(self, component=None, params=None):
         """Instantiate business element and returns it.
 
         Instantiation parameters depend on 3 levels of customisation in this
@@ -89,63 +110,32 @@ class ImplController(Controller):
         - dynamic parameters given by GetProperty annotations from cls and
         from cls constructor.
 
-        :param cls: new cls to use. If None, use self.cls.
-        :type cls: type or str
+        :param Component component: specific parent component.
         :param dict params: new impl parameters which are specific to this impl
             and chosen instead of those ones from the property controller or
             GetProperty annotations.
         :return: new impl.
+        :raises: ImplController.ImplError if self.cls is None or instantiation
+            errors occur.
         """
-        # init params.
+
+        # default result
+        result = None
+
+        if self.cls is None:
+            raise ImplController.ImplError(
+                "ImplController {0} has no class".format(self)
+            )
+        # init params
         if params is None:
             params = {}
-        # save prev impl
-        prev_impl = self.impl
-        # save cls
-        self.cls = cls
-        # get properties from the property controller and from the annotations
-        if component is not None:
-            # start to get params from property controller
-            pc = self._property.PropertyController.get_controller(
-                component=component
-            )
-            if pc is not None:
-                # update params with the property controller
-                for name in pc.properties:
-                    # update params if property is not specified in params
-                    if name not in params:
-                        value = pc.properties[name]
-                        params[name] = value
-                # update params with GetProperty annotations
-                # from cls
-                gps = self._property.GetProperty.get_annotations(self._cls)
-                for gp in gps:
-                        param = gp.name if gp.param is None else gp.param
-                        if param not in params:
-                            params[param] = gps.params[gp.name]
-                # and from the constructor
-                try:
-                    constructor = getattr(
-                        self._cls, '__init__', getattr(
-                            self._cls, '__new__'
-                        )
-                    )
-                except AttributeError:
-                    pass
-                else:
-                    gps = self._property.GetProperty.get_annotations(
-                        constructor
-                    )
-                    for gp in gps:
-                        param = gp.name if gp.param is None else gp.param
-                        if param not in params:
-                            params[param] = gps.params[gp.name]
         # save impl and result
-        result = self.impl = self._cls(**params)
-        # (un)apply business annotations on impl
-        if isinstance(component, Component):
-            ImplAnnotation.unapply(component=component, impl=prev_impl)
-            ImplAnnotation.apply(component=component, impl=self.impl)
+        try:
+            result = self.impl = self._cls(**params)
+        except Exception as e:
+            raise ImplController.ImplError(
+                "Error {0} during impl instantiation of {1}".format(e, self)
+            )
 
         return result
 
@@ -165,20 +155,23 @@ class ImplController(Controller):
         :raises: TypeError in case of value is not a class.
         """
 
-        if value is not None:
+        if value is self._cls:
+            pass  # do nothin if cls is value
+
+        elif value is not None:
             # if value is a str, try to find the right class
             if isinstance(value, basestring):
                 value = lookup(value)
             # update value only if value is a class
             if isclass(value):
+                self.impl = None  # and nonify the impl
                 self._cls = value
-                self._impl = None  # and nonify the impl
             else:  # raise TypeError if value is not a class
                 raise TypeError('value {0} must be a class'.format(value))
 
         else:  # clean cls and impl
+            self.impl = None  # nonify impl
             self._cls = None  # nonify cls
-            self._impl = None  # nonify impl
 
     @property
     def impl(self):
@@ -186,12 +179,26 @@ class ImplController(Controller):
 
     @impl.setter
     def impl(self, value):
+        """Change of impl. Ensure self cls is consistent with input impl.
+
+        :param value: new impl to use. If None, nonify cls as well.
+        """
+
+        # unapply business annotations on old impl
+        if self._impl is not None:
+            for component in self.components:
+                    ImplAnnotation.unapply_from(
+                        component=component, impl=self._impl
+                    )
 
         if value is not None:
             # update cls
             self._cls = value.__class__
             # and impl
             self._impl = value
+            # apply business annotations on impl
+            for component in self.components:
+                ImplAnnotation.apply_on(component=component, impl=self._impl)
 
         else:
             self._cls = None  # nonify cls
@@ -213,6 +220,21 @@ class ImplController(Controller):
         return result
 
     @staticmethod
+    def set_cls(component, cls):
+        """Get ImplController cls from input component.
+
+        :param Component component: component from where get class impl.
+        """
+
+        result = None
+
+        ic = ImplController.get_controller(component=component)
+        if ic is not None:
+            ic.cls = cls
+
+        return result
+
+    @staticmethod
     def get_impl(component):
         """Get ImplController impl from input component.
 
@@ -228,13 +250,28 @@ class ImplController(Controller):
         return result
 
     @staticmethod
-    def update_impl(component, cls=None, params=None):
+    def set_impl(component, impl):
+        """Get ImplController impl from input component.
+
+        :param Component component: component from where get impl.
+        """
 
         result = None
 
         ic = ImplController.get_controller(component=component)
         if ic is not None:
-            result = ic.update(component, cls, params)
+            ic.impl = impl
+
+        return result
+
+    @staticmethod
+    def instantiate_impl(component, params=None):
+
+        result = None
+
+        ic = ImplController.get_controller(component=component)
+        if ic is not None:
+            result = ic.instantiate(component, params)
 
         return result
 
@@ -243,22 +280,22 @@ class ImplAnnotation(Annotation):
     """Annotation dedicated to Impl implementations.
     """
 
-    def apply_on(self, component, impl, attr=None):
+    def apply(self, component, impl, member=None):
         """Callback when Impl component renew its implementation.
 
         :param Component component: business implementation component.
         :param impl: component business implementation.
-        :param attr: business implementation attribute.
+        :param member: business implementation member.
         """
 
         pass
 
-    def unapply_on(self, component, impl, attr=None):
+    def unapply(self, component, impl, member=None):
         """Callback when Impl component change of implementation.
 
         :param Component component: business implementation component.
         :param impl: component business implementation.
-        :param attr: business implementation attribute.
+        :param member: business implementation member.
         """
 
         pass
@@ -281,26 +318,27 @@ class ImplAnnotation(Annotation):
             for annotation in annotations:
                 if check is None or check(annotation):
                     if _apply:
-                        annotation.apply_on(component=component, impl=impl)
+                        annotation.apply(component=component, impl=impl)
                     else:
-                        annotation.unapply_on(component=component, impl=impl)
+                        annotation.unapply(component=component, impl=impl)
 
-            for field in dir(impl):
-                attr = getattr(impl, field)
-                annotations = cls.get_annotations(field, ctx=impl)
+            for name, member in getmembers(
+                impl, lambda m: isroutine(m) or isclass(m)
+            ):
+                annotations = cls.get_annotations(member, ctx=impl.__class__)
                 for annotation in annotations:
                     if check is None or check(annotation):
                         if _apply:
-                            annotation.apply_on(
-                                component=component, impl=impl, attr=attr
+                            annotation.apply(
+                                component=component, impl=impl, member=member
                             )
                         else:
-                            annotation.unapply_on(
-                                component=component, impl=impl, attr=attr
+                            annotation.unapply(
+                                component=component, impl=impl, member=member
                             )
 
     @classmethod
-    def apply(cls, component, impl=None, check=None):
+    def apply_on(cls, component, impl=None, check=None):
         """Apply all cls annotations on component and impl.
 
         :param Component component: business implementation component.
@@ -314,7 +352,7 @@ class ImplAnnotation(Annotation):
         )
 
     @classmethod
-    def unapply(cls, component, impl=None, check=None):
+    def unapply_from(cls, component, impl=None, check=None):
         """Unapply all cls annotations on component and impl.
 
         :param Component component: business implementation component.
@@ -343,22 +381,24 @@ class ParameterizedImplAnnotation(ImplAnnotation):
 
         self.param = param
 
-    def get_resource(self, component, impl, attr=None):
+    def get_resource(self, component, impl, member=None):
         """Get a resource to inject in a routine call in the scope of a
-        component, impl, prev_impl, attr and prev_attr.
+        component, impl, prev_impl, member and prev_attr.
 
         :param Component component: business implementation component.
         :param impl: component business implementation.
-        :param attr: business implementation attribute.
+        :param member: business implementation member.
         """
 
         return component
 
-    def apply_on(self, component, impl, attr=None, *args, **kwargs):
+    def apply(self, component, impl, member=None, *args, **kwargs):
         # get the right resource to inject
-        resource = self.get_resource(component=component, impl=impl, attr=attr)
+        resource = self.get_resource(
+            component=component, impl=impl, member=member
+        )
         # identify the right target element to inject resource
-        target = impl if attr is None else attr
+        target = impl if member is None else member
         # inject the resource in the target
         if self.param is None:
             try:
@@ -443,8 +483,8 @@ def setter_name(setter):
     return _accessor_name('set')
 
 
-class Port(Component):
-    """Base class for InputPort and OutputPort.
+class Proxy(Component):
+    """Base class for InputProxy and OutputProxy.
 
     Its role is to bind the component with the environment resources.
 
@@ -454,7 +494,7 @@ class Port(Component):
     CMP_PORT_SEPARATOR = ':'  #: char separator between a component and port
 
     INTERFACES = '_interfaces'  #: interfaces field name
-    _SOURCES = '_sources'  #: source ports
+    _SOURCES = '_sources'  #: source proxy
     _LOCK = '_lock'  #: private lock field name
 
     __slots__ = (
@@ -466,7 +506,7 @@ class Port(Component):
         self, interfaces=None, sources=None, *args, **kwargs
     ):
 
-        super(Port, self).__init__(*args, **kwargs)
+        super(Proxy, self).__init__(*args, **kwargs)
 
         self._lock = Lock()
         self.interfaces = interfaces
@@ -503,7 +543,7 @@ class Port(Component):
         self._lock.release()
 
     def promote(self, component, sources):
-        """Promote this port to input component ports where names match with
+        """Promote this port to input component proxy where names match with
         input sources.
 
         :param Component component: component from where find sources.
@@ -516,8 +556,8 @@ class Port(Component):
             sources = [sources]
 
         for source in sources:
-            # first, identify component name with ports
-            splitted_source = source.split(Port.CMP_PORT_SEPARATOR)
+            # first, identify component name with proxy
+            splitted_source = source.split(Proxy.CMP_PORT_SEPARATOR)
             if len(splitted_source) == 1:
                 # by default, search among the impl controller
                 component_rc = re_compile(
@@ -528,15 +568,15 @@ class Port(Component):
                 component_rc = re_compile(splitted_source[0])
                 port_rc = re_compile(splitted_source[1])
 
-            ports = self._component_cls().get_cls_ports(
+            proxy = self._component_cls().get_cls_proxy(
                 component=component,
                 select=lambda name, component:
                     component_rc.match(name)
                     and self._component_filter(name, component)
             )
             # bind port
-            for name in ports:
-                port = ports[name]
+            for name in proxy:
+                port = proxy[name]
                 if port_rc.match(name) and self._port_filter(name, port):
                     self[name] = port
 
@@ -546,7 +586,7 @@ class Port(Component):
 
     def _port_cls(self):
 
-        return Port
+        return Proxy
 
     def _component_filter(self, name, component):
 
@@ -557,15 +597,15 @@ class Port(Component):
         return True
 
 
-class InputPort(Port):
+class InputProxy(Proxy):
     """Input port.
     """
 
-    __slots__ = Port.__slots__
+    __slots__ = Proxy.__slots__
 
 
 class Input(ParameterizedImplAnnotation):
-    """InputPort injector which uses a name in order to inject a InputPort.
+    """InputProxy injector which uses a name in order to inject a InputProxy.
     """
 
     NAME = 'name'  #: input port name field name
@@ -583,8 +623,8 @@ class Input(ParameterizedImplAnnotation):
         return self.name
 
 
-class PortBinding(Component):
-    """Port binding which describe the mean to promote component content.
+class ProxyBinding(Component):
+    """Proxy binding which describe the mean to promote component content.
 
     Such port binding has a name and a proxy.
     The proxy is generated thanks to the bound port interfaces and the content
@@ -598,13 +638,13 @@ class PortBinding(Component):
 
     def __init__(self, name, *args, **kwargs):
 
-        super(PortBinding, self).__init__(*args, **kwargs)
+        super(ProxyBinding, self).__init__(*args, **kwargs)
 
         self.name = name
 
     def bind(self, component, port_name, *args, **kwargs):
 
-        if isinstance(component, OutputPort):
+        if isinstance(component, OutputProxy):
 
             self.update_proxy()
 
@@ -628,12 +668,12 @@ class PortBinding(Component):
 
     def unbind(self, component, port_name, *args, **kwargs):
 
-        if isinstance(component, OutputPort):
+        if isinstance(component, OutputProxy):
 
             self.del_proxy()
 
 
-class OutputPort(Port):
+class OutputProxy(Proxy):
     """Output port which provides component content thanks to port bindings.
 
     Those bindings are bound to the output port such as any component.
@@ -677,36 +717,36 @@ class Output(ParameterizedImplAnnotation):
 
 
 @Target(type)
-class Ports(ImplAnnotation):
-    """Annotation in charge of binding ports in a component ports.
+class Proxys(ImplAnnotation):
+    """Annotation in charge of binding proxy in a component proxy.
     """
 
-    PORTS = 'ports'
+    PROXY = 'proxy'
 
-    __slots__ = (PORTS, ) + ImplAnnotation.__slots__
+    __slots__ = (PROXY, ) + ImplAnnotation.__slots__
 
-    def __init__(self, ports, *args, **kwargs):
+    def __init__(self, proxy, *args, **kwargs):
         """
-        :param ports: ports to bind to component.
-        :type ports: dict
+        :param proxy: proxy to bind to component.
+        :type proxy: dict
         """
-        super(Ports, self).__init__(*args, **kwargs)
+        super(Proxys, self).__init__(*args, **kwargs)
 
-        self.ports = ports
+        self.proxy = proxy
 
-    def apply_on(self, component, *args, **kwargs):
+    def apply(self, component, *args, **kwargs):
 
-        # iterate on all self ports
-        self_ports = self.ports
-        for port_name in self_ports:
-            port = self_ports[port_name]
+        # iterate on all self proxy
+        self_proxy = self.proxy
+        for port_name in self_proxy:
+            port = self_proxy[port_name]
             # bind it with its name
             component[port_name] = port
 
-    def unapply_on(self, component, *args, **kwargs):
+    def unapply(self, component, *args, **kwargs):
 
-        # iterate on all self ports
-        self_ports = self.ports
-        for port_name in self_ports:
+        # iterate on all self proxy
+        self_proxy = self.proxy
+        for port_name in self_proxy:
             # bind it with its name
             del component[port_name]
