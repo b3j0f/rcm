@@ -44,7 +44,7 @@ from re import compile as re_compile
 from inspect import isclass, getmembers, isroutine
 
 from b3j0f.annotation import Annotation
-from b3j0f.annotation.check import Target
+from b3j0f.annotation.check import Target, MaxCount
 from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
 from b3j0f.utils.proxy import get_proxy
@@ -393,6 +393,7 @@ class ParameterizedImplAnnotation(ImplAnnotation):
         return component
 
     def apply(self, component, impl, member=None, *args, **kwargs):
+
         # get the right resource to inject
         resource = self.get_resource(
             component=component, impl=impl, member=member
@@ -466,6 +467,9 @@ def _accessor_name(accessor, prefix):
         if result and result[0] == '_':
             result = result[1:]
 
+    if result:  # lower result
+        result = result.lower()
+
     return result
 
 
@@ -473,14 +477,14 @@ def getter_name(getter):
     """Get getter name.
     """
 
-    return _accessor_name('get')
+    return _accessor_name(getter, 'get')
 
 
 def setter_name(setter):
     """Get setter name.
     """
 
-    return _accessor_name('set')
+    return _accessor_name(setter, 'set')
 
 
 class Proxy(Component):
@@ -679,7 +683,17 @@ class OutputProxy(Proxy):
     Those bindings are bound to the output port such as any component.
     """
 
-    __slots__ = Component.__slots__
+    ASYNC = 'async'  #: asynchronous mode
+    STATELESS = 'stateless'  #: stateless mode
+
+    __slots__ = (ASYNC, STATELESS) + Proxy.__slots__
+
+    def __init__(self, async=False, stateless=False, *args, **kwargs):
+
+        super(OutputProxy, self).__init__(*args, **kwargs)
+
+        self.async = async
+        self.stateless = stateless
 
     def bind(self, component, port_name, *args, **kwargs):
 
@@ -694,13 +708,17 @@ class Output(ParameterizedImplAnnotation):
     """Impl Out descriptor.
     """
 
+    ASYNC = 'async'  #: asynchronous mode
+    STATELESS = 'stateless'  #: stateless mode
     RESOURCE = '_resource'  #: output port resource field name
 
     __slots__ = (RESOURCE, ) + ParameterizedImplAnnotation.__slots__
 
-    def __init__(self, resource, *args, **kwargs):
+    def __init__(self, async, stateless, resource, *args, **kwargs):
 
         self.resource = resource
+        self.async = async
+        self.stateless = stateless
 
     @property
     def resource(self):
@@ -714,6 +732,28 @@ class Output(ParameterizedImplAnnotation):
             value = lookup(value)
 
         self._resource = value
+
+
+@MaxCount()
+@Target(type)
+class Stateless(ImplAnnotation):
+    """Specify stateless on impl controller.
+    """
+
+    IMPL_STATEFUL = 'impl_stateful'  #: impl stateless attribute name
+
+    __slots__ = (IMPL_STATEFUL, ) + ImplAnnotation.__slots__
+
+    def apply(self, component, *args, **kwargs):
+
+        self.impl_stateful = ImplController.get_stateful(component=component)
+        ImplController.set_stateful(component=component, stateful=False)
+
+    def unapply(self, component, *args, **kwargs):
+
+        ImplController.set_stateful(
+            component=component, stateful=self.impl_stateful
+        )
 
 
 @Target(type)
