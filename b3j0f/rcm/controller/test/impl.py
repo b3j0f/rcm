@@ -35,14 +35,17 @@ from b3j0f.rcm.controller.impl import (
 )
 
 
-class ImplControllerTest(UTCase):
-    """Test impl controller.
-    """
+class BaseImplControllerTest(UTCase):
 
     def setUp(self):
 
         self.controller = ImplController()
         Controller.bind_all(self.controller, self.controller)
+
+
+class ImplControllerTest(BaseImplControllerTest):
+    """Test impl controller.
+    """
 
     def test_cls_str(self):
         """Test cls property with a name.
@@ -104,7 +107,7 @@ class ImplControllerTest(UTCase):
             ImplController.ImplError, self.controller.instantiate
         )
 
-        new_impl = self.controller.instantiate(params={'a': 0})
+        new_impl = self.controller.instantiate(kwargs={'a': 0})
         self.assertEqual(new_impl.a, 0)
         self.assertEqual(new_impl.b, 1)
 
@@ -135,7 +138,7 @@ class ImplControllerTest(UTCase):
         self.assertIsNot(res0, res1)
 
 
-class TestImplAnnotation(UTCase):
+class TestImplAnnotation(BaseImplControllerTest):
     """Test ImplAnnotation.
     """
 
@@ -159,23 +162,25 @@ class TestImplAnnotation(UTCase):
 
     def setUp(self):
 
+        super(TestImplAnnotation, self).setUp()
+
         self.count = 0
-        self.controller = ImplController()
-        Controller.bind_all(self.controller, self.controller)
 
     def test_impl(self):
         """Test impl with impl annotation.
         """
 
-        impl = object()
+        cls = str
+
+        impl = cls()
 
         annotation = TestImplAnnotation.TestImplAnnotation(self)
-        annotation(object)
-        annotation(object.__hash__, ctx=impl.__class__)
+        annotation(cls)
+        annotation(cls.__format__, ctx=cls)
 
         self.controller.impl = impl
         self.assertIs(self.controller.impl, impl)
-        self.assertIs(self.controller.impl.__class__, object)
+        self.assertIs(self.controller.impl.__class__, cls)
         self.assertEqual(self.count, 2)
 
     def test_impl_none(self):
@@ -208,15 +213,76 @@ class TestImplAnnotation(UTCase):
             ImplController.ImplError, self.controller.instantiate
         )
 
-        new_impl = self.controller.instantiate(params={'a': 0})
+        new_impl = self.controller.instantiate(kwargs={'a': 0})
         self.assertEqual(new_impl.a, 0)
         self.assertEqual(new_impl.b, 1)
         self.assertEqual(self.count, 2)
 
 
-class TestParameterizedImplAnnotation(UTCase):
+class TestParameterizedImplAnnotation(BaseImplControllerTest):
     """Test ParameterizedImplAnnotation.
     """
+
+    def test_constructor_empty(self):
+        """Test to inject a parameter in an empty cls.
+        """
+
+        class Test(object):
+
+            @ParameterizedImplAnnotation()
+            def __init__(self):
+                pass
+
+        self.controller.cls = Test
+        self.assertRaises(
+            ImplController.ImplError,
+            self.controller.instantiate
+        )
+
+    def test_constructor(self):
+        """Test to inject a parameter in a cls.
+        """
+
+        class Test(object):
+
+            @ParameterizedImplAnnotation()
+            def __init__(self, param):
+
+                self.param = param
+
+        self.controller.cls = Test
+        impl = self.controller.instantiate()
+
+        self.assertIs(impl.param, self.controller)
+
+    def test_constructor_name(self):
+        """Test to inject a parameter in a cls with a dedicated name.
+        """
+
+        class Test(object):
+
+            @ParameterizedImplAnnotation(param='test')
+            def __init__(self, a=2, b=1, test=None):
+
+                self.test = test
+
+        self.controller.cls = Test
+        impl = self.controller.instantiate()
+
+        self.assertIs(impl.test, self.controller)
+
+    def test_routine_empty(self):
+        """Test to inject a parameter in an empty routine.
+        """
+
+        class Test(object):
+
+            @ParameterizedImplAnnotation()
+            def test(self):
+                pass
+
+        self.controller.cls = Test
+        self.controller.instantiate()
 
 if __name__ == '__main__':
     main()

@@ -87,7 +87,7 @@ class ImplController(Controller):
         self.cls = cls
         self.impl = impl
 
-    def get_resource(self, component=None, params=None):
+    def get_resource(self, component=None, args=None, kwargs=None):
         """Get resource.
         """
         result = None
@@ -95,25 +95,22 @@ class ImplController(Controller):
         if self.stateful:
             result = self._impl
         else:
-            result = self.instantiate(component=component, params=params)
+            result = self.instantiate(component=component, kwargs=kwargs)
 
         return result
 
-    def instantiate(self, component=None, params=None):
+    def instantiate(self, component=None, args=None, kwargs=None):
         """Instantiate business element and returns it.
 
         Instantiation parameters depend on 3 levels of customisation in this
         order (related to a component-driven approach):
 
-        - specific parameters ``params`` given in this method.
-        - dynamic parameters given by the property controller.
-        - dynamic parameters given by GetProperty annotations from cls and
-        from cls constructor.
+        - specific parameters ``args`` and ``kwargs`` given in this method.
+        - cls parameters given by ParameterizedImplAnnotation.
 
         :param Component component: specific parent component.
-        :param dict params: new impl parameters which are specific to this impl
-            and chosen instead of those ones from the property controller or
-            GetProperty annotations.
+        :param list args: new impl varargs which are specific to this impl.
+        :param dict kwargs: new impl kwargs which are specific to this impl.
         :return: new impl.
         :raises: ImplController.ImplError if self.cls is None or instantiation
             errors occur.
@@ -126,15 +123,36 @@ class ImplController(Controller):
             raise ImplController.ImplError(
                 "ImplController {0} has no class".format(self)
             )
-        # init params
-        if params is None:
-            params = {}
+        # init args
+        if args is None:
+            args = []
+        # init kwargs
+        if kwargs is None:
+            kwargs = {}
+        # enrich params with ParameterizedImplAnnotations
+        # get construtor
+        constructor = getattr(
+            self._cls, '__init__', getattr(self._cls, '__new__', None)
+        )
+        if constructor is not None:
+            pias = ParameterizedImplAnnotation.get_annotations(
+                constructor, ctx=self._cls
+            )
+            for pia in pias:
+                # get value
+                value = pia.get_resource(component=component)
+                # get name
+                name = pia.param
+                if not name:  # if name is not given, add it into args
+                    args.append(value)
+                elif name not in kwargs:  # if name is given, add it to kwargs
+                    kwargs[name] = value
         # save impl and result
         try:
-            result = self.impl = self._cls(**params)
+            result = self.impl = self._cls(*args, **kwargs)
         except Exception as e:
             raise ImplController.ImplError(
-                "Error {0} during impl instantiation of {1}".format(e, self)
+                "Error ({0}) during impl instantiation of {1}".format(e, self)
             )
 
         return result
@@ -265,13 +283,15 @@ class ImplController(Controller):
         return result
 
     @staticmethod
-    def instantiate_impl(component, params=None):
+    def instantiate_impl(component, args=None, kwargs=None):
 
         result = None
 
         ic = ImplController.get_controller(component=component)
         if ic is not None:
-            result = ic.instantiate(component, params)
+            result = ic.instantiate(
+                component=component, args=args, kwargs=kwargs
+            )
 
         return result
 
@@ -322,12 +342,11 @@ class ImplAnnotation(Annotation):
                     else:
                         annotation.unapply(component=component, impl=impl)
 
-            for name, member in getmembers(
-                impl, lambda m: isroutine(m) or isclass(m)
-            ):
+            for name, member in getmembers(impl.__class__, lambda m: isroutine(m)):
                 annotations = cls.get_annotations(member, ctx=impl.__class__)
                 for annotation in annotations:
                     if check is None or check(annotation):
+                        member = getattr(impl, name)
                         if _apply:
                             annotation.apply(
                                 component=component, impl=impl, member=member
@@ -381,7 +400,7 @@ class ParameterizedImplAnnotation(ImplAnnotation):
 
         self.param = param
 
-    def get_resource(self, component, impl, member=None):
+    def get_resource(self, component, impl=None, member=None):
         """Get a resource to inject in a routine call in the scope of a
         component, impl, prev_impl, member and prev_attr.
 
