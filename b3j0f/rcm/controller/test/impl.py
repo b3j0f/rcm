@@ -357,7 +357,7 @@ class TestB2CAnnotation(BaseImplControllerTest):
 
         class Test(object):
 
-            def __init__(self, tb2ca):
+            def __init__(self, tb2ca=self):
 
                 self.tb2ca = tb2ca
 
@@ -366,7 +366,7 @@ class TestB2CAnnotation(BaseImplControllerTest):
                 return self.tb2ca
 
         self.controller.cls = Test
-        self.controller.instantiate(kwargs={'tb2ca': self})
+        self.controller.instantiate()
 
         self.assertEqual(self.count, 1)
 

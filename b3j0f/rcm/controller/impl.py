@@ -334,7 +334,9 @@ class ImplAnnotation(Annotation):
             for name, member in getmembers(
                 impl.__class__,
                 lambda m:
-                    isroutine(m) and m.__name__ not in ['__init__', '__new__']
+                    isroutine(m)
+                    and
+                    getattr(m, '__name__', None) not in ['__init__', '__new__']
             ):
                 annotations = cls.get_annotations(member, ctx=impl.__class__)
                 for annotation in annotations:
@@ -459,31 +461,36 @@ class B2CAnnotation(Annotation):
 
 
 class C2BAnnotation(Annotation):
-    """Component to Business implementation to use in order to configurate the implementation
-    component from
-    the implementation.
+    """Component to Business implementation to use in order to configurate the
+    implementation component from the implementation.
 
     Set a method parameter values before calling it.
     """
 
     PARAM = 'param'  #: method params attribute name
     IS_PNAME = 'ispname'  #: ispname attribute name
+    OVERRIDE = 'override'  #: overriden parameter attribute name
 
-    __slots__ = (PARAM, IS_PNAME) + Annotation.__slots__
+    __slots__ = (PARAM, IS_PNAME, OVERRIDE) + Annotation.__slots__
 
-    def __init__(self, param=None, ispname=False, *args, **kwargs):
+    def __init__(
+        self, param=None, ispname=False, override=False, *args, **kwargs
+    ):
         """
         :param param: parameters to inject in a business routine.
         :type param: NoneType, str, list or dict
         :param bool ispname: If param is a str, if False (default), param is a
         related to value (component port name for example), otherwise, param is
         a business routine keyword.
+        :param bool override: if False (default), do not override existing
+        parameters.
         """
 
         super(C2BAnnotation, self).__init__(*args, **kwargs)
 
         self.param = param
         self.ispname = ispname
+        self.override = override
 
     @classmethod
     def call_setters(cls, component, impl, call_getters=False):
@@ -596,19 +603,25 @@ class C2BAnnotation(Annotation):
                 )
                 # put value in kwargs
                 args.append(value)
-            else:  # else if param is a routine keyword argument
+            # else if param is a routine keyword argument
+            elif (not self.override) or param not in kwargs:
+                # do nothing if override and param already in kwargs
                 value = self.get_value(
                     component=component, impl=impl, member=member
                 )
                 # value is in vararg
                 kwargs[param] = value
         elif isinstance(param, dict):  # contains both arg names and values
+            override = self.override
             for kwarg in param:
-                pname = param[kwarg]
-                value = self.get_value(
-                    component=component, impl=impl, member=member, pname=pname
-                )
-                kwargs[kwarg] = value
+                # do nothing if override and param already in kwargs
+                if (not override) or param not in kwargs:
+                    pname = param[kwarg]
+                    value = self.get_value(
+                        component=component, impl=impl, member=member,
+                        pname=pname
+                    )
+                    kwargs[kwarg] = value
 
     def get_value(self, component, impl, member=None, pname=None):
         """Get value parameter.
