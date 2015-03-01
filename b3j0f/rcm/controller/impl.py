@@ -413,7 +413,9 @@ class B2CAnnotation(Annotation):
         for name, member in getmembers(
             impl,
             lambda m:
-                isroutine(m) and m.__name__ not in ['__init__', '__new__']
+                isroutine(m)
+                and
+                getattr(m, '__name__', None) not in ['__init__', '__new__']
         ):
             # for each one, try to call setter annotations
             cls.call_getter(
@@ -508,7 +510,9 @@ class C2BAnnotation(Annotation):
         members = getmembers(
             impl,
             lambda m:
-                isroutine(m) and m.__name__ not in ['__init__', '__new__']
+                isroutine(m)
+                and
+                getattr(m, '__name__', None) not in ['__init__', '__new__']
         )
 
         # parse members
