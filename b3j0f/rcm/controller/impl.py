@@ -389,7 +389,11 @@ class B2CAnnotation(Annotation):
 
     RESULT = 'result'  #: method call result
 
-    __slots__ = (RESULT, ) + Annotation.__slots__
+    #__slots__ = (RESULT, ) + Annotation.__slots__
+
+    class B2CError(Exception):
+        """Handle B2CAnnotation errors.
+        """
 
     def get_result(self, component, impl, member, result):
         """Callback method after calling the annotated implementation routine.
@@ -408,6 +412,7 @@ class B2CAnnotation(Annotation):
 
         :param Component component: implementation component.
         :param impl: implementation instance.
+        :raises: B2CAnnotation.B2CError in case of getter call error.
         """
         # parse members which are routine and not constructors
         for name, member in getmembers(
@@ -419,7 +424,7 @@ class B2CAnnotation(Annotation):
         ):
             # for each one, try to call setter annotations
             cls.call_getter(
-                component=component, impl=impl, setter=member
+                component=component, impl=impl, getter=member
             )
 
     @classmethod
@@ -457,7 +462,14 @@ class B2CAnnotation(Annotation):
                     result=result
                 )
             # call the getter and save the result
-            result = getter(*args, **kwargs)
+            try:
+                result = getter(*args, **kwargs)
+            except Exception as e:
+                raise B2CAnnotation.B2CError(
+                    "Error ({0}) while calling {1} with {2}".format(
+                        e, getter, (args, kwargs)
+                    )
+                )
 
         return result
 
@@ -473,7 +485,11 @@ class C2BAnnotation(Annotation):
     IS_PNAME = 'ispname'  #: ispname attribute name
     OVERRIDE = 'override'  #: overriden parameter attribute name
 
-    __slots__ = (PARAM, IS_PNAME, OVERRIDE) + Annotation.__slots__
+    #__slots__ = (PARAM, IS_PNAME, OVERRIDE) + Annotation.__slots__
+
+    class C2BError(Exception):
+        """Handle C2BAnnotation errors.
+        """
 
     def __init__(
         self, param=None, ispname=False, override=False, *args, **kwargs
@@ -580,7 +596,14 @@ class C2BAnnotation(Annotation):
                     args=args, kwargs=kwargs
                 )
             # call the target and save the result
-            result = setter(*args, **kwargs)
+            try:
+                result = setter(*args, **kwargs)
+            except Exception as e:
+                raise C2BAnnotation.C2BError(
+                    "Error ({0}) while calling {1} with {2}".format(
+                        e, setter, (args, kwargs)
+                    )
+                )
 
         return result
 
@@ -645,6 +668,11 @@ class C2BAnnotation(Annotation):
             result = component.get(pname)
 
         return result
+
+
+class C2B2CAnnotation(C2BAnnotation, B2CAnnotation):
+    """Behaviour of both C2BAnnotation and B2CAnnotation.
+    """
 
 
 class Context(C2BAnnotation):

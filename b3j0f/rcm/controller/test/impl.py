@@ -31,7 +31,9 @@ from b3j0f.utils.ut import UTCase
 from b3j0f.utils.path import getpath
 from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (
-    ImplController, ImplAnnotation, B2CAnnotation, C2BAnnotation
+    ImplController,
+    ImplAnnotation,
+    B2CAnnotation, C2BAnnotation, C2B2CAnnotation
 )
 
 
@@ -166,6 +168,35 @@ class TestImplAnnotation(BaseImplControllerTest):
 
         self.count = 0
 
+    def test_apply_on(self):
+        """Test apply_on method.
+        """
+
+        cls = str
+
+        self.impl = cls()
+
+        annotation = TestImplAnnotation.TestImplAnnotation(self)
+        annotation(cls)
+        annotation(cls.__format__, ctx=cls)
+
+        ImplAnnotation.apply_on(
+            component=None, impl=self.impl
+        )
+        self.assertEqual(self.count, 2)
+
+    def test_unapply_from(self):
+        """Test unapply_from method.
+        """
+
+        self.test_apply_on()
+
+        ImplAnnotation.unapply_from(
+            component=None,
+            impl=self.impl
+        )
+        self.assertEqual(self.count, 0)
+
     def test_impl(self):
         """Test impl with impl annotation.
         """
@@ -241,7 +272,7 @@ class TestC2BAnnotation(BaseImplControllerTest):
             return self.test
 
     def test_constructor_empty(self):
-        """Test to inject a parameter in an empty cls.
+        """Test to inject a parameter in an empty constructor.
         """
 
         class Test(object):
@@ -250,10 +281,11 @@ class TestC2BAnnotation(BaseImplControllerTest):
             def __init__(self):
                 pass
 
-        self.controller.cls = Test
         self.assertRaises(
-            ImplController.ImplError,
-            self.controller.instantiate
+            C2BAnnotation.C2BError,
+            C2BAnnotation.call_setter,
+            component=None,
+            impl=Test
         )
 
     def test_constructor(self):
@@ -267,8 +299,7 @@ class TestC2BAnnotation(BaseImplControllerTest):
 
                 self.test = test
 
-        self.controller.cls = Test
-        impl = self.controller.instantiate()
+        impl = C2BAnnotation.call_setter(component=None, impl=Test)
 
         self.assertIs(impl.test, self)
 
@@ -278,13 +309,13 @@ class TestC2BAnnotation(BaseImplControllerTest):
 
         class Test(object):
 
-            @TestC2BAnnotation.Ann(self, param='test', ispname=False)
+            @TestC2BAnnotation.Ann(self, param='test')
             def __init__(self, a=2, b=1, test=None):
 
                 self.test = test
 
-        self.controller.cls = Test
-        impl = self.controller.instantiate()
+        impl = C2BAnnotation.call_setter(component=None, impl=Test)
+
         self.assertIs(impl.test, self)
 
     def test_routine_empty(self):
@@ -297,11 +328,14 @@ class TestC2BAnnotation(BaseImplControllerTest):
             def test(self):
                 pass
 
-        self.controller.cls = Test
+        test = Test()
 
         self.assertRaises(
-            ImplController.ImplError,
-            self.controller.instantiate
+            C2BAnnotation.C2BError,
+            C2BAnnotation.call_setter,
+            component=None,
+            impl=test,
+            setter=test.test
         )
 
     def test_routine(self):
@@ -314,10 +348,12 @@ class TestC2BAnnotation(BaseImplControllerTest):
             def test(self, test):
                 self.test = test
 
-        self.controller.cls = Test
-        impl = self.controller.instantiate()
+        test = Test()
 
-        self.assertIs(impl.test, self)
+        C2BAnnotation.call_setter(
+            component=None, impl=test, setter=test.test
+        )
+        self.assertIs(test.test, self)
 
     def test_routine_param(self):
         """Test to inject a parameter in a routine.
@@ -329,10 +365,12 @@ class TestC2BAnnotation(BaseImplControllerTest):
             def test(self, a=0, b=1, test=None):
                 self.test = test
 
-        self.controller.cls = Test
-        impl = self.controller.instantiate()
+        test = Test()
 
-        self.assertIs(impl.test, self)
+        C2BAnnotation.call_setter(
+            component=None, impl=test, setter=test.test
+        )
+        self.assertIs(test.test, self)
 
 
 class TestB2CAnnotation(BaseImplControllerTest):
@@ -347,9 +385,9 @@ class TestB2CAnnotation(BaseImplControllerTest):
 
     class Ann(B2CAnnotation):
 
-        def get_result(self, **kwargs):
+        def get_result(self, result, **kwargs):
 
-            kwargs['result'].count += 1
+            result.count += 1
 
     def test_routine(self):
         """Test to inject a parameter in a routine.
@@ -365,11 +403,59 @@ class TestB2CAnnotation(BaseImplControllerTest):
             def test(self):
                 return self.tb2ca
 
-        self.controller.cls = Test
-        self.controller.instantiate()
-
+        test = Test()
+        B2CAnnotation.call_getter(
+            component=None, impl=test, getter=test.test
+        )
         self.assertEqual(self.count, 1)
 
+
+class TestC2B2CAnnotation(BaseImplControllerTest):
+    """Test C2B2CAnnotation.
+    """
+
+    class C2B2C(C2B2CAnnotation):
+
+        def __init__(self, tcbc, *args, **kwargs):
+
+            super(TestC2B2CAnnotation.C2B2C, self).__init__(*args, **kwargs)
+
+            self.tcbc = tcbc
+
+        def get_value(self, *args, **kwargs):
+
+            self.tcbc.count_value += 1
+
+            return self.tcbc
+
+        def get_result(self, result, *args, **kwargs):
+
+            result.count_result += 1
+
+    def setUp(self, *args, **kwargs):
+
+        super(TestC2B2CAnnotation, self).setUp(*args, **kwargs)
+
+        self.count_value = 0
+        self.count_result = 0
+
+    def test_routine(self):
+
+        class Test(object):
+
+            @TestC2B2CAnnotation.C2B2C(self, param='test')
+            def test(self, a=0, test=None):
+                self._test = test
+                return test
+
+        test = Test()
+
+        C2BAnnotation.call_setters(
+            component=None, impl=test, call_getters=True
+        )
+        self.assertEqual(self.count_value, 1)
+        self.assertEqual(self.count_result, 1)
+        self.assertIs(test._test, self)
 
 if __name__ == '__main__':
     main()
