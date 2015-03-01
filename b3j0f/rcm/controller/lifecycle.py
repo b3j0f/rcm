@@ -31,7 +31,7 @@ except ImportError:
 
 from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (
-    Impl, ParameterizedImplAnnotation, Context
+    Impl, ImplAnnotation, Context, Port
 )
 from b3j0f.rcm.controller.binding import OutputProxy
 from b3j0f.rcm.controller.content import ContentController
@@ -371,7 +371,7 @@ class LifecycleController(Controller):
         LifecycleController.set_status(LifecycleController.STOP)
 
 
-class Lifecycle(Context):
+class Lifecycle(Port):
     """Inject lifecycle controller in an implementation.
     """
 
@@ -382,13 +382,13 @@ class Lifecycle(Context):
         super(Lifecycle, self).__init__(name=name, *args, **kwargs)
 
 
-class LifecycleAnnotation(ParameterizedImplAnnotation):
+class LifecycleAnnotation(ImplAnnotation):
     """Base annotation for Before/After change of lifecycle status.
     """
 
     STATUS = 'status'
 
-    __slots__ = (STATUS, ) + ParameterizedImplAnnotation.__slots__
+    __slots__ = (STATUS, ) + ImplAnnotation.__slots__
 
     def __init__(self, status=None, *args, **kwargs):
 

@@ -29,7 +29,7 @@ __all__ = ['ContentController', 'Content', 'Add', 'Remove']
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.name import NameController
-from b3j0f.rcm.controller.impl import Context, ParameterizedImplAnnotation
+from b3j0f.rcm.controller.impl import Context, ImplAnnotation
 
 
 class ContentController(Controller):
@@ -155,14 +155,14 @@ class Content(Context):
         super(Content, self).__init__(name=name, *args, **kwargs)
 
 
-class Add(ParameterizedImplAnnotation):
+class Add(ImplAnnotation):
     """Fired when related component is added to a new parent component.
     """
 
     pass
 
 
-class Remove(ParameterizedImplAnnotation):
+class Remove(ImplAnnotation):
     """Fired when related component is removed from a parent component.
     """
 

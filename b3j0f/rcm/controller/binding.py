@@ -32,10 +32,8 @@ __all__ = [
 from b3j0f.utils.proxy import get_proxy
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
-from b3j0f.rcm.controller.impl import (
-    Context, ImplController,
-    InputProxy, OutputProxy, Proxy
-)
+from b3j0f.rcm.controller.impl import Context, ImplController, Port
+from b3j0f.rcm.controller.proxy import InputProxy, OutputProxy, Proxy
 
 
 class BindingController(Controller):

@@ -33,7 +33,7 @@ from b3j0f.aop import weave, unweave
 from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (
     ImplController,
-    Context, ParameterizedImplAnnotation, getter_name, setter_name
+    Context, ImplAnnotation, getter_name, setter_name
 )
 
 
@@ -134,11 +134,11 @@ class Property(Context):
         super(Property, self).__init__(name=name, *args, **kwargs)
 
 
-class _PropertyAnnotation(ParameterizedImplAnnotation):
+class _PropertyAnnotation(ImplAnnotation):
 
     NAME = 'name'  #: name field name
 
-    __slots__ = (NAME, ) + ParameterizedImplAnnotation.__slots__
+    __slots__ = (NAME, ) + ImplAnnotation.__slots__
 
     def __init__(self, name, *args, **kwargs):
 

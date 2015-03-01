@@ -30,16 +30,11 @@
 __all__ = [
     'ImplController',  # impl controller
     # impl annotations
-    'ImplAnnotation', 'Impl', 'ParameterizedImplAnnotation', 'Context',
-    'getter_name', 'setter_name',  # util function
+    'ImplAnnotation', 'B2CAnnotation', 'C2BAnnotation',
+    'Context', 'Port', 'Impl',
+    'Stateless',
+    'getter_name', 'setter_name'
 ]
-
-try:
-    from threading import Lock
-except ImportError:
-    from dummy_threading import Lock
-
-from re import compile as re_compile
 
 from inspect import isclass, getmembers, isroutine
 
@@ -47,8 +42,6 @@ from b3j0f.annotation import Annotation
 from b3j0f.annotation.check import Target, MaxCount
 from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
-from b3j0f.utils.proxy import get_proxy
-from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
 
 
@@ -129,31 +122,23 @@ class ImplController(Controller):
         # init kwargs
         if kwargs is None:
             kwargs = {}
-        # enrich params with ParameterizedImplAnnotations
-        # get construtor
-        constructor = getattr(
-            self._cls, '__init__', getattr(self._cls, '__new__', None)
-        )
-        if constructor is not None:
-            pias = ParameterizedImplAnnotation.get_annotations(
-                constructor, ctx=self._cls
-            )
-            for pia in pias:
-                # get value
-                value = pia.get_resource(component=component)
-                # get name
-                name = pia.param
-                if not name:  # if name is not given, add it into args
-                    args.append(value)
-                elif name not in kwargs:  # if name is given, add it to kwargs
-                    kwargs[name] = value
-        # save impl and result
+        # try to instantiate the implementation
         try:
-            result = self.impl = self._cls(*args, **kwargs)
+            result = C2BAnnotation.call_setter(
+                component=component, impl=self._cls, args=args, kwargs=kwargs,
+                force=True
+            )
         except Exception as e:
             raise ImplController.ImplError(
                 "Error ({0}) during impl instantiation of {1}".format(e, self)
             )
+        else:  # update self impl
+            try:
+                self.impl = result
+            except Exception as e:
+                raise ImplController.ImplError(
+                    "Error ({0}) while changing of impl of {1}".format(e, self)
+                )
 
         return result
 
@@ -217,6 +202,10 @@ class ImplController(Controller):
             # apply business annotations on impl
             for component in self.components:
                 ImplAnnotation.apply_on(component=component, impl=self._impl)
+                # and call setters then getters
+                C2BAnnotation.call_setters(
+                    component=component, impl=self._impl, call_getters=True
+                )
 
         else:
             self._cls = None  # nonify cls
@@ -342,7 +331,11 @@ class ImplAnnotation(Annotation):
                     else:
                         annotation.unapply(component=component, impl=impl)
 
-            for name, member in getmembers(impl.__class__, lambda m: isroutine(m)):
+            for name, member in getmembers(
+                impl.__class__,
+                lambda m:
+                    isroutine(m) and m.__name__ not in ['__init__', '__new__']
+            ):
                 annotations = cls.get_annotations(member, ctx=impl.__class__)
                 for annotation in annotations:
                     if check is None or check(annotation):
@@ -385,94 +378,316 @@ class ImplAnnotation(Annotation):
         )
 
 
-class ParameterizedImplAnnotation(ImplAnnotation):
-    """Abstract annotation which takes in parameter a param in order to inject
-    a resource with a dedicated parameter name in a routine.
+class B2CAnnotation(Annotation):
+    """Business to Component annotation in order to inject implementation
+    values to the component properties.
+
+    It updates its result attribute related to its annotated impl routines.
     """
 
-    PARAM = 'param'  #: param field name
+    RESULT = 'result'  #: method call result
 
-    __slots__ = (PARAM, ) + ImplAnnotation.__slots__
+    __slots__ = (RESULT, ) + Annotation.__slots__
 
-    def __init__(self, param=None, *args, **kwargs):
+    def get_result(self, component, impl, member, result):
+        """Callback method after calling the annotated implementation routine.
 
-        super(ParameterizedImplAnnotation, self).__init__(*args, **kwargs)
-
-        self.param = param
-
-    def get_resource(self, component, impl=None, member=None):
-        """Get a resource to inject in a routine call in the scope of a
-        component, impl, prev_impl, member and prev_attr.
-
-        :param Component component: business implementation component.
-        :param impl: component business implementation.
-        :param member: business implementation member.
+        :param Component component: implementation component.
+        :param impl: implementation instance.
+        :param routine member: called implementation member.
+        :param result: method result.
         """
 
-        return component
+        raise NotImplementedError()
 
-    def apply(self, component, impl, member=None, *args, **kwargs):
+    @classmethod
+    def call_getters(cls, component, impl):
+        """Call impl getters of type cls.
 
-        # get the right resource to inject
-        resource = self.get_resource(
-            component=component, impl=impl, member=member
-        )
-        # identify the right target element to inject resource
-        target = impl if member is None else member
-        # inject the resource in the target
-        if self.param is None:
-            try:
-                target(resource)
-            except TypeError:
-                target()
-        else:
-            kwargs = {self.param: resource}
-            target(**kwargs)
+        :param Component component: implementation component.
+        :param impl: implementation instance.
+        """
+        # parse members which are routine and not constructors
+        for name, member in getmembers(
+            impl,
+            lambda m:
+                isroutine(m) and m.__name__ not in ['__init__', '__new__']
+        ):
+            # for each one, try to call setter annotations
+            cls.call_getter(
+                component=component, impl=impl, setter=member
+            )
 
+    @classmethod
+    def call_getter(
+        cls, component, impl, getter, args=None, kwargs=None, force=False
+    ):
+        """Call getter if it is annotated by cls.
 
-class Context(ParameterizedImplAnnotation):
-    """Annotation dedicated to inject a port in a component implementation
-    related to the method.
-    """
+        :param Component component: implementation component.
+        :param impl: implementation instance or cls if getter is None.
+        :param routine getter: getter to call if it is annotated.
+        :param list args: args to use in calling the getter.
+        :param dict kwargs: kwargs to use in calling the getter.
+        :param bool force: force call even if no C2BAnnotation exist.
+        :return: getter call if it is annotated by cls.
+        """
 
-    NAME = 'name'  #: port name field name
+        # init getter result
+        result = None
+        # get SetterImplAnnotations
+        b2cas = cls.get_annotations(getter, ctx=impl)
+        if b2cas or force:  # if getter has getter annotations ?
+            # initialize args and kwargs
+            if args is None:
+                args = []
+            if kwargs is None:
+                kwargs = {}
+            # call the getter and save the result
+            result = getter(*args, **kwargs)
+            for b2ca in b2cas:  # update args and kwargs with sias
+                b2ca.get_result(
+                    component=component,
+                    impl=impl,
+                    getter=getter,
+                    result=result
+                )
+            # call the getter and save the result
+            result = getter(*args, **kwargs)
 
-    __slots__ = (NAME, ) + ParameterizedImplAnnotation.__slots__
-
-    def __init__(self, name, *args, **kwargs):
-
-        super(Context, self).__init__(*args, **kwargs)
-
-        self.name = name
-
-    @property
-    def name(self):
-
-        return self._name
-
-    @name.setter
-    def name(self, value):
-
-        self._name = value
-
-    def get_resource(self, component, *args, **kwargs):
-
-        # resource corresponds to a component port or the component if port
-        # name does not exist
-        port_name = self.name
-        result = component if port_name is None else component[port_name]
         return result
 
 
-class Impl(Context):
+class C2BAnnotation(Annotation):
+    """Component to Business implementation to use in order to configurate the implementation
+    component from
+    the implementation.
+
+    Set a method parameter values before calling it.
+    """
+
+    PARAM = 'param'  #: method params attribute name
+    IS_PNAME = 'ispname'  #: ispname attribute name
+
+    __slots__ = (PARAM, IS_PNAME) + Annotation.__slots__
+
+    def __init__(self, param=None, ispname=False, *args, **kwargs):
+        """
+        :param param: parameters to inject in a business routine.
+        :type param: NoneType, str, list or dict
+        :param bool ispname: If param is a str, if False (default), param is a
+        related to value (component port name for example), otherwise, param is
+        a business routine keyword.
+        """
+
+        super(C2BAnnotation, self).__init__(*args, **kwargs)
+
+        self.param = param
+        self.ispname = ispname
+
+    @classmethod
+    def call_setters(cls, component, impl, call_getters=False):
+        """Call impl setters of type cls.
+
+        :param Component component: implementation component.
+        :param impl: implementation instance.
+        :param bool call_getters: call getters at the end of processing.
+        """
+
+        if call_getters:
+            values_by_members = {}
+
+        # get members to parse (routines and not constructors)
+        members = getmembers(
+            impl,
+            lambda m:
+                isroutine(m) and m.__name__ not in ['__init__', '__new__']
+        )
+
+        # parse members
+        for name, member in members:
+            # for each one, try to call setter annotations
+            value = cls.call_setter(
+                component=component, impl=impl, setter=member
+            )
+            if call_getters and value is not None:
+                values_by_members[member] = value
+
+        if call_getters:
+            # parse members
+            for name, member in members:
+                if member in values_by_members:  # if value already exists
+                    value = values_by_members[member]
+                    # update value in all B2CAnnotations
+                    b2cas = B2CAnnotation.get_annotations(member, ctx=impl)
+                    for b2ca in b2cas:
+                        b2ca.get_result(
+                            component=component, impl=impl, member=member,
+                            result=value
+                        )
+                else:  # execute the member and update B2CAnnotations
+                    B2CAnnotation.call_getter(
+                        component=component, impl=impl, getter=member
+                    )
+
+    @classmethod
+    def call_setter(
+        cls, component, impl, setter=None, args=None, kwargs=None, force=False
+    ):
+        """Call setter if it is annotated by cls.
+
+        If setter is None, use impl such as the setter.
+
+        :param Component component: implementation component.
+        :param impl: implementation instance or cls if setter is None.
+        :param routine setter: setter to call if it is annotated.
+        :param list args: args to use in calling the setter.
+        :param dict kwargs: kwargs to use in calling the setter.
+        :param bool force: force call even if no C2BAnnotation exist.
+        :return: setter call if it is annotated by cls.
+        """
+
+        # init setter result
+        result = None
+        # get the right target
+        if setter is None:
+            target = getattr(impl, '__init__', getattr(impl, '__new__', None))
+            setter = impl
+        else:
+            target = setter
+        # get SetterImplAnnotations
+        c2bas = cls.get_annotations(target, ctx=impl)
+        if c2bas or force:  # if setter has setter annotations ?
+            # initialize args and kwargs
+            if args is None:
+                args = []
+            if kwargs is None:
+                kwargs = {}
+            for c2ba in c2bas:  # update args and kwargs with sias
+                c2ba._update_params(
+                    component=component, impl=impl, member=setter,
+                    args=args, kwargs=kwargs
+                )
+            # call the target and save the result
+            result = setter(*args, **kwargs)
+
+        return result
+
+    def _update_params(self, component, impl, member, args, kwargs):
+        """Update member call parameters.
+
+        :param Component component: implementation component.
+        :param impl: implementation instance.
+        :param routine member: called member.
+        :param list args: member call var args.
+        :param dict kwargs: member call keywords.
+        """
+
+        param = self.param
+        if param is None:  # append default value to args
+            value = self.get_value(
+                component=component, impl=impl, member=member
+            )
+            args.append(value)
+        elif isinstance(param, basestring):  # if param is a str
+            if self.ispname:  # if param is a parameter name
+                value = self.get_value(
+                    component=component, impl=impl, member=member, pname=param
+                )
+                # put value in kwargs
+                args.append(value)
+            else:  # else if param is a routine keyword argument
+                value = self.get_value(
+                    component=component, impl=impl, member=member
+                )
+                # value is in vararg
+                kwargs[param] = value
+        elif isinstance(param, dict):  # contains both arg names and values
+            for kwarg in param:
+                pname = param[kwarg]
+                value = self.get_value(
+                    component=component, impl=impl, member=member, pname=pname
+                )
+                kwargs[kwarg] = value
+
+    def get_value(self, component, impl, member=None, pname=None):
+        """Get value parameter.
+
+        :param Component component: implementation component.
+        :param impl: implementation instance.
+        :param member: implementation member.
+        :param str pname: parameter name. If None, result is component. Else,
+        result is related component port which matches the port.
+        """
+
+        result = None
+
+        if pname is None:  # if pname is None, return component
+            result = component
+        elif isinstance(pname, basestring):  # if str, return port component
+            result = component.get(pname)
+
+        return result
+
+
+class Context(C2BAnnotation):
+    """Annotation dedicated to inject a component into a component
+    implementation.
+    """
+
+    __slots__ = C2BAnnotation.__slots__
+
+    def __init__(self, *args, **kwargs):
+
+        super(Context, self).__init__(
+            param=None, ispname=False, *args, **kwargs
+        )
+
+
+class Port(C2BAnnotation):
+    """Annotation dedicated to inject a port in a component implementation.
+    """
+
+    __slots__ = C2BAnnotation.__slots__
+
+    def __init__(self, param, *args, **kwargs):
+
+        super(Context, self).__init__(
+            param=param, ispname=True, *args, **kwargs
+        )
+
+
+class Impl(Port):
     """Annotation dedicated to inject an ImplController in an implementation.
     """
 
-    __slots__ = Context.__slots__
+    __slots__ = Port.__slots__
 
-    def __init__(self, name=ImplController.ctrl_name(), *args, **kwargs):
+    def __init__(self, param=ImplController.ctrl_name(), *args, **kwargs):
 
-        super(Impl, self).__init__(name=name, *args, **kwargs)
+        super(Impl, self).__init__(param=param, *args, **kwargs)
+
+
+@MaxCount()
+@Target(type)
+class Stateless(ImplAnnotation):
+    """Specify stateless on impl controller.
+    """
+
+    IMPL_STATEFUL = 'impl_stateful'  #: impl stateless attribute name
+
+    __slots__ = (IMPL_STATEFUL, ) + ImplAnnotation.__slots__
+
+    def apply(self, component, *args, **kwargs):
+
+        self.impl_stateful = ImplController.get_stateful(component=component)
+        ImplController.set_stateful(component=component, stateful=False)
+
+    def unapply(self, component, *args, **kwargs):
+
+        ImplController.set_stateful(
+            component=component, stateful=self.impl_stateful
+        )
 
 
 def _accessor_name(accessor, prefix):
@@ -504,308 +719,3 @@ def setter_name(setter):
     """
 
     return _accessor_name(setter, 'set')
-
-
-class Proxy(Component):
-    """Base class for InputProxy and OutputProxy.
-
-    Its role is to bind the component with the environment resources.
-
-    It uses interfaces in order to describe what is promoted.
-    """
-
-    CMP_PORT_SEPARATOR = ':'  #: char separator between a component and port
-
-    INTERFACES = '_interfaces'  #: interfaces field name
-    _SOURCES = '_sources'  #: source proxy
-    _LOCK = '_lock'  #: private lock field name
-
-    __slots__ = (
-        INTERFACES,  # public attributes
-        _LOCK, _SOURCES  # private attributes
-    ) + Component.__slots__
-
-    def __init__(
-        self, interfaces=None, sources=None, *args, **kwargs
-    ):
-
-        super(Proxy, self).__init__(*args, **kwargs)
-
-        self._lock = Lock()
-        self.interfaces = interfaces
-        self._sources = []
-        self.sources = sources
-
-    @property
-    def interfaces(self):
-        """Return an array of self interfaces
-        """
-
-        return [self._interfaces]
-
-    @interfaces.setter
-    def interfaces(self, value):
-        """Update interfaces with a list of interface names/types.
-
-        :param value:
-        :type value: list or str
-        """
-
-        self._lock.acquire()
-
-        # ensure interfaces are a set of types
-        if isinstance(value, basestring):
-            value = set([lookup(value)])
-        elif isinstance(value, type):
-            value = set([value])
-        # convert all str to tuple of types
-        self._interfaces = (
-            v if isinstance(v, type) else lookup(v) for v in value
-        )
-
-        self._lock.release()
-
-    def promote(self, component, sources):
-        """Promote this port to input component proxy where names match with
-        input sources.
-
-        :param Component component: component from where find sources.
-        :param sources: sources to promote.
-        :type sources: list or str of type [port_name/]sub_port_name
-        """
-
-        #ensure sources are a list of str
-        if isinstance(sources, basestring):
-            sources = [sources]
-
-        for source in sources:
-            # first, identify component name with proxy
-            splitted_source = source.split(Proxy.CMP_PORT_SEPARATOR)
-            if len(splitted_source) == 1:
-                # by default, search among the impl controller
-                component_rc = re_compile(
-                    '^{0}'.format(ImplController.ctrl_name())
-                )
-                port_rc = re_compile(splitted_source[0])
-            else:
-                component_rc = re_compile(splitted_source[0])
-                port_rc = re_compile(splitted_source[1])
-
-            proxy = self._component_cls().get_cls_proxy(
-                component=component,
-                select=lambda name, component:
-                    component_rc.match(name)
-                    and self._component_filter(name, component)
-            )
-            # bind port
-            for name in proxy:
-                port = proxy[name]
-                if port_rc.match(name) and self._port_filter(name, port):
-                    self[name] = port
-
-    def _component_cls(self):
-
-        return Component
-
-    def _port_cls(self):
-
-        return Proxy
-
-    def _component_filter(self, name, component):
-
-        return True
-
-    def _port_filter(self, name, port):
-
-        return True
-
-
-class InputProxy(Proxy):
-    """Input port.
-    """
-
-    __slots__ = Proxy.__slots__
-
-
-class Input(ParameterizedImplAnnotation):
-    """InputProxy injector which uses a name in order to inject a InputProxy.
-    """
-
-    NAME = 'name'  #: input port name field name
-
-    __slots__ = (NAME, ) + ParameterizedImplAnnotation.__slots__
-
-    def __init__(self, name, *args, **kwargs):
-
-        super(Input, self).__init__(*args, **kwargs)
-
-        self.name = name
-
-    def get_port_name(self, *args, **kwargs):
-
-        return self.name
-
-
-class ProxyBinding(Component):
-    """Proxy binding which describe the mean to promote component content.
-
-    Such port binding has a name and a proxy.
-    The proxy is generated thanks to the bound port interfaces and the content
-    to promote.
-    """
-
-    NAME = 'name'  #: binding name field name
-    PROXY = '_proxy'  #: proxy value field name
-
-    __slots__ = (NAME, PROXY) + Component.__slots__
-
-    def __init__(self, name, *args, **kwargs):
-
-        super(ProxyBinding, self).__init__(*args, **kwargs)
-
-        self.name = name
-
-    def bind(self, component, port_name, *args, **kwargs):
-
-        if isinstance(component, OutputProxy):
-
-            self.update_proxy()
-
-    def update_proxy(self, component, interfaces, name):
-        """Renew a proxy.
-        """
-
-        self._lock.acquire()
-
-        impl = ImplController.get_impl(component)
-
-        if impl is not None:
-            self._proxy = get_proxy(impl, interfaces)
-
-        self._lock.release()
-
-    def del_proxy(self):
-        """Delete self proxy.
-        """
-        pass
-
-    def unbind(self, component, port_name, *args, **kwargs):
-
-        if isinstance(component, OutputProxy):
-
-            self.del_proxy()
-
-
-class OutputProxy(Proxy):
-    """Output port which provides component content thanks to port bindings.
-
-    Those bindings are bound to the output port such as any component.
-    """
-
-    ASYNC = 'async'  #: asynchronous mode
-    STATELESS = 'stateless'  #: stateless mode
-
-    __slots__ = (ASYNC, STATELESS) + Proxy.__slots__
-
-    def __init__(self, async=False, stateless=False, *args, **kwargs):
-
-        super(OutputProxy, self).__init__(*args, **kwargs)
-
-        self.async = async
-        self.stateless = stateless
-
-    def bind(self, component, port_name, *args, **kwargs):
-
-        Output.apply(component=component)
-
-    def unbind(self, component, port_name, *args, **kwargs):
-
-        Output.unapply(component=component)
-
-
-class Output(ParameterizedImplAnnotation):
-    """Impl Out descriptor.
-    """
-
-    ASYNC = 'async'  #: asynchronous mode
-    STATELESS = 'stateless'  #: stateless mode
-    RESOURCE = '_resource'  #: output port resource field name
-
-    __slots__ = (RESOURCE, ) + ParameterizedImplAnnotation.__slots__
-
-    def __init__(self, async, stateless, resource, *args, **kwargs):
-
-        self.resource = resource
-        self.async = async
-        self.stateless = stateless
-
-    @property
-    def resource(self):
-
-        return self._resource
-
-    @resource.setter
-    def resource(self, value):
-
-        if isinstance(value, basestring):
-            value = lookup(value)
-
-        self._resource = value
-
-
-@MaxCount()
-@Target(type)
-class Stateless(ImplAnnotation):
-    """Specify stateless on impl controller.
-    """
-
-    IMPL_STATEFUL = 'impl_stateful'  #: impl stateless attribute name
-
-    __slots__ = (IMPL_STATEFUL, ) + ImplAnnotation.__slots__
-
-    def apply(self, component, *args, **kwargs):
-
-        self.impl_stateful = ImplController.get_stateful(component=component)
-        ImplController.set_stateful(component=component, stateful=False)
-
-    def unapply(self, component, *args, **kwargs):
-
-        ImplController.set_stateful(
-            component=component, stateful=self.impl_stateful
-        )
-
-
-@Target(type)
-class Proxys(ImplAnnotation):
-    """Annotation in charge of binding proxy in a component proxy.
-    """
-
-    PROXY = 'proxy'
-
-    __slots__ = (PROXY, ) + ImplAnnotation.__slots__
-
-    def __init__(self, proxy, *args, **kwargs):
-        """
-        :param proxy: proxy to bind to component.
-        :type proxy: dict
-        """
-        super(Proxys, self).__init__(*args, **kwargs)
-
-        self.proxy = proxy
-
-    def apply(self, component, *args, **kwargs):
-
-        # iterate on all self proxy
-        self_proxy = self.proxy
-        for port_name in self_proxy:
-            port = self_proxy[port_name]
-            # bind it with its name
-            component[port_name] = port
-
-    def unapply(self, component, *args, **kwargs):
-
-        # iterate on all self proxy
-        self_proxy = self.proxy
-        for port_name in self_proxy:
-            # bind it with its name
-            del component[port_name]

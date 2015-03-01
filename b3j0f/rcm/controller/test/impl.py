@@ -31,7 +31,7 @@ from b3j0f.utils.ut import UTCase
 from b3j0f.utils.path import getpath
 from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (
-    ImplController, ImplAnnotation, ParameterizedImplAnnotation
+    ImplController, ImplAnnotation, B2CAnnotation, C2BAnnotation
 )
 
 
@@ -207,6 +207,11 @@ class TestImplAnnotation(BaseImplControllerTest):
                 self.a = a
                 self.b = b
 
+            @TestImplAnnotation.TestImplAnnotation(self)
+            def __call__(self):
+
+                pass
+
         self.controller.cls = TestImpl
 
         self.assertRaises(
@@ -219,9 +224,21 @@ class TestImplAnnotation(BaseImplControllerTest):
         self.assertEqual(self.count, 2)
 
 
-class TestParameterizedImplAnnotation(BaseImplControllerTest):
-    """Test ParameterizedImplAnnotation.
+class TestC2BAnnotation(BaseImplControllerTest):
+    """Test C2BAnnotation.
     """
+
+    class Ann(C2BAnnotation):
+
+        def __init__(self, test, *args, **kwargs):
+
+            super(TestC2BAnnotation.Ann, self).__init__(*args, **kwargs)
+
+            self.test = test
+
+        def get_value(self, *args, **kwargs):
+
+            return self.test
 
     def test_constructor_empty(self):
         """Test to inject a parameter in an empty cls.
@@ -229,7 +246,7 @@ class TestParameterizedImplAnnotation(BaseImplControllerTest):
 
         class Test(object):
 
-            @ParameterizedImplAnnotation()
+            @TestC2BAnnotation.Ann(self)
             def __init__(self):
                 pass
 
@@ -245,15 +262,15 @@ class TestParameterizedImplAnnotation(BaseImplControllerTest):
 
         class Test(object):
 
-            @ParameterizedImplAnnotation()
-            def __init__(self, param):
+            @TestC2BAnnotation.Ann(self)
+            def __init__(self, test):
 
-                self.param = param
+                self.test = test
 
         self.controller.cls = Test
         impl = self.controller.instantiate()
 
-        self.assertIs(impl.param, self.controller)
+        self.assertIs(impl.test, self)
 
     def test_constructor_name(self):
         """Test to inject a parameter in a cls with a dedicated name.
@@ -261,15 +278,14 @@ class TestParameterizedImplAnnotation(BaseImplControllerTest):
 
         class Test(object):
 
-            @ParameterizedImplAnnotation(param='test')
+            @TestC2BAnnotation.Ann(self, param='test', ispname=False)
             def __init__(self, a=2, b=1, test=None):
 
                 self.test = test
 
         self.controller.cls = Test
         impl = self.controller.instantiate()
-
-        self.assertIs(impl.test, self.controller)
+        self.assertIs(impl.test, self)
 
     def test_routine_empty(self):
         """Test to inject a parameter in an empty routine.
@@ -277,12 +293,83 @@ class TestParameterizedImplAnnotation(BaseImplControllerTest):
 
         class Test(object):
 
-            @ParameterizedImplAnnotation()
+            @TestC2BAnnotation.Ann(self)
             def test(self):
                 pass
 
         self.controller.cls = Test
-        self.controller.instantiate()
+
+        self.assertRaises(
+            ImplController.ImplError,
+            self.controller.instantiate
+        )
+
+    def test_routine(self):
+        """Test to inject a parameter in a routine.
+        """
+
+        class Test(object):
+
+            @TestC2BAnnotation.Ann(self)
+            def test(self, test):
+                self.test = test
+
+        self.controller.cls = Test
+        impl = self.controller.instantiate()
+
+        self.assertIs(impl.test, self)
+
+    def test_routine_param(self):
+        """Test to inject a parameter in a routine.
+        """
+
+        class Test(object):
+
+            @TestC2BAnnotation.Ann(self, param='test')
+            def test(self, a=0, b=1, test=None):
+                self.test = test
+
+        self.controller.cls = Test
+        impl = self.controller.instantiate()
+
+        self.assertIs(impl.test, self)
+
+
+class TestB2CAnnotation(BaseImplControllerTest):
+    """Test B2CAnnotation.
+    """
+
+    def setUp(self, *args, **kwargs):
+
+        super(TestB2CAnnotation, self).setUp(*args, **kwargs)
+
+        self.count = 0
+
+    class Ann(B2CAnnotation):
+
+        def get_result(self, **kwargs):
+
+            kwargs['result'].count += 1
+
+    def test_routine(self):
+        """Test to inject a parameter in a routine.
+        """
+
+        class Test(object):
+
+            def __init__(self, tb2ca):
+
+                self.tb2ca = tb2ca
+
+            @TestB2CAnnotation.Ann()
+            def test(self):
+                return self.tb2ca
+
+        self.controller.cls = Test
+        self.controller.instantiate(kwargs={'tb2ca': self})
+
+        self.assertEqual(self.count, 1)
+
 
 if __name__ == '__main__':
     main()

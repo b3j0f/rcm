@@ -28,7 +28,7 @@ __all__ = ['NameController', 'Name', 'SetName', 'GetName']
 
 from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (
-    ParameterizedImplAnnotation, ImplAnnotation, Context
+    ImplAnnotation, Context
 )
 
 
@@ -140,11 +140,11 @@ class Name(Context):
         super(Name, self).__init__(name=name, *args, **kwargs)
 
 
-class SetName(ParameterizedImplAnnotation):
+class SetName(ImplAnnotation):
     """Bind setter implementation methods to the name controller.
     """
 
-    __slots__ = ParameterizedImplAnnotation.__slots__
+    __slots__ = ImplAnnotation.__slots__
 
     def get_resource(self, component, *args, **kwargs):
 
