@@ -33,15 +33,19 @@ __all__ = [
     'ImplAnnotation', 'B2CAnnotation', 'C2BAnnotation',
     'Context', 'Port', 'Impl',
     'Stateless',
-    'getter_name', 'setter_name'
+    'getter_name', 'setter_name',
+    'Bind', 'Unbind'
 ]
 
 from inspect import isclass, getmembers, isroutine
+
+from collections import Iterable
 
 from b3j0f.annotation import Annotation
 from b3j0f.annotation.check import Target, MaxCount
 from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
+from b3j0f.aop import weave, unweave
 from b3j0f.rcm.controller.core import Controller
 
 
@@ -380,7 +384,7 @@ class ImplAnnotation(Annotation):
         )
 
 
-class B2CAnnotation(Annotation):
+class B2CAnnotation(ImplAnnotation):
     """Business to Component annotation in order to inject implementation
     values to the component properties.
 
@@ -474,7 +478,7 @@ class B2CAnnotation(Annotation):
         return result
 
 
-class C2BAnnotation(Annotation):
+class C2BAnnotation(ImplAnnotation):
     """Component to Business implementation to use in order to configurate the
     implementation component from the implementation.
 
@@ -495,11 +499,21 @@ class C2BAnnotation(Annotation):
         self, param=None, ispname=False, override=False, *args, **kwargs
     ):
         """
-        :param param: parameters to inject in a business routine.
-        :type param: NoneType, str, list or dict
-        :param bool ispname: If param is a str, if False (default), param is a
-        related to value (component port name for example), otherwise, param is
-        a business routine keyword.
+        :param param: parameters to inject in a business routine. It can be of
+        different types and also depends on ispname::
+
+            - None: first setter parameter corresponds to self value.
+            - str: if ispname, param is self parameter name which refers to a
+            value, otherwise, param is a setter parameter name.
+            - dict: set of setter parameter name, self parameter name.
+            - list: if ispname, param is a list of self parameter name
+            which refer to a list of values (of the same size), otherwise,
+            param is a list of setter parameter names.
+
+        :type param: NoneType, str, dict or Iterable
+        :param bool ispname: If False (default), param is used such setter
+        parameter names if not specified (when param is a list or a str),
+        otherwise, param is self parameter names.
         :param bool override: if False (default), do not override existing
         parameters.
         """
@@ -624,18 +638,16 @@ class C2BAnnotation(Annotation):
             )
             args.append(value)
         elif isinstance(param, basestring):  # if param is a str
+            value = self.get_value(
+                component=component, impl=impl, member=member,
+                pname=param if self.ispname else None
+            )
             if self.ispname:  # if param is a parameter name
-                value = self.get_value(
-                    component=component, impl=impl, member=member, pname=param
-                )
                 # put value in kwargs
                 args.append(value)
             # else if param is a routine keyword argument
             elif (not self.override) or param not in kwargs:
                 # do nothing if override and param already in kwargs
-                value = self.get_value(
-                    component=component, impl=impl, member=member
-                )
                 # value is in vararg
                 kwargs[param] = value
         elif isinstance(param, dict):  # contains both arg names and values
@@ -649,6 +661,21 @@ class C2BAnnotation(Annotation):
                         pname=pname
                     )
                     kwargs[kwarg] = value
+        elif isinstance(param, list):  # contains dynamic values to put
+            values = self.get_value(
+                component=component,
+                impl=impl,
+                member=member,
+                pname=param if self.ispname else None
+            )
+            if self.ispname:
+                args += values
+            else:
+                names_w_value = zip(param, values)
+                override = self.override
+                for name, value in names_w_value:
+                    if (not override) or name not in kwargs:
+                        kwargs[name] = value
 
     def get_value(self, component, impl, member=None, pname=None):
         """Get value parameter.
@@ -764,3 +791,45 @@ def setter_name(setter):
     """
 
     return _accessor_name(setter, 'set')
+
+
+class Bind(C2BAnnotation):
+    """Called when a port is bound to component.
+    """
+
+    def apply(self, component, *args, **kwargs):
+
+        weave(component.__setitem__, self.advice)
+
+    def unapply(self, component, *args, **kwargs):
+
+        unweave(component.__setitem__, self.advice)
+
+    def advice(self, joinpoint):
+
+        key = joinpoint.kwargs['key']
+        item = joinpoint.kwargs['item']
+
+        for target in self.targets:
+            target(key, item)
+
+
+class Unbind(C2BAnnotation):
+    """Called when a port is unbound from component.
+    """
+
+    def apply(self, component, *args, **kwargs):
+
+        weave(component.__delitem__, self.advice)
+
+    def unapply(self, component, *args, **kwargs):
+
+        unweave(component.__delitem__, self.advice)
+
+    def advice(self, joinpoint):
+
+        key = joinpoint.kwargs['key']
+        item = joinpoint.kwargs['self'][key]
+
+        for target in self.targets:
+            target(key, item)
