@@ -337,10 +337,7 @@ class ImplAnnotation(Annotation):
 
             for name, member in getmembers(
                 impl.__class__,
-                lambda m:
-                    isroutine(m)
-                    and
-                    getattr(m, '__name__', None) not in ['__init__', '__new__']
+                lambda m: isroutine(m)
             ):
                 annotations = cls.get_annotations(member, ctx=impl.__class__)
                 for annotation in annotations:
@@ -391,9 +388,7 @@ class B2CAnnotation(ImplAnnotation):
     It updates its result attribute related to its annotated impl routines.
     """
 
-    RESULT = 'result'  #: method call result
-
-    #__slots__ = (RESULT, ) + Annotation.__slots__
+    #__slots__ = Annotation.__slots__
 
     class B2CError(Exception):
         """Handle B2CAnnotation errors.
@@ -634,13 +629,15 @@ class C2BAnnotation(ImplAnnotation):
         param = self.param
         if param is None:  # append default value to args
             value = self.get_value(
-                component=component, impl=impl, member=member, **ks
+                component=component, impl=impl, member=member,
+                **ks
             )
             args.append(value)
         elif isinstance(param, basestring):  # if param is a str
             value = self.get_value(
                 component=component, impl=impl, member=member,
-                pname=param if self.ispname else None, **ks
+                pname=param if self.ispname else None,
+                **ks
             )
             if self.ispname:  # if param is a parameter name
                 # put value in kwargs
@@ -658,15 +655,17 @@ class C2BAnnotation(ImplAnnotation):
                     pname = param[kwarg]
                     value = self.get_value(
                         component=component, impl=impl, member=member,
-                        pname=pname, **ks
+                        pname=pname,
+                        **ks
                     )
                     kwargs[kwarg] = value
-        elif isinstance(param, list):  # contains dynamic values to put
+        elif isinstance(param, Iterable):  # contains dynamic values to put
             values = self.get_value(
                 component=component,
                 impl=impl,
                 member=member,
-                pname=param if self.ispname else None, **ks
+                pname=param if self.ispname else None,
+                **ks
             )
             if self.ispname:
                 args += values
@@ -812,7 +811,12 @@ class C2BAnnotationInterceptor(C2BAnnotation):
 
         self.when = when
 
-    def get_target(self, *args, **kwargs):
+    def get_target_ctx(self, *args, **kwargs):
+        """Get target and ctx related to apply/unapply calls.
+
+        :return: target and ctx.
+        :rtype: tuple
+        """
 
         raise NotImplementedError()
 
@@ -852,24 +856,24 @@ class C2BAnnotationInterceptor(C2BAnnotation):
 
     def apply(self, *args, **kwargs):
 
-        target = self.get_target(*args, **kwargs)
+        target, ctx = self.get_target(*args, **kwargs)
 
-        weave(target, advices=self.advice)
+        weave(target, advices=self.advice, ctx=ctx)
 
     def unapply(self, *args, **kwargs):
 
-        target = self.get_target(*args, **kwargs)
+        target, ctx = self.get_target(*args, **kwargs)
 
-        unweave(target, advices=self.advice)
+        unweave(target, advices=self.advice, ctx=ctx)
 
 
-class OnBind(C2BAnnotationInterceptor):
+class Bind(C2BAnnotationInterceptor):
     """Called when a port is bound to component.
     """
 
-    def get_target(self, component, *args, **kwargs):
+    def get_target_ctx(self, component, *args, **kwargs):
 
-        return component.__setitem__
+        return component.__setitem__, component
 
     def get_value(self, joinpoint, *args, **kwargs):
 
@@ -880,13 +884,13 @@ class OnBind(C2BAnnotationInterceptor):
         return key, item, when
 
 
-class OnUnbind(C2BAnnotation):
+class Unbind(C2BAnnotation):
     """Called when a port is unbound from component.
     """
 
-    def get_target(self, component, *args, **kwargs):
+    def get_target_ctx(self, component, *args, **kwargs):
 
-        return component.__delitem__
+        return component.__delitem__, component
 
     def get_value(self, component, joinpoint, *args, **kwargs):
 

@@ -168,6 +168,45 @@ class TestImplAnnotation(BaseImplControllerTest):
 
         self.count = 0
 
+    def test_apply(self):
+        """Test apply method.
+        """
+
+        cls = str
+
+        self.impl = cls()
+
+        annotation = TestImplAnnotation.TestImplAnnotation(self)
+        annotation(cls)
+        annotation(cls.__format__, ctx=cls)
+
+        annotation.apply(
+            component=None, impl=self.impl
+        )
+        annotation.apply(
+            component=None, impl=self.impl, member=cls.__format__
+        )
+        self.assertEqual(self.count, 2)
+
+        return annotation
+
+    def test_unapply(self):
+        """Test unapply method.
+        """
+
+        annotation = self.test_apply()
+
+        annotation.unapply(
+            component=None,
+            impl=self.impl
+        )
+        annotation.unapply(
+            component=None,
+            impl=self.impl,
+            member=self.impl.__format__
+        )
+        self.assertEqual(self.count, 0)
+
     def test_apply_on(self):
         """Test apply_on method.
         """
@@ -252,7 +291,73 @@ class TestImplAnnotation(BaseImplControllerTest):
         new_impl = self.controller.instantiate(kwargs={'a': 0})
         self.assertEqual(new_impl.a, 0)
         self.assertEqual(new_impl.b, 1)
-        self.assertEqual(self.count, 2)
+        self.assertEqual(self.count, 3)
+
+
+class TestB2CAnnotation(BaseImplControllerTest):
+    """Test B2CAnnotation.
+    """
+
+    def setUp(self, *args, **kwargs):
+
+        super(TestB2CAnnotation, self).setUp(*args, **kwargs)
+
+        self.count = 0
+
+    class Ann(B2CAnnotation):
+
+        def get_result(self, result, **kwargs):
+
+            result.count += 1
+
+    def test_get_result(self):
+        """Test get_result method.
+        """
+
+        annotation = TestB2CAnnotation.Ann()
+
+        annotation.get_result(result=self)
+        self.assertEqual(self.count, 1)
+
+    def test_call_getter(self):
+        """Test call_getter method.
+        """
+
+        class Test(object):
+
+            def __init__(self, tb2ca=self):
+
+                self.tb2ca = tb2ca
+
+            @TestB2CAnnotation.Ann()
+            def test(self):
+                return self.tb2ca
+
+        test = Test()
+        B2CAnnotation.call_getter(
+            component=None, impl=test, getter=test.test
+        )
+        self.assertEqual(self.count, 1)
+
+    def test_call_getters(self):
+        """Test call_getters method.
+        """
+
+        class Test(object):
+
+            def __init__(self, tb2ca=self):
+
+                self.tb2ca = tb2ca
+
+            @TestB2CAnnotation.Ann()
+            def test(self):
+                return self.tb2ca
+
+        test = Test()
+        B2CAnnotation.call_getters(
+            component=None, impl=test
+        )
+        self.assertEqual(self.count, 1)
 
 
 class TestC2BAnnotation(BaseImplControllerTest):
@@ -371,43 +476,6 @@ class TestC2BAnnotation(BaseImplControllerTest):
             component=None, impl=test, setter=test.test
         )
         self.assertIs(test.test, self)
-
-
-class TestB2CAnnotation(BaseImplControllerTest):
-    """Test B2CAnnotation.
-    """
-
-    def setUp(self, *args, **kwargs):
-
-        super(TestB2CAnnotation, self).setUp(*args, **kwargs)
-
-        self.count = 0
-
-    class Ann(B2CAnnotation):
-
-        def get_result(self, result, **kwargs):
-
-            result.count += 1
-
-    def test_routine(self):
-        """Test to inject a parameter in a routine.
-        """
-
-        class Test(object):
-
-            def __init__(self, tb2ca=self):
-
-                self.tb2ca = tb2ca
-
-            @TestB2CAnnotation.Ann()
-            def test(self):
-                return self.tb2ca
-
-        test = Test()
-        B2CAnnotation.call_getter(
-            component=None, impl=test, getter=test.test
-        )
-        self.assertEqual(self.count, 1)
 
 
 class TestC2B2CAnnotation(BaseImplControllerTest):
