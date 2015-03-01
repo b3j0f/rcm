@@ -621,7 +621,7 @@ class C2BAnnotation(ImplAnnotation):
 
         return result
 
-    def _update_params(self, component, impl, member, args, kwargs):
+    def _update_params(self, component, impl, member, args, kwargs, **ks):
         """Update member call parameters.
 
         :param Component component: implementation component.
@@ -634,13 +634,13 @@ class C2BAnnotation(ImplAnnotation):
         param = self.param
         if param is None:  # append default value to args
             value = self.get_value(
-                component=component, impl=impl, member=member
+                component=component, impl=impl, member=member, **ks
             )
             args.append(value)
         elif isinstance(param, basestring):  # if param is a str
             value = self.get_value(
                 component=component, impl=impl, member=member,
-                pname=param if self.ispname else None
+                pname=param if self.ispname else None, **ks
             )
             if self.ispname:  # if param is a parameter name
                 # put value in kwargs
@@ -658,7 +658,7 @@ class C2BAnnotation(ImplAnnotation):
                     pname = param[kwarg]
                     value = self.get_value(
                         component=component, impl=impl, member=member,
-                        pname=pname
+                        pname=pname, **ks
                     )
                     kwargs[kwarg] = value
         elif isinstance(param, list):  # contains dynamic values to put
@@ -666,7 +666,7 @@ class C2BAnnotation(ImplAnnotation):
                 component=component,
                 impl=impl,
                 member=member,
-                pname=param if self.ispname else None
+                pname=param if self.ispname else None, **ks
             )
             if self.ispname:
                 args += values
@@ -677,7 +677,7 @@ class C2BAnnotation(ImplAnnotation):
                     if (not override) or name not in kwargs:
                         kwargs[name] = value
 
-    def get_value(self, component, impl, member=None, pname=None):
+    def get_value(self, component, impl, member=None, pname=None, **ks):
         """Get value parameter.
 
         :param Component component: implementation component.
@@ -793,43 +793,105 @@ def setter_name(setter):
     return _accessor_name(setter, 'set')
 
 
-class Bind(C2BAnnotation):
+class C2BAnnotationInterceptor(C2BAnnotation):
+    """C2B annotation dedicated to intercept context methods and to set
+    corresponding methods in implementation.
+
+    Implementation setters can be fired before, after or both.
+    """
+
+    BEFORE = 1  #: before flag value
+    AFTER = 2  #: after flag value
+    BOTH = BEFORE + AFTER  #: before and after flag values
+
+    WHEN = 'when'  #: when attribute name
+
+    def __init__(self, when=BOTH, *args, **kwargs):
+
+        super(C2BAnnotationInterceptor, self).__init__(*args, **kwargs)
+
+        self.when = when
+
+    def get_target(self, *args, **kwargs):
+
+        raise NotImplementedError()
+
+    def advice(self, joinpoint):
+
+        component = joinpoint.kwargs.get('component')
+
+        if self.when & C2BAnnotationInterceptor.BEFORE:
+            for target in self.targets:
+                impl = target.__self__
+                args, kwargs = [], {}
+                self._update_params(
+                    component=component,
+                    impl=impl,
+                    member=target,
+                    args=args,
+                    kwargs=kwargs,
+                    joinpoint=joinpoint
+                )
+                target(*args, **kwargs)
+
+        joinpoint.proceed()
+
+        if self.when & C2BAnnotationInterceptor.AFTER:
+            for target in self.targets:
+                impl = target.__self__
+                args, kwargs = [], {}
+                self._update_params(
+                    component=component,
+                    impl=impl,
+                    member=target,
+                    args=args,
+                    kwargs=kwargs,
+                    joinpoint=joinpoint
+                )
+                target(*args, **kwargs)
+
+    def apply(self, *args, **kwargs):
+
+        target = self.get_target(*args, **kwargs)
+
+        weave(target, advices=self.advice)
+
+    def unapply(self, *args, **kwargs):
+
+        target = self.get_target(*args, **kwargs)
+
+        unweave(target, advices=self.advice)
+
+
+class OnBind(C2BAnnotationInterceptor):
     """Called when a port is bound to component.
     """
 
-    def apply(self, component, *args, **kwargs):
+    def get_target(self, component, *args, **kwargs):
 
-        weave(component.__setitem__, self.advice)
+        return component.__setitem__
 
-    def unapply(self, component, *args, **kwargs):
-
-        unweave(component.__setitem__, self.advice)
-
-    def advice(self, joinpoint):
+    def get_value(self, joinpoint, *args, **kwargs):
 
         key = joinpoint.kwargs['key']
-        item = joinpoint.kwargs['item']
+        item = joinpoint.kwargs.get('item')
+        when = self.when
 
-        for target in self.targets:
-            target(key, item)
+        return key, item, when
 
 
-class Unbind(C2BAnnotation):
+class OnUnbind(C2BAnnotation):
     """Called when a port is unbound from component.
     """
 
-    def apply(self, component, *args, **kwargs):
+    def get_target(self, component, *args, **kwargs):
 
-        weave(component.__delitem__, self.advice)
+        return component.__delitem__
 
-    def unapply(self, component, *args, **kwargs):
-
-        unweave(component.__delitem__, self.advice)
-
-    def advice(self, joinpoint):
+    def get_value(self, component, joinpoint, *args, **kwargs):
 
         key = joinpoint.kwargs['key']
-        item = joinpoint.kwargs['self'][key]
+        item = component.get('key')
+        when = self.when
 
-        for target in self.targets:
-            target(key, item)
+        return key, item, when
