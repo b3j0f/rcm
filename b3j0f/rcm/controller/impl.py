@@ -482,16 +482,16 @@ class C2BAnnotation(ImplAnnotation):
 
     PARAM = 'param'  #: method params attribute name
     IS_PNAME = 'ispname'  #: ispname attribute name
-    OVERRIDE = 'override'  #: overriden parameter attribute name
+    UPDATE = 'update'  #: update parameter attribute name
 
-    #__slots__ = (PARAM, IS_PNAME, OVERRIDE) + Annotation.__slots__
+    #__slots__ = (PARAM, IS_PNAME, UPDATE) + Annotation.__slots__
 
     class C2BError(Exception):
         """Handle C2BAnnotation errors.
         """
 
     def __init__(
-        self, param=None, ispname=False, override=False, *args, **kwargs
+        self, param=None, ispname=False, update=False, *args, **kwargs
     ):
         """
         :param param: parameters to inject in a business routine. It can be of
@@ -509,7 +509,7 @@ class C2BAnnotation(ImplAnnotation):
         :param bool ispname: If False (default), param is used such setter
         parameter names if not specified (when param is a list or a str),
         otherwise, param is self parameter names.
-        :param bool override: if False (default), do not override existing
+        :param bool update: if False (default), do not update existing
         parameters.
         """
 
@@ -517,7 +517,7 @@ class C2BAnnotation(ImplAnnotation):
 
         self.param = param
         self.ispname = ispname
-        self.override = override
+        self.update = update
 
     @classmethod
     def call_setters(cls, component, impl, call_getters=False):
@@ -587,7 +587,7 @@ class C2BAnnotation(ImplAnnotation):
         result = None
         # get the right target
         if setter is None:
-            target = getattr(impl, '__init__', getattr(impl, '__new__', None))
+            target = getattr(impl, '__init__', getattr(impl, '__new__', impl))
             setter = impl
         else:
             target = setter
@@ -643,15 +643,15 @@ class C2BAnnotation(ImplAnnotation):
                 # put value in kwargs
                 args.append(value)
             # else if param is a routine keyword argument
-            elif (not self.override) or param not in kwargs:
-                # do nothing if override and param already in kwargs
+            elif self.update or param not in kwargs:
+                # do nothing if update and param already in kwargs
                 # value is in vararg
                 kwargs[param] = value
         elif isinstance(param, dict):  # contains both arg names and values
-            override = self.override
+            update = self.update
             for kwarg in param:
-                # do nothing if override and param already in kwargs
-                if (not override) or param not in kwargs:
+                # do nothing if update and param already in kwargs
+                if update or param not in kwargs:
                     pname = param[kwarg]
                     value = self.get_value(
                         component=component, impl=impl, member=member,
@@ -671,9 +671,9 @@ class C2BAnnotation(ImplAnnotation):
                 args += values
             else:
                 names_w_value = zip(param, values)
-                override = self.override
+                update = self.update
                 for name, value in names_w_value:
-                    if (not override) or name not in kwargs:
+                    if update or name not in kwargs:
                         kwargs[name] = value
 
     def get_value(self, component, impl, member=None, pname=None, **ks):

@@ -376,6 +376,15 @@ class TestC2BAnnotation(BaseImplControllerTest):
 
             return self.test
 
+    def test_get_value(self):
+        """Test get_value method.
+        """
+
+        annotation = TestC2BAnnotation.Ann(self)
+
+        value = annotation.get_value()
+        self.assertIs(value, self)
+
     def test_constructor_empty(self):
         """Test to inject a parameter in an empty constructor.
         """
@@ -476,6 +485,170 @@ class TestC2BAnnotation(BaseImplControllerTest):
             component=None, impl=test, setter=test.test
         )
         self.assertIs(test.test, self)
+
+    def test_call_setters(self):
+        """Test call_setters method.
+        """
+
+        self.count = 0
+
+        class Ann(C2BAnnotation):
+
+            def __init__(self, test, *args, **kwargs):
+
+                super(Ann, self).__init__(*args, **kwargs)
+
+                self.test = test
+
+            def get_value(self, *args, **kwargs):
+
+                self.test.count += 1
+                return self.test
+
+        class Test(object):
+
+            @Ann(self)
+            def test0(self, a):
+                pass
+
+            @Ann(self)
+            def test1(self, a):
+                pass
+
+            def test2(self, a):
+                pass
+
+        annotation = Ann(self)
+        annotation(Test.test2)
+
+        test = Test()
+
+        C2BAnnotation.call_setters(component=None, impl=test)
+
+        self.assertEqual(self.count, 3)
+
+    def _get_parameterized_class(self):
+
+        class Test(object):
+
+            def __init__(self, *args, **kwargs):
+
+                self.args = args
+                self.kwargs = kwargs
+
+        return Test
+
+    def _get_class_w_ann(self, param=None, ispname=False, update=True):
+
+        Test = self._get_parameterized_class()
+
+        class TestAnn(C2BAnnotation):
+
+            def get_value(
+                self, component, impl, pname=None, multi=0, *args, **kwargs
+            ):
+
+                result = [pname] * multi if multi else pname
+
+                return result
+
+        annotation = TestAnn(param=param, ispname=ispname, update=update)
+        annotation(
+            Test.__init__, ctx=Test
+        )
+
+        return Test, annotation
+
+    def test_force(self):
+        """Test call_setter with in forcing.
+        """
+
+        Test = self._get_parameterized_class()
+
+        impl = C2BAnnotation.call_setter(component=None, impl=Test, force=True)
+
+        self.assertIsInstance(impl, Test)
+
+    def _update_params(
+        self, param=None, ispname=False, update=False, **ks
+    ):
+        """Call C2BAnnotation._update_params with input parameters and return
+        final args and kwargs.
+        """
+
+        Test, ann = self._get_class_w_ann(
+            param=param, ispname=ispname, update=update
+        )
+
+        args, kwargs = [], {}
+
+        ann._update_params(
+            component=self, impl=Test, member=Test.__init__,
+            args=args, kwargs=kwargs, **ks
+        )
+
+        return args, kwargs
+
+    def test_not_force(self):
+        """Test call_setter with not force.
+        """
+
+        Test = self._get_parameterized_class()
+
+        impl = C2BAnnotation.call_setter(component=None, impl=Test)
+
+        self.assertIsNone(impl)
+
+    def test_update_params_none(self):
+        """Test with param is None.
+        """
+
+        args, kwargs = self._update_params()
+
+        self.assertEqual(args, [None])
+        self.assertFalse(kwargs)
+
+    def test_str_param(self):
+        """Test with str param.
+        """
+
+        args, kwargs = self._update_params(param='test')
+
+        self.assertFalse(args)
+        self.assertEqual(kwargs, {'test': None})
+
+    def test_str_ispname_param(self):
+        """Test param as a str and ispname.
+        """
+
+        param = 'test'
+        args, kwargs = self._update_params(param=param, ispname=True)
+
+        self.assertEqual(args, [param])
+        self.assertFalse(kwargs)
+
+    def test_list_param(self):
+        """Test param as a list.
+        """
+
+        param = ['a', 'b', 'c']
+        args, kwargs = self._update_params(param=param, multi=len(param))
+
+        self.assertFalse(args)
+        result = {}
+        for p in param:
+            result[p] = None
+        self.assertEqual(kwargs, result)
+
+    def test_list_ispname_param(self):
+        """Test param as a list and ispname.
+        """
+
+        param = ['a', 'b', 'c']
+        args, kwargs = self._update_params(param=param, ispname=True)
+
+        self.assertEqual(args, param)
+        self.assertFalse(kwargs)
 
 
 class TestC2B2CAnnotation(BaseImplControllerTest):
