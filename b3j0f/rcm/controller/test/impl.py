@@ -548,6 +548,9 @@ class TestC2BAnnotation(BaseImplControllerTest):
                 self, component, impl, pname=None, multi=0, *args, **kwargs
             ):
 
+                if pname is None:
+                    pname = component
+
                 result = [pname] * multi if multi else pname
 
                 return result
@@ -570,17 +573,22 @@ class TestC2BAnnotation(BaseImplControllerTest):
         self.assertIsInstance(impl, Test)
 
     def _update_params(
-        self, param=None, ispname=False, update=False, **ks
+        self, param=None, ispname=False, update=False,
+        args=None, kwargs=None, **ks
     ):
         """Call C2BAnnotation._update_params with input parameters and return
         final args and kwargs.
         """
 
+        if args is None:
+            args = []
+
+        if kwargs is None:
+            kwargs = {}
+
         Test, ann = self._get_class_w_ann(
             param=param, ispname=ispname, update=update
         )
-
-        args, kwargs = [], {}
 
         ann._update_params(
             component=self, impl=Test, member=Test.__init__,
@@ -605,17 +613,28 @@ class TestC2BAnnotation(BaseImplControllerTest):
 
         args, kwargs = self._update_params()
 
-        self.assertEqual(args, [None])
+        self.assertEqual(args, [self])
         self.assertFalse(kwargs)
 
     def test_str_param(self):
         """Test with str param.
         """
 
-        args, kwargs = self._update_params(param='test')
+        args, kwargs = self._update_params(
+            param='test', kwargs={'test': 1}
+        )
 
         self.assertFalse(args)
-        self.assertEqual(kwargs, {'test': None})
+        self.assertEqual(kwargs, {'test': 1})
+
+    def test_str_update_param(self):
+        """Test to update existing str parameter.
+        """
+
+        args, kwargs = self._update_params(param='test', update=True)
+
+        self.assertFalse(args)
+        self.assertEqual(kwargs, {'test': self})
 
     def test_str_ispname_param(self):
         """Test param as a str and ispname.
@@ -631,13 +650,28 @@ class TestC2BAnnotation(BaseImplControllerTest):
         """Test param as a list.
         """
 
-        param = ['a', 'b', 'c']
-        args, kwargs = self._update_params(param=param, multi=len(param))
+        param = ['test', 'example', '']
+        kwargs = {'test': None}
+        args, kwargs = self._update_params(
+            param=param, multi=len(param), kwargs=kwargs
+        )
 
         self.assertFalse(args)
-        result = {}
-        for p in param:
-            result[p] = None
+        result = {'test': None, 'example': self, '': self}
+        self.assertEqual(kwargs, result)
+
+    def test_list_update_param(self):
+        """Test param as a list.
+        """
+
+        param = ['test', 'example', '']
+        kwargs = {'test': None}
+        args, kwargs = self._update_params(
+            param=param, multi=len(param), kwargs=kwargs, update=True
+        )
+
+        self.assertFalse(args)
+        result = {'test': self, 'example': self, '': self}
         self.assertEqual(kwargs, result)
 
     def test_list_ispname_param(self):
@@ -649,6 +683,30 @@ class TestC2BAnnotation(BaseImplControllerTest):
 
         self.assertEqual(args, param)
         self.assertFalse(kwargs)
+
+    def test_dict_param(self):
+        """Test param as a dict.
+        """
+
+        param = {'test': 'a', 'example': 'b'}
+        kwargs = {'test': None}
+        args, kwargs = self._update_params(param=param, kwargs=kwargs)
+
+        self.assertFalse(args)
+        self.assertEqual(kwargs, {'test': None, 'example': 'b'})
+
+    def test_dict_update_param(self):
+        """Test param as a dict.
+        """
+
+        param = {'test': 'a', 'example': 'b'}
+        kwargs = {'test': None}
+        args, kwargs = self._update_params(
+            param=param, kwargs=kwargs, update=True
+        )
+
+        self.assertFalse(args)
+        self.assertEqual(kwargs, {'test': 'a', 'example': 'b'})
 
 
 class TestC2B2CAnnotation(BaseImplControllerTest):

@@ -651,7 +651,7 @@ class C2BAnnotation(ImplAnnotation):
             update = self.update
             for kwarg in param:
                 # do nothing if update and param already in kwargs
-                if update or param not in kwargs:
+                if update or kwarg not in kwargs:
                     pname = param[kwarg]
                     value = self.get_value(
                         component=component, impl=impl, member=member,
