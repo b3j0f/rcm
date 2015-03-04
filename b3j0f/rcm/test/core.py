@@ -170,6 +170,10 @@ class ComponentTest(UTCase):
             self.assertIs(port, named_port)
 
         self.assertFalse(self.component)
+        # assert to pop something from an empty component
+        self.assertRaises(KeyError, self.component.pop, '')
+        not_existing_port = self.component.pop('', self)
+        self.assertIs(not_existing_port, self)
 
     def test_init_ports(self):
         """

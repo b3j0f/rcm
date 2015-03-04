@@ -747,7 +747,7 @@ class Port(C2BAnnotation):
         )
 
 
-class Controller2BAnnotation(C2BAnnotation):
+class Ctrl2BAnnotation(C2BAnnotation):
     """Annotation dedicated to inject a component controller into its component
     implementation.
     """
@@ -765,7 +765,7 @@ class Controller2BAnnotation(C2BAnnotation):
         """
 
         # avoid to define ispname is True
-        super(Controller2BAnnotation, self).__init__(
+        super(Ctrl2BAnnotation, self).__init__(
             param=param, ispname=False, *args, **kwargs
         )
 
@@ -804,11 +804,11 @@ class Controller2BAnnotation(C2BAnnotation):
         return result
 
 
-class Impl(Controller2BAnnotation):
+class Impl(Ctrl2BAnnotation):
     """Annotation dedicated to inject an ImplController in an implementation.
     """
 
-    __slots__ = Controller2BAnnotation.__slots__
+    __slots__ = Ctrl2BAnnotation.__slots__
 
     def get_ctrl_cls(self):
 

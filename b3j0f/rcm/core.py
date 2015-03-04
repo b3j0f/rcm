@@ -158,13 +158,13 @@ class Component(dict):
 
     def pop(self, key, *default):
 
-        result = default
+        result = default[0] if default else None
         # unbind manually port
         if key in self.keys():
             result = self[key]
             del self[key]
-        else:
-            result = super(Component, self).pop(key, *default)
+        elif not default:
+            raise KeyError("Port {0} does not exist in {1}".format(key, self))
 
         return result
 

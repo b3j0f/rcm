@@ -187,7 +187,7 @@ class Controller(Component):
 
         # unbind all controllers registered by cls.crtl_name()
         for index, component in enumerate(components):
-            controller = component.pop(cls.ctrl_name())
+            controller = component.pop(cls.ctrl_name(), None)
             result[index] = controller
 
         return result

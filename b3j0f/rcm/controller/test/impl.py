@@ -33,7 +33,7 @@ from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (
     ImplController,
     ImplAnnotation,
-    B2CAnnotation, C2BAnnotation, C2B2CAnnotation, Controller2BAnnotation,
+    B2CAnnotation, C2BAnnotation, C2B2CAnnotation, Ctrl2BAnnotation,
     Port, Impl
 )
 
@@ -827,13 +827,13 @@ class TestPort(UTCase):
 
 
 class Controller2BAnnotationTest(UTCase):
-    """Test Controller2BAnnotation annotation.
+    """Test Ctrl2BAnnotation annotation.
     """
 
     class ControllerTest(Controller):
         pass
 
-    class Ann(Controller2BAnnotation):
+    class Ann(Ctrl2BAnnotation):
 
         def get_ctrl_cls(self):
 
@@ -882,7 +882,7 @@ class Controller2BAnnotationTest(UTCase):
         return result
 
     def test_default(self):
-        """Test to use Controller2BAnnotation with default param (None).
+        """Test to use Ctrl2BAnnotation with default param (None).
         """
 
         impl = self._get_instance()
@@ -892,7 +892,7 @@ class Controller2BAnnotationTest(UTCase):
         self.assertIsNone(impl.p2)
 
     def test_port_param(self):
-        """Test to use Controller2BAnnotation with param equals p1.
+        """Test to use Ctrl2BAnnotation with param equals p1.
         """
 
         impl = self._get_instance(param='p1')
@@ -902,7 +902,7 @@ class Controller2BAnnotationTest(UTCase):
         self.assertIsNone(impl.p2)
 
     def test_port_list_param(self):
-        """Test to use Controller2BAnnotation with a list param.
+        """Test to use Ctrl2BAnnotation with a list param.
         """
 
         impl = self._get_instance(param=['p0', 'p2'])
@@ -912,7 +912,7 @@ class Controller2BAnnotationTest(UTCase):
         self.assertIsNone(impl.p2)
 
     def test_port_dict_param(self):
-        """Test to use Controller2BAnnotation with a dict param.
+        """Test to use Ctrl2BAnnotation with a dict param.
         """
 
         impl = self._get_instance(param={'p0': None, 'p2': None})
@@ -922,7 +922,7 @@ class Controller2BAnnotationTest(UTCase):
         self.assertIsNone(impl.p2)
 
     def test_default_force(self):
-        """Test to use Controller2BAnnotation with default param (None)
+        """Test to use Ctrl2BAnnotation with default param (None)
         and force.
         """
 
@@ -935,7 +935,7 @@ class Controller2BAnnotationTest(UTCase):
         self.assertIsNone(impl.p2)
 
     def test_port_param_force(self):
-        """Test to use Controller2BAnnotation with param equals p1 and force.
+        """Test to use Ctrl2BAnnotation with param equals p1 and force.
         """
 
         impl = self._get_instance(param='p1', force=True)
@@ -947,7 +947,7 @@ class Controller2BAnnotationTest(UTCase):
         self.assertIsNone(impl.p2)
 
     def test_port_list_param_force(self):
-        """Test to use Controller2BAnnotation with a list param and force.
+        """Test to use Ctrl2BAnnotation with a list param and force.
         """
 
         impl = self._get_instance(param=['p0', 'p2'], force=True)
@@ -961,7 +961,7 @@ class Controller2BAnnotationTest(UTCase):
         )
 
     def test_port_dict_param_force(self):
-        """Test to use Controller2BAnnotation with a dict param and force.
+        """Test to use Ctrl2BAnnotation with a dict param and force.
         """
 
         impl = self._get_instance(param={'p0': None, 'p2': None}, force=True)
@@ -975,26 +975,178 @@ class Controller2BAnnotationTest(UTCase):
         )
 
     def test_default_error(self):
-        """Test to use Controller2BAnnotation with default param (None)
+        """Test to use Ctrl2BAnnotation with default param (None)
         and error.
         """
 
         self._get_instance(error=RuntimeError)
 
     def test_port_param_error(self):
-        """Test to use Controller2BAnnotation with param equals p1 and error.
+        """Test to use Ctrl2BAnnotation with param equals p1 and error.
         """
 
         self._get_instance(param='p1', error=RuntimeError)
 
     def test_port_list_param_error(self):
-        """Test to use Controller2BAnnotation with a list param and error.
+        """Test to use Ctrl2BAnnotation with a list param and error.
         """
 
         self._get_instance(param=['p0', 'p2'], error=RuntimeError)
 
     def test_port_dict_param_error(self):
-        """Test to use Controller2BAnnotation with a dict param and error.
+        """Test to use Ctrl2BAnnotation with a dict param and error.
+        """
+
+        self._get_instance(param={'p0': None, 'p2': None}, error=RuntimeError)
+
+
+class ImplTest(UTCase):
+    """Test Impl annotation.
+    """
+
+    def setUp(self):
+
+        self.component = Controller()
+
+    def tearDown(self):
+
+        ImplController.unbind_from(self.component)
+        del self.component
+
+    def _get_instance(self, param=None, force=False, error=None):
+        """Create a class, annotate its constructor and returns a class
+        instance.
+        """
+
+        result = None
+
+        class Test(object):
+
+            @Impl(
+                param=param, force=force, error=error
+            )
+            def __init__(self, p0=None, p1=None, p2=None):
+
+                self.p0 = p0
+                self.p1 = p1
+                self.p2 = p2
+
+        if error is not None:
+            self.assertRaises(
+                error,
+                C2BAnnotation.call_setter,
+                component=self.component,
+                impl=Test
+            )
+        else:
+            result = C2BAnnotation.call_setter(
+                component=self.component, impl=Test
+            )
+
+        return result
+
+    def test_default(self):
+        """Test to use Impl with default param (None).
+        """
+
+        impl = self._get_instance()
+
+        self.assertIsNone(impl.p0)
+        self.assertIsNone(impl.p1)
+        self.assertIsNone(impl.p2)
+
+    def test_port_param(self):
+        """Test to use Impl with param equals p1.
+        """
+
+        impl = self._get_instance(param='p1')
+
+        self.assertIsNone(impl.p0)
+        self.assertIsNone(impl.p1)
+        self.assertIsNone(impl.p2)
+
+    def test_port_list_param(self):
+        """Test to use Impl with a list param.
+        """
+
+        impl = self._get_instance(param=['p0', 'p2'])
+
+        self.assertIsNone(impl.p0)
+        self.assertIsNone(impl.p1)
+        self.assertIsNone(impl.p2)
+
+    def test_port_dict_param(self):
+        """Test to use Impl with a dict param.
+        """
+
+        impl = self._get_instance(param={'p0': None, 'p2': None})
+
+        self.assertIsNone(impl.p0)
+        self.assertIsNone(impl.p1)
+        self.assertIsNone(impl.p2)
+
+    def test_default_force(self):
+        """Test to use Impl with default param (None)
+        and force.
+        """
+
+        impl = self._get_instance(force=True)
+
+        self.assertIsInstance(impl.p0, ImplController)
+        self.assertIsNone(impl.p1)
+        self.assertIsNone(impl.p2)
+
+    def test_port_param_force(self):
+        """Test to use Impl with param equals p1 and force.
+        """
+
+        impl = self._get_instance(param='p1', force=True)
+
+        self.assertIsNone(impl.p0)
+        self.assertIsInstance(impl.p1, ImplController)
+        self.assertIsNone(impl.p2)
+
+    def test_port_list_param_force(self):
+        """Test to use Impl with a list param and force.
+        """
+
+        impl = self._get_instance(param=['p0', 'p2'], force=True)
+
+        self.assertIsInstance(impl.p0, ImplController)
+        self.assertIsNone(impl.p1)
+        self.assertIsInstance(impl.p2, ImplController)
+
+    def test_port_dict_param_force(self):
+        """Test to use Impl with a dict param and force.
+        """
+
+        impl = self._get_instance(param={'p0': None, 'p2': None}, force=True)
+
+        self.assertIsInstance(impl.p0, ImplController)
+        self.assertIsNone(impl.p1)
+        self.assertIsInstance(impl.p2, ImplController)
+
+    def test_default_error(self):
+        """Test to use Impl with default param (None)
+        and error.
+        """
+
+        self._get_instance(error=RuntimeError)
+
+    def test_port_param_error(self):
+        """Test to use Impl with param equals p1 and error.
+        """
+
+        self._get_instance(param='p1', error=RuntimeError)
+
+    def test_port_list_param_error(self):
+        """Test to use Impl with a list param and error.
+        """
+
+        self._get_instance(param=['p0', 'p2'], error=RuntimeError)
+
+    def test_port_dict_param_error(self):
+        """Test to use Impl with a dict param and error.
         """
 
         self._get_instance(param={'p0': None, 'p2': None}, error=RuntimeError)
