@@ -723,7 +723,7 @@ class Port(C2BAnnotation):
 
     def __init__(self, param, *args, **kwargs):
 
-        super(Context, self).__init__(
+        super(Port, self).__init__(
             param=param, ispname=True, *args, **kwargs
         )
 
@@ -734,9 +734,13 @@ class Impl(Port):
 
     __slots__ = Port.__slots__
 
-    def __init__(self, param=ImplController.ctrl_name(), *args, **kwargs):
+    def __init__(
+        self, param=ImplController.ctrl_name(), ispname=True, *args, **kwargs
+    ):
 
-        super(Impl, self).__init__(param=param, *args, **kwargs)
+        super(Impl, self).__init__(
+            param=param, ispname=ispname, *args, **kwargs
+        )
 
 
 @MaxCount()

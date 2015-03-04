@@ -33,7 +33,8 @@ from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (
     ImplController,
     ImplAnnotation,
-    B2CAnnotation, C2BAnnotation, C2B2CAnnotation
+    B2CAnnotation, C2BAnnotation, C2B2CAnnotation,
+    Port, Impl
 )
 
 
@@ -755,6 +756,49 @@ class TestC2B2CAnnotation(BaseImplControllerTest):
         self.assertEqual(self.count_value, 1)
         self.assertEqual(self.count_result, 1)
         self.assertIs(test._test, self)
+
+
+class TestPort(UTCase):
+    """Test Port annotation.
+    """
+
+    def setUp(self):
+
+        self.component = Controller()
+        self.port_name = 'test'
+        self.component[self.port_name] = self
+
+    def _get_instance(self, param=None):
+        """Create a class, annotate its constructor and returns a class
+        instance.
+        """
+
+        class Test(object):
+
+            @Port(param=param)
+            def __init__(self, noparam=None, param=None):
+
+                self.noparam = noparam
+                self.param = param
+
+        result = C2BAnnotation.call_setter(component=self.component, impl=Test)
+
+        return result
+
+    def test_port(self):
+
+        impl = self._get_instance()
+
+        self.assertIs(impl.noparam, self.component)
+        self.assertIsNone(impl.param)
+
+    def test_port_param(self):
+
+        impl = self._get_instance(param=self.port_name)
+
+        self.assertIsNone(impl.noparam)
+        self.assertIs(impl.param, self)
+
 
 if __name__ == '__main__':
     main()
