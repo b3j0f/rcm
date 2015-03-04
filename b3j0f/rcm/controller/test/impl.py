@@ -33,7 +33,7 @@ from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (
     ImplController,
     ImplAnnotation,
-    B2CAnnotation, C2BAnnotation, C2B2CAnnotation,
+    B2CAnnotation, C2BAnnotation, C2B2CAnnotation, Controller2BAnnotation,
     Port, Impl
 )
 
@@ -546,13 +546,13 @@ class TestC2BAnnotation(BaseImplControllerTest):
         class TestAnn(C2BAnnotation):
 
             def get_value(
-                self, component, impl, pname=None, multi=0, *args, **kwargs
+                self, component, pname=None, *args, **kwargs
             ):
 
                 if pname is None:
                     pname = component
 
-                result = [pname] * multi if multi else pname
+                result = pname
 
                 return result
 
@@ -654,7 +654,7 @@ class TestC2BAnnotation(BaseImplControllerTest):
         param = ['test', 'example', '']
         kwargs = {'test': None}
         args, kwargs = self._update_params(
-            param=param, multi=len(param), kwargs=kwargs
+            param=param, kwargs=kwargs
         )
 
         self.assertFalse(args)
@@ -668,7 +668,7 @@ class TestC2BAnnotation(BaseImplControllerTest):
         param = ['test', 'example', '']
         kwargs = {'test': None}
         args, kwargs = self._update_params(
-            param=param, multi=len(param), kwargs=kwargs, update=True
+            param=param, kwargs=kwargs, update=True
         )
 
         self.assertFalse(args)
@@ -768,6 +768,10 @@ class TestPort(UTCase):
         self.port_name = 'test'
         self.component[self.port_name] = self
 
+    def tearDown(self):
+
+        del self.component
+
     def _get_instance(self, param=None):
         """Create a class, annotate its constructor and returns a class
         instance.
@@ -786,6 +790,8 @@ class TestPort(UTCase):
         return result
 
     def test_port(self):
+        """Test to use Port with default param (None).
+        """
 
         impl = self._get_instance()
 
@@ -793,11 +799,205 @@ class TestPort(UTCase):
         self.assertIsNone(impl.param)
 
     def test_port_param(self):
+        """Test to use Port with param equals self.port_name.
+        """
 
         impl = self._get_instance(param=self.port_name)
 
+        self.assertIs(impl.noparam, self)
+        self.assertIsNone(impl.param)
+
+    def test_port_list_param(self):
+        """Test to use Port with a list param.
+        """
+
+        impl = self._get_instance(param=[None, self.port_name])
+
+        self.assertIs(impl.noparam, self.component)
+        self.assertIs(impl.param, self)
+
+    def test_port_dict_param(self):
+        """Test to use Port with a dict param.
+        """
+
+        impl = self._get_instance(param={'param': self.port_name})
+
         self.assertIsNone(impl.noparam)
         self.assertIs(impl.param, self)
+
+
+class Controller2BAnnotationTest(UTCase):
+    """Test Controller2BAnnotation annotation.
+    """
+
+    class ControllerTest(Controller):
+        pass
+
+    class Ann(Controller2BAnnotation):
+
+        def get_ctrl_cls(self):
+
+            return Controller2BAnnotationTest.ControllerTest
+
+    def setUp(self):
+
+        self.component = Controller()
+        ImplController.bind_to(self.component)
+
+    def tearDown(self):
+
+        ImplController.unbind_from(self.component)
+        del self.component
+
+    def _get_instance(self, param=None, force=False, error=None):
+        """Create a class, annotate its constructor and returns a class
+        instance.
+        """
+
+        result = None
+
+        class Test(object):
+
+            @Controller2BAnnotationTest.Ann(
+                param=param, force=force, error=error
+            )
+            def __init__(self, p0=None, p1=None, p2=None):
+
+                self.p0 = p0
+                self.p1 = p1
+                self.p2 = p2
+
+        if error is not None:
+            self.assertRaises(
+                error,
+                C2BAnnotation.call_setter,
+                component=self.component,
+                impl=Test
+            )
+        else:
+            result = C2BAnnotation.call_setter(
+                component=self.component, impl=Test
+            )
+
+        return result
+
+    def test_default(self):
+        """Test to use Controller2BAnnotation with default param (None).
+        """
+
+        impl = self._get_instance()
+
+        self.assertIsNone(impl.p0)
+        self.assertIsNone(impl.p1)
+        self.assertIsNone(impl.p2)
+
+    def test_port_param(self):
+        """Test to use Controller2BAnnotation with param equals p1.
+        """
+
+        impl = self._get_instance(param='p1')
+
+        self.assertIsNone(impl.p0)
+        self.assertIsNone(impl.p1)
+        self.assertIsNone(impl.p2)
+
+    def test_port_list_param(self):
+        """Test to use Controller2BAnnotation with a list param.
+        """
+
+        impl = self._get_instance(param=['p0', 'p2'])
+
+        self.assertIsNone(impl.p0)
+        self.assertIsNone(impl.p1)
+        self.assertIsNone(impl.p2)
+
+    def test_port_dict_param(self):
+        """Test to use Controller2BAnnotation with a dict param.
+        """
+
+        impl = self._get_instance(param={'p0': None, 'p2': None})
+
+        self.assertIsNone(impl.p0)
+        self.assertIsNone(impl.p1)
+        self.assertIsNone(impl.p2)
+
+    def test_default_force(self):
+        """Test to use Controller2BAnnotation with default param (None)
+        and force.
+        """
+
+        impl = self._get_instance(force=True)
+
+        self.assertIsInstance(
+            impl.p0, Controller2BAnnotationTest.ControllerTest
+        )
+        self.assertIsNone(impl.p1)
+        self.assertIsNone(impl.p2)
+
+    def test_port_param_force(self):
+        """Test to use Controller2BAnnotation with param equals p1 and force.
+        """
+
+        impl = self._get_instance(param='p1', force=True)
+
+        self.assertIsNone(impl.p0)
+        self.assertIsInstance(
+            impl.p1, Controller2BAnnotationTest.ControllerTest
+        )
+        self.assertIsNone(impl.p2)
+
+    def test_port_list_param_force(self):
+        """Test to use Controller2BAnnotation with a list param and force.
+        """
+
+        impl = self._get_instance(param=['p0', 'p2'], force=True)
+
+        self.assertIsInstance(
+            impl.p0, Controller2BAnnotationTest.ControllerTest
+        )
+        self.assertIsNone(impl.p1)
+        self.assertIsInstance(
+            impl.p2, Controller2BAnnotationTest.ControllerTest
+        )
+
+    def test_port_dict_param_force(self):
+        """Test to use Controller2BAnnotation with a dict param and force.
+        """
+
+        impl = self._get_instance(param={'p0': None, 'p2': None}, force=True)
+
+        self.assertIsInstance(
+            impl.p0, Controller2BAnnotationTest.ControllerTest
+        )
+        self.assertIsNone(impl.p1)
+        self.assertIsInstance(
+            impl.p2, Controller2BAnnotationTest.ControllerTest
+        )
+
+    def test_default_error(self):
+        """Test to use Controller2BAnnotation with default param (None)
+        and error.
+        """
+
+        self._get_instance(error=RuntimeError)
+
+    def test_port_param_error(self):
+        """Test to use Controller2BAnnotation with param equals p1 and error.
+        """
+
+        self._get_instance(param='p1', error=RuntimeError)
+
+    def test_port_list_param_error(self):
+        """Test to use Controller2BAnnotation with a list param and error.
+        """
+
+        self._get_instance(param=['p0', 'p2'], error=RuntimeError)
+
+    def test_port_dict_param_error(self):
+        """Test to use Controller2BAnnotation with a dict param and error.
+        """
+
+        self._get_instance(param={'p0': None, 'p2': None}, error=RuntimeError)
 
 
 if __name__ == '__main__':

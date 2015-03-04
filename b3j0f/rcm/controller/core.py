@@ -46,7 +46,11 @@ class Controller(Component):
 
     def __init__(self, components=None, impl_ann_types=None, *args, **kwargs):
         """
-        :param components:
+        :param components: Components to bind this controller.
+        :type components: list or Component
+        :param impl_ann_types: types of ImplAnnotations to (un)apply when this
+            controller is bound to a component.
+        :type impl_ann_types: list or b3j0f.rcm.controller.impl.ImplAnnotation.
         """
 
         super(Controller, self).__init__(*args, **kwargs)
@@ -144,6 +148,49 @@ class Controller(Component):
 
         for controller in controllers:
             component.pop(controller.ctrl_name(), None)
+
+    @classmethod
+    def bind_to(cls, components, *args, **kwargs):
+        """Bind a controller of type cls to component(s).
+
+        :param components: component(s) to bind to a controller.
+        :type components: list or Component
+        :param list args: controller varargs initialization.
+        :param dict kwargs: controller kwargs initialization.
+        :return: bound controller.
+        :rtype: cls
+        """
+
+        # instantiate a controller
+        controller = cls(*args, **kwargs)
+        # ensure components is a list of components
+        if isinstance(components, Component):
+            components = [components]
+        # bind the controller in all components
+        for component in components:
+            component[controller.ctrl_name()] = controller
+
+        return controller
+
+    @classmethod
+    def unbind_from(cls, *components):
+        """Unbind a controller of type cls from component(s).
+
+        :param components: component(s) from where unbind controllers of type
+            cls.
+        :type components: list or Component
+        :return: unbound controllers.
+        :rtype: list
+        """
+
+        result = [None] * len(components)
+
+        # unbind all controllers registered by cls.crtl_name()
+        for index, component in enumerate(components):
+            controller = component.pop(cls.ctrl_name())
+            result[index] = controller
+
+        return result
 
     @classmethod
     def get_controller(cls, component):

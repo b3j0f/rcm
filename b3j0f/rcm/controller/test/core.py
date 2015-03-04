@@ -57,7 +57,9 @@ class ControllerTest(UTCase):
 
         def on_unbind(self, *args, **kwargs):
 
-            super(ControllerTest.TestController, self).on_unbind(*args, **kwargs)
+            super(ControllerTest.TestController, self).on_unbind(
+                *args, **kwargs
+            )
 
             self.controllertest.unbindcount += 1
 
@@ -104,7 +106,61 @@ class ControllerTest(UTCase):
                 )
                 self.assertIsNone(_controller)
 
-    def test_bind_to(self):
+    def test_bind_to_component(self):
+        """Test bind_to class method on one component at a time.
+        """
+
+        for component in self.components:
+            ControllerTest.TestController.bind_to(component, self)
+            ControllerTest.TestSlotsController.bind_to(component, self)
+            controllers = Controller.get_cls_ports(component)
+            self.assertEqual(len(controllers), len(self.controllers))
+
+        self.assertEqual(
+            self.bindcount, 2 * len(self.components)
+        )
+        self.assertEqual(self.unbindcount, 0)
+
+    def test_bind_to_components(self):
+        """Test bind_to class method on components.
+        """
+
+        ControllerTest.TestController.bind_to(self.components, self)
+        ControllerTest.TestSlotsController.bind_to(self.components, self)
+
+        self.assertEqual(
+            self.bindcount, 2 * len(self.components)
+        )
+        self.assertEqual(self.unbindcount, 0)
+
+    def test_unbind_from_component(self):
+        """Test unbind_from class method on one component at a time.
+        """
+
+        # bind controllers
+        self.test_bind_to_components()
+
+        for component in self.components:
+            ControllerTest.TestController.unbind_from(component)
+            ControllerTest.TestSlotsController.unbind_from(component)
+            controllers = Controller.get_cls_ports(component)
+            self.assertEqual(len(controllers), 0)
+
+        self.assertEqual(self.unbindcount, 2 * len(self.components))
+
+    def test_unbind_from_components(self):
+        """Test unbind_from class method on components.
+        """
+
+        # bind controllers
+        self.test_bind_to_components()
+
+        ControllerTest.TestController.unbind_from(*self.components)
+        ControllerTest.TestSlotsController.unbind_from(*self.components)
+
+        self.assertEqual(self.unbindcount, 2 * len(self.components))
+
+    def test_bind_all(self):
         """Test bind to static method.
         """
 
@@ -120,7 +176,7 @@ class ControllerTest(UTCase):
             self.bindcount, len(self.controllers) * len(self.components)
         )
 
-    def test_unbind_from(self):
+    def test_unbind_all(self):
         """Test unbind from static method.
         """
 

@@ -660,13 +660,16 @@ class C2BAnnotation(ImplAnnotation):
                     )
                     kwargs[kwarg] = value
         elif isinstance(param, Iterable):  # contains dynamic values to put
-            values = self.get_value(
-                component=component,
-                impl=impl,
-                member=member,
-                pname=param if self.ispname else None,
-                **ks
-            )
+            values = [None] * len(param)
+            for index, pname in enumerate(param):
+                value = self.get_value(
+                    component=component,
+                    impl=impl,
+                    member=member,
+                    pname=pname if self.ispname else None,
+                    **ks
+                )
+                values[index] = value
             if self.ispname:
                 args += values
             else:
@@ -692,6 +695,16 @@ class C2BAnnotation(ImplAnnotation):
             result = component
         elif isinstance(pname, basestring):  # if str, return port component
             result = component.get(pname)
+        elif isinstance(pname, Iterable):  # if iterable, return all get_values
+            result = [
+                self.get_value(
+                    component=component,
+                    impl=impl,
+                    member=member,
+                    pname=name,
+                    **ks
+                ) for name in pname
+            ]
 
         return result
 
@@ -702,8 +715,7 @@ class C2B2CAnnotation(C2BAnnotation, B2CAnnotation):
 
 
 class Context(C2BAnnotation):
-    """Annotation dedicated to inject a component into a component
-    implementation.
+    """Annotation dedicated to inject a component into its implementation.
     """
 
     __slots__ = C2BAnnotation.__slots__
@@ -717,30 +729,90 @@ class Context(C2BAnnotation):
 
 class Port(C2BAnnotation):
     """Annotation dedicated to inject a port in a component implementation.
+
+    Value(s) to set depends on ``param``::
+
+        - None: value is the component.
+        - str: param is the port name.
+        - list: params are port names.
+        - dict: keys are parameters and values are port names.
     """
 
     __slots__ = C2BAnnotation.__slots__
 
-    def __init__(self, param, *args, **kwargs):
+    def __init__(self, param, ispname=True, *args, **kwargs):
 
         super(Port, self).__init__(
-            param=param, ispname=True, *args, **kwargs
+            param=param, ispname=ispname, *args, **kwargs
         )
 
 
-class Impl(Port):
+class Controller2BAnnotation(C2BAnnotation):
+    """Annotation dedicated to inject a component controller into its component
+    implementation.
+    """
+
+    FORCE = 'force'  #: force attribute name.
+    ERROR = 'error'  #: error attribute name.
+
+    __slots__ = (FORCE, ) + C2BAnnotation.__slots__
+
+    def __init__(self, param=None, force=False, error=None, *args, **kwargs):
+        """
+        :param bool force: force controller creation if not exists.
+        :param type error: Error to raise if controller does not exist. If None
+            (default) do not raise an error.
+        """
+
+        # avoid to define ispname is True
+        super(Controller2BAnnotation, self).__init__(
+            param=param, ispname=False, *args, **kwargs
+        )
+
+        self.force = force
+        self.error = error
+
+    def get_ctrl_cls(self):
+        """Get ctrl cls.
+
+        Must be overriden.
+        :raises: NotImplementedError by default.
+        """
+
+        raise NotImplementedError()
+
+    def get_value(self, component, impl, member=None, pname=None, **ks):
+
+        result = None
+
+        # get both controller class and name
+        ctrl_cls = self.get_ctrl_cls()
+        ctrl_name = ctrl_cls.ctrl_name()
+        # get related controller
+        result = component.get(ctrl_name)
+        # if controller is None and self force creation of controller
+        if result is None:
+            if self.force:
+                # get a new controller
+                result = ctrl_cls.bind_to(components=component)
+            elif self.error:
+                raise self.error(
+                    "Impossible to set {0}, controller {1} not bound to {2}"
+                    .format(member, ctrl_cls, component)
+                )
+
+        return result
+
+
+class Impl(Controller2BAnnotation):
     """Annotation dedicated to inject an ImplController in an implementation.
     """
 
-    __slots__ = Port.__slots__
+    __slots__ = Controller2BAnnotation.__slots__
 
-    def __init__(
-        self, param=ImplController.ctrl_name(), ispname=True, *args, **kwargs
-    ):
+    def get_ctrl_cls(self):
 
-        super(Impl, self).__init__(
-            param=param, ispname=ispname, *args, **kwargs
-        )
+        return ImplController
 
 
 @MaxCount()
