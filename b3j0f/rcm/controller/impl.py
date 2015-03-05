@@ -627,6 +627,7 @@ class C2BAnnotation(ImplAnnotation):
         """
 
         param = self.param
+
         if param is None:  # append default value to args
             value = self.get_value(
                 component=component, impl=impl, member=member, _upctx={},
@@ -685,7 +686,9 @@ class C2BAnnotation(ImplAnnotation):
                     if update or name not in kwargs:
                         kwargs[name] = value
 
-    def get_value(self, component, impl, _upctx, member=None, pname=None, **ks):
+    def get_value(
+        self, component, impl, _upctx, member=None, pname=None, **ks
+    ):
         """Get value parameter.
 
         :param Component component: implementation component.

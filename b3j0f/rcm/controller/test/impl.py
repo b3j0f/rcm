@@ -530,7 +530,7 @@ class TestC2BAnnotation(BaseImplControllerTest):
 
         class Test(object):
 
-            def __init__(self, *args, **kwargs):
+            def set_value(self, *args, **kwargs):
 
                 self.args = args
                 self.kwargs = kwargs
@@ -611,6 +611,15 @@ class TestC2BAnnotation(BaseImplControllerTest):
         """
 
         args, kwargs = self._update_params()
+
+        self.assertEqual(args, [self])
+        self.assertFalse(kwargs)
+
+    def test_update_params_none_ispname(self):
+        """Test with param is None and ispname.
+        """
+
+        args, kwargs = self._update_params(ispname=True)
 
         self.assertEqual(args, [self])
         self.assertFalse(kwargs)
