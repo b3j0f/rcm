@@ -34,7 +34,8 @@ from b3j0f.rcm.controller.impl import (
     ImplController,
     ImplAnnotation,
     B2CAnnotation, C2BAnnotation, C2B2CAnnotation, Ctrl2BAnnotation,
-    Context, Port, Impl
+    Context, Port, Impl,
+    getter_name, setter_name
 )
 
 
@@ -1219,6 +1220,82 @@ class ImplTest(UTCase):
         """
 
         self._get_instance(param={'p0': None, 'p2': None}, error=RuntimeError)
+
+
+class TestGetterName(UTCase):
+    """Test getter_name function.
+    """
+
+    def test_default(self):
+        """Test to get a value from a default function.
+        """
+
+        def test():
+            pass
+
+        name = getter_name(test)
+
+        self.assertEqual(name, 'test')
+
+    def test_prefix(self):
+        """Test to get a getter name from a function with getter_name prefix.
+        """
+
+        def gettest():
+            pass
+
+        name = getter_name(gettest)
+
+        self.assertEqual(name, 'test')
+
+    def test_prefix_(self):
+        """Test to get a getter name from a function with getter_name prefix.
+        """
+
+        def get_test():
+            pass
+
+        name = getter_name(get_test)
+
+        self.assertEqual(name, 'test')
+
+
+class TestSetterName(UTCase):
+    """Test setter_name function.
+    """
+
+    def test_default(self):
+        """Test to get a value from a default function.
+        """
+
+        def test():
+            pass
+
+        name = setter_name(test)
+
+        self.assertEqual(name, 'test')
+
+    def test_prefix(self):
+        """Test to get a setter name from a function with getter_name prefix.
+        """
+
+        def settest():
+            pass
+
+        name = setter_name(settest)
+
+        self.assertEqual(name, 'test')
+
+    def test_prefix_(self):
+        """Test to get a setter name from a function with getter_name prefix.
+        """
+
+        def set_test():
+            pass
+
+        name = setter_name(set_test)
+
+        self.assertEqual(name, 'test')
 
 
 if __name__ == '__main__':
