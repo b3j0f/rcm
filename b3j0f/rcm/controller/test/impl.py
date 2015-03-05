@@ -34,7 +34,7 @@ from b3j0f.rcm.controller.impl import (
     ImplController,
     ImplAnnotation,
     B2CAnnotation, C2BAnnotation, C2B2CAnnotation, Ctrl2BAnnotation,
-    Port, Impl
+    Context, Port, Impl
 )
 
 
@@ -758,6 +758,77 @@ class TestC2B2CAnnotation(BaseImplControllerTest):
         self.assertIs(test._test, self)
 
 
+class ContextTest(UTCase):
+    """Test Context annotation.
+    """
+
+    def setUp(self):
+
+        self.component = Controller()
+
+    def tearDown(self):
+
+        del self.component
+
+    def _get_instance(self, param=None):
+        """Create a class, annotate its constructor and returns a class
+        instance.
+        """
+
+        class Test(object):
+
+            @Context(param=param)
+            def __init__(self, p0=None, p1=None, p2=None):
+
+                self.p0 = p0
+                self.p1 = p1
+                self.p2 = p2
+
+        result = C2BAnnotation.call_setter(component=self.component, impl=Test)
+
+        return result
+
+    def test_port(self):
+        """Test to use Context with default param (None).
+        """
+
+        impl = self._get_instance()
+
+        self.assertIs(impl.p0, self.component)
+        self.assertIsNone(impl.p1)
+        self.assertIsNone(impl.p2)
+
+    def test_port_param(self):
+        """Test to use Context with param equals self.port_name.
+        """
+
+        impl = self._get_instance(param='p1')
+
+        self.assertIsNone(impl.p0)
+        self.assertIs(impl.p1, self.component)
+        self.assertIsNone(impl.p2)
+
+    def test_port_list_param(self):
+        """Test to use Context with a list param.
+        """
+
+        impl = self._get_instance(param=['p0', 'p2'])
+
+        self.assertIs(impl.p0, self.component)
+        self.assertIsNone(impl.p1)
+        self.assertIs(impl.p2, self.component)
+
+    def test_port_dict_param(self):
+        """Test to use Context with a dict param.
+        """
+
+        impl = self._get_instance(param={'p0': None, 'p2': None})
+
+        self.assertIs(impl.p0, self.component)
+        self.assertIsNone(impl.p1)
+        self.assertIs(impl.p2, self.component)
+
+
 class TestPort(UTCase):
     """Test Port annotation.
     """
@@ -842,11 +913,9 @@ class Controller2BAnnotationTest(UTCase):
     def setUp(self):
 
         self.component = Controller()
-        ImplController.bind_to(self.component)
 
     def tearDown(self):
 
-        ImplController.unbind_from(self.component)
         del self.component
 
     def _get_instance(self, param=None, force=False, error=None):

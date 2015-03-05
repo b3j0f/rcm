@@ -30,7 +30,7 @@
 __all__ = [
     'ImplController',  # impl controller
     # impl annotations
-    'ImplAnnotation', 'B2CAnnotation', 'C2BAnnotation',
+    'ImplAnnotation', 'B2CAnnotation', 'C2BAnnotation', 'Ctrl2BAnnotation',
     'Context', 'Port', 'Impl',
     'Stateless',
     'getter_name', 'setter_name',
@@ -720,10 +720,10 @@ class Context(C2BAnnotation):
 
     __slots__ = C2BAnnotation.__slots__
 
-    def __init__(self, *args, **kwargs):
-
+    def __init__(self, param=None, *args, **kwargs):
+        # forbid to change value of ispname
         super(Context, self).__init__(
-            param=None, ispname=False, *args, **kwargs
+            param=param, ispname=False, *args, **kwargs
         )
 
 
@@ -740,10 +740,10 @@ class Port(C2BAnnotation):
 
     __slots__ = C2BAnnotation.__slots__
 
-    def __init__(self, param, ispname=True, *args, **kwargs):
+    def __init__(self, param, *args, **kwargs):
 
         super(Port, self).__init__(
-            param=param, ispname=ispname, *args, **kwargs
+            param=param, ispname=True, *args, **kwargs
         )
 
 
