@@ -368,24 +368,22 @@ class TestC2BAnnotation(BaseImplControllerTest):
 
     class Ann(C2BAnnotation):
 
-        def __init__(self, test, *args, **kwargs):
+        def get_value(self, _upctx={}, *args, **kwargs):
 
-            super(TestC2BAnnotation.Ann, self).__init__(*args, **kwargs)
+            if 'count' not in _upctx:
+                _upctx['count'] = 0
+            _upctx['count'] += 1
 
-            self.test = test
-
-        def get_value(self, *args, **kwargs):
-
-            return self.test
+            return _upctx['count']
 
     def test_get_value(self):
         """Test get_value method.
         """
 
-        annotation = TestC2BAnnotation.Ann(self)
+        annotation = TestC2BAnnotation.Ann()
 
         value = annotation.get_value()
-        self.assertIs(value, self)
+        self.assertIs(value, 1)
 
     def test_constructor_empty(self):
         """Test to inject a parameter in an empty constructor.
@@ -393,7 +391,7 @@ class TestC2BAnnotation(BaseImplControllerTest):
 
         class Test(object):
 
-            @TestC2BAnnotation.Ann(self)
+            @TestC2BAnnotation.Ann()
             def __init__(self):
                 pass
 
@@ -410,14 +408,14 @@ class TestC2BAnnotation(BaseImplControllerTest):
 
         class Test(object):
 
-            @TestC2BAnnotation.Ann(self)
+            @TestC2BAnnotation.Ann()
             def __init__(self, test):
 
                 self.test = test
 
         impl = C2BAnnotation.call_setter(component=None, impl=Test)
 
-        self.assertIs(impl.test, self)
+        self.assertIs(impl.test, 1)
 
     def test_constructor_name(self):
         """Test to inject a parameter in a cls with a dedicated name.
@@ -425,14 +423,14 @@ class TestC2BAnnotation(BaseImplControllerTest):
 
         class Test(object):
 
-            @TestC2BAnnotation.Ann(self, param='test')
+            @TestC2BAnnotation.Ann(param='test')
             def __init__(self, a=2, b=1, test=None):
 
                 self.test = test
 
         impl = C2BAnnotation.call_setter(component=None, impl=Test)
 
-        self.assertIs(impl.test, self)
+        self.assertIs(impl.test, 1)
 
     def test_routine_empty(self):
         """Test to inject a parameter in an empty routine.
@@ -440,7 +438,7 @@ class TestC2BAnnotation(BaseImplControllerTest):
 
         class Test(object):
 
-            @TestC2BAnnotation.Ann(self)
+            @TestC2BAnnotation.Ann()
             def test(self):
                 pass
 
@@ -460,7 +458,7 @@ class TestC2BAnnotation(BaseImplControllerTest):
 
         class Test(object):
 
-            @TestC2BAnnotation.Ann(self)
+            @TestC2BAnnotation.Ann()
             def test(self, test):
                 self.test = test
 
@@ -469,7 +467,7 @@ class TestC2BAnnotation(BaseImplControllerTest):
         C2BAnnotation.call_setter(
             component=None, impl=test, setter=test.test
         )
-        self.assertIs(test.test, self)
+        self.assertIs(test.test, 1)
 
     def test_routine_param(self):
         """Test to inject a parameter in a routine.
@@ -477,7 +475,7 @@ class TestC2BAnnotation(BaseImplControllerTest):
 
         class Test(object):
 
-            @TestC2BAnnotation.Ann(self, param='test')
+            @TestC2BAnnotation.Ann(param='test')
             def test(self, a=0, b=1, test=None):
                 self.test = test
 
@@ -486,48 +484,47 @@ class TestC2BAnnotation(BaseImplControllerTest):
         C2BAnnotation.call_setter(
             component=None, impl=test, setter=test.test
         )
-        self.assertIs(test.test, self)
+        self.assertIs(test.test, 1)
 
     def test_call_setters(self):
         """Test call_setters method.
         """
 
-        self.count = 0
-
         class Ann(C2BAnnotation):
 
-            def __init__(self, test, *args, **kwargs):
+            def get_value(self, _upctx, *args, **kwargs):
 
-                super(Ann, self).__init__(*args, **kwargs)
+                if 'count' not in _upctx:
+                    _upctx['count'] = 0
 
-                self.test = test
+                _upctx['count'] += 1
 
-            def get_value(self, *args, **kwargs):
-
-                self.test.count += 1
-                return self.test
+                return _upctx['count']
 
         class Test(object):
 
-            @Ann(self)
-            def test0(self, a):
-                pass
+            def __init__(self):
+                self.count = 1
 
-            @Ann(self)
+            @Ann()
+            def test0(self, a):
+                self.count += a
+
+            @Ann()
             def test1(self, a):
-                pass
+                self.count += a
 
             def test2(self, a):
-                pass
+                self.count += a
 
-        annotation = Ann(self)
+        annotation = Ann()
         annotation(Test.test2)
 
         test = Test()
 
         C2BAnnotation.call_setters(component=None, impl=test)
 
-        self.assertEqual(self.count, 3)
+        self.assertEqual(test.count, 4)
 
     def _get_parameterized_class(self):
 

@@ -629,14 +629,14 @@ class C2BAnnotation(ImplAnnotation):
         param = self.param
         if param is None:  # append default value to args
             value = self.get_value(
-                component=component, impl=impl, member=member,
+                component=component, impl=impl, member=member, _upctx={},
                 **ks
             )
             args.append(value)
         elif isinstance(param, basestring):  # if param is a str
             value = self.get_value(
                 component=component, impl=impl, member=member,
-                pname=param if self.ispname else None,
+                pname=param if self.ispname else None, _upctx={},
                 **ks
             )
             if self.ispname:  # if param is a parameter name
@@ -649,6 +649,8 @@ class C2BAnnotation(ImplAnnotation):
                 kwargs[param] = value
         elif isinstance(param, dict):  # contains both arg names and values
             update = self.update
+            # initialize a new ctx related to self setter
+            ctx = {}
             for kwarg in param:
                 # do nothing if update and param already in kwargs
                 if update or kwarg not in kwargs:
@@ -656,17 +658,21 @@ class C2BAnnotation(ImplAnnotation):
                     value = self.get_value(
                         component=component, impl=impl, member=member,
                         pname=pname,
+                        _upctx=ctx,
                         **ks
                     )
                     kwargs[kwarg] = value
         elif isinstance(param, Iterable):  # contains dynamic values to put
             values = [None] * len(param)
+            # initialize a new ctx related to self setter
+            ctx = {}
             for index, pname in enumerate(param):
                 value = self.get_value(
                     component=component,
                     impl=impl,
                     member=member,
                     pname=pname if self.ispname else None,
+                    _upctx=ctx,
                     **ks
                 )
                 values[index] = value
@@ -679,14 +685,17 @@ class C2BAnnotation(ImplAnnotation):
                     if update or name not in kwargs:
                         kwargs[name] = value
 
-    def get_value(self, component, impl, member=None, pname=None, **ks):
+    def get_value(self, component, impl, _upctx, member=None, pname=None, **ks):
         """Get value parameter.
 
         :param Component component: implementation component.
         :param impl: implementation instance.
+        :param dict _upctx: dictionary dedicated to manage shared values among
+            several call of self.get_value in the same execution of
+            self._update_params.
         :param member: implementation member.
         :param str pname: parameter name. If None, result is component. Else,
-        result is related component port which matches the port.
+            result is related component port which matches the port.
         """
 
         result = None
@@ -702,6 +711,7 @@ class C2BAnnotation(ImplAnnotation):
                     impl=impl,
                     member=member,
                     pname=name,
+                    _upctx=_upctx,
                     **ks
                 ) for name in pname
             ]
@@ -951,13 +961,18 @@ class Bind(C2BAnnotationInterceptor):
 
         return component.__setitem__, component
 
-    def get_value(self, joinpoint, *args, **kwargs):
+    def get_value(self, joinpoint, pname, _upctx, *args, **kwargs):
 
-        key = joinpoint.kwargs['key']
-        item = joinpoint.kwargs.get('item')
-        when = self.when
+        if 'key' not in _upctx:
+            _upctx['key'] = joinpoint.kwargs.get('key')
+        elif 'item' not in _upctx:
+            _upctx['item'] = joinpoint.kwargs.get('item')
+        elif 'when' not in _upctx:
+            _upctx['when'] = self.when
 
-        return key, item, when
+        result = _upctx.get(pname)
+
+        return result
 
 
 class Unbind(C2BAnnotation):
@@ -968,10 +983,18 @@ class Unbind(C2BAnnotation):
 
         return component.__delitem__, component
 
-    def get_value(self, component, joinpoint, *args, **kwargs):
+    def get_value(
+        self, component, joinpoint, pname, _upctx, *args, **kwargs
+    ):
 
-        key = joinpoint.kwargs['key']
-        item = component.get('key')
-        when = self.when
+        if 'key' not in _upctx:
+            _upctx['key'] = joinpoint.kwargs['key']
+        elif 'item' not in _upctx:
+            key = _upctx['key']
+            _upctx['item'] = component.get(key)
+        elif 'when' not in _upctx:
+            _upctx['when'] = self.when
 
-        return key, item, when
+        result = _upctx.get(pname)
+
+        return result
