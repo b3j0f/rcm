@@ -216,10 +216,39 @@ class ImplController(Controller):
             self._impl = None  # nonify impl
 
     @staticmethod
+    def get_stateful(component):
+        """Get ImplController stateful from input component.
+
+        :param Component component: component from where get stateful.
+        :return: component implementation stateful status.
+        :rtype: bool
+        """
+
+        result = None
+
+        ic = ImplController.get_controller(component=component)
+        if ic is not None:
+            result = ic.stateful
+
+        return result
+
+    @staticmethod
+    def set_stateful(component, stateful):
+        """Set ImplController stateful from input component.
+
+        :param Component component: component from where get stateful.
+        """
+
+        ic = ImplController.get_controller(component=component)
+        if ic is not None:
+            ic.stateful = stateful
+
+    @staticmethod
     def get_cls(component):
         """Get ImplController cls from input component.
 
         :param Component component: component from where get class impl.
+        :return: component implementation class.
         """
 
         result = None
@@ -232,24 +261,21 @@ class ImplController(Controller):
 
     @staticmethod
     def set_cls(component, cls):
-        """Get ImplController cls from input component.
+        """Set ImplController cls from input component.
 
         :param Component component: component from where get class impl.
         """
 
-        result = None
-
         ic = ImplController.get_controller(component=component)
         if ic is not None:
             ic.cls = cls
-
-        return result
 
     @staticmethod
     def get_impl(component):
         """Get ImplController impl from input component.
 
         :param Component component: component from where get impl.
+        :return: component implementation.
         """
 
         result = None
@@ -262,21 +288,25 @@ class ImplController(Controller):
 
     @staticmethod
     def set_impl(component, impl):
-        """Get ImplController impl from input component.
+        """Set ImplController impl from input component.
 
-        :param Component component: component from where get impl.
+        :param Component component: component from where set impl.
+        :param impl: new impl to use.
         """
-
-        result = None
 
         ic = ImplController.get_controller(component=component)
         if ic is not None:
             ic.impl = impl
 
-        return result
-
     @staticmethod
     def instantiate_impl(component, args=None, kwargs=None):
+        """Instantiate a new implementation.
+
+        :param Component component: component from where renew the impl.
+        :param list args: implementation instantation varargs.
+        :param dict kwargs: implementation instantation keywords.
+        :return: new impl.
+        """
 
         result = None
 
@@ -535,9 +565,9 @@ class C2BAnnotation(ImplAnnotation):
         members = getmembers(
             impl,
             lambda m:
-                isroutine(m)
-                and
-                getattr(m, '__name__', None) not in ['__init__', '__new__']
+            isroutine(m)
+            and
+            getattr(m, '__name__', None) not in ['__init__', '__new__']
         )
 
         # parse members
@@ -834,17 +864,18 @@ class Stateless(ImplAnnotation):
     """Specify stateless on impl controller.
     """
 
-    IMPL_STATEFUL = 'impl_stateful'  #: impl stateless attribute name
+    IMPL_STATEFUL = 'impl_stateful'  #: impl stateful attribute name
 
     __slots__ = (IMPL_STATEFUL, ) + ImplAnnotation.__slots__
 
     def apply(self, component, *args, **kwargs):
-
+        # save old stateful status
         self.impl_stateful = ImplController.get_stateful(component=component)
+        # change of stateful status
         ImplController.set_stateful(component=component, stateful=False)
 
     def unapply(self, component, *args, **kwargs):
-
+        # recover old stateful status
         ImplController.set_stateful(
             component=component, stateful=self.impl_stateful
         )

@@ -29,13 +29,15 @@ from unittest import main
 
 from b3j0f.utils.ut import UTCase
 from b3j0f.utils.path import getpath
+from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (
     ImplController,
     ImplAnnotation,
     B2CAnnotation, C2BAnnotation, C2B2CAnnotation, Ctrl2BAnnotation,
-    Context, Port, Impl,
-    getter_name, setter_name
+    Context, Port, Impl, Stateless, C2BAnnotationInterceptor,
+    getter_name, setter_name,
+    Bind, Unbind
 )
 
 
@@ -1255,7 +1257,8 @@ class TestGetterName(UTCase):
         self.assertEqual(name, 'test')
 
     def test_prefix_(self):
-        """Test to get a getter name from a function with getter_name prefix.
+        """Test to get a getter name from a function with getter_name prefix
+        and _.
         """
 
         def get_test():
@@ -1293,7 +1296,8 @@ class TestSetterName(UTCase):
         self.assertEqual(name, 'test')
 
     def test_prefix_(self):
-        """Test to get a setter name from a function with getter_name prefix.
+        """Test to get a setter name from a function with getter_name prefix
+        and _.
         """
 
         def set_test():
@@ -1303,6 +1307,56 @@ class TestSetterName(UTCase):
 
         self.assertEqual(name, 'test')
 
+
+class TestStateless(UTCase):
+
+    def setUp(self, *args, **kwargs):
+
+        super(TestStateless, self).setUp(*args, **kwargs)
+
+        self.component = Component()
+        self.controller = ImplController.bind_to(self.component)
+
+    def test_change(self):
+        """Apply Stateless.
+        """
+
+        # ensure controller stateful is True
+        self.assertTrue(self.controller.stateful)
+
+        # annotate a cls implementation
+        @Stateless()
+        class Test(object):
+            pass
+
+        # renew the impl and assert stateful is False
+        self.controller.impl = Test()
+        self.assertFalse(self.controller.stateful)
+
+        # unapply annotation and assert stateful is True
+        self.controller.impl = None
+        self.assertTrue(self.controller.stateful)
+
+    def test_change_and_recover(self):
+        """Apply stateless and recover its value after unapplying it.
+        """
+
+        # ensure controller stateful is False
+        self.controller.stateful = False
+        self.assertFalse(self.controller.stateful)
+
+        # annotate a cls implementation
+        @Stateless()
+        class Test(object):
+            pass
+
+        # renew the impl and assert stateful is False
+        self.controller.impl = Test()
+        self.assertFalse(self.controller.stateful)
+
+        # unapply annotation and assert stateful is still False
+        self.controller.impl = None
+        self.assertFalse(self.controller.stateful)
 
 if __name__ == '__main__':
     main()
