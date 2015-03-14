@@ -924,11 +924,12 @@ class ImplAnnotationInterceptor(ImplAnnotation):
     - @ImplAnnotationInterceptor(kparams={'when': 'interception param name'})
     """
 
-    BEFORE = 1 << 0  #: before flag value
-    AFTER = 1 << 1  #: after flag value
-    BOTH = BEFORE | AFTER  #: before and after flag values
+    BEFORE = 1 << 0  #: before flag value.
+    AFTER = 1 << 1  #: after flag value.
+    BOTH = BEFORE | AFTER  #: before and after flag values.
 
-    WHEN = 'when'  #: when attribute name
+    WHEN = 'when'  #: when attribute/parameter name.
+    RESULT = 'result'  #: interception result parameter name.
 
     PARAMS = 'params'  #: parameters to put in the interceptor
 
@@ -956,7 +957,9 @@ class ImplAnnotationInterceptor(ImplAnnotation):
         )
         self.kparams = {} if kparams is None else kparams
 
-    def _get_params(self, component, impl, member, joinpoint, when):
+    def _get_params(
+        self, component, impl, member, joinpoint, when, result=None
+    ):
         """Get right args and kwargs related to self vparams and kparams.
 
         :param Component component: intercepted component.
@@ -964,10 +967,12 @@ class ImplAnnotationInterceptor(ImplAnnotation):
         :param member: interception member.
         :param b3j0f.aop.Joinpoint joinpoint: interception joinpoint.
         :param int when: interception moment.
+        :param result: interception result if when is AFTER.
 
         :return: both interception args and kwargs.
         :rtype: tuple
         """
+
         # get args
         args = [
             self._get_param(
@@ -976,7 +981,8 @@ class ImplAnnotationInterceptor(ImplAnnotation):
                 impl=impl,
                 member=member,
                 joinpoint=joinpoint,
-                when=when
+                when=when,
+                result=result
             )
             for name in self.vparams
         ]
@@ -990,12 +996,15 @@ class ImplAnnotationInterceptor(ImplAnnotation):
                 impl=impl,
                 member=member,
                 joinpoint=joinpoint,
-                when=when
+                when=when,
+                result=result
             )
 
         return args, kwargs
 
-    def _get_param(self, name, component, impl, member, joinpoint, when):
+    def _get_param(
+        self, name, component, impl, member, joinpoint, when, result
+    ):
         """Get specific param value related to input parameters.
 
         :param Component component: intercepted component.
@@ -1003,13 +1012,12 @@ class ImplAnnotationInterceptor(ImplAnnotation):
         :param member: interception member.
         :param b3j0f.aop.Joinpoint joinpoint: interception joinpoint.
         :param int when: interception moment.
+        :param result: interception result if when is AFTER.
 
         :return: specific parameter.
         :raises: ImplAnnotationInterceptor.Error if parameter value does
         not exist.
         """
-
-        result = None
 
         if name == ImplAnnotationInterceptor.WHEN:
             result = when
@@ -1019,6 +1027,8 @@ class ImplAnnotationInterceptor(ImplAnnotation):
             result = impl
         elif name == 'joinpoint':
             result = joinpoint
+        elif name == 'result':
+            pass
 
         else:  # if name is not handled, raise an Error
             raise ImplAnnotationInterceptor.Error(
@@ -1048,7 +1058,7 @@ class ImplAnnotationInterceptor(ImplAnnotation):
                 except Exception:
                     pass
 
-            joinpoint.proceed()
+            result = joinpoint.proceed()
 
             if self.when & ImplAnnotationInterceptor.AFTER:
                 args, kwargs = self._get_params(
@@ -1056,12 +1066,15 @@ class ImplAnnotationInterceptor(ImplAnnotation):
                     impl=impl,
                     member=member,
                     joinpoint=joinpoint,
-                    when=ImplAnnotationInterceptor.AFTER
+                    when=ImplAnnotationInterceptor.AFTER,
+                    result=result
                 )
                 try:  # catch any exception
                     member(*args, **kwargs)
                 except Exception:
                     pass
+
+            return result
 
         return advice
 
@@ -1093,18 +1106,20 @@ class SetPort(ImplAnnotationInterceptor):
 
     def get_target_ctx(self, component, *args, **kwargs):
 
-        return component.__setitem__, component
+        return component.set_port, component
 
-    def get_value(self, joinpoint, pname, _upctx, *args, **kwargs):
+    def _get_param(self, name, joinpoint, *args, **kwargs):
 
-        if 'name' not in _upctx:
-            _upctx['name'] = joinpoint.kwargs.get('name')
-        elif 'port' not in _upctx:
-            _upctx['port'] = joinpoint.kwargs.get('port')
-        elif 'when' not in _upctx:
-            _upctx['when'] = self.when
+        result = None
 
-        result = _upctx.get(pname)
+        if name == 'name':
+            result = joinpoint.kwargs.get('name', joinpoint.args[0])
+        elif name == 'port':
+            result = joinpoint.kwargs.get('port', joinpoint.args[1])
+        else:
+            result = super(SetPort, self)._get_param(
+                name=name, joinpoint=joinpoint, *args, **kwargs
+            )
 
         return result
 
@@ -1115,20 +1130,13 @@ class RemPort(ImplAnnotationInterceptor):
 
     def get_target_ctx(self, component, *args, **kwargs):
 
-        return component.__delitem__, component
+        return component.remove_port, component
 
-    def get_value(
-        self, component, joinpoint, pname, _upctx, *args, **kwargs
-    ):
+    def _get_param(self, name, component, joinpoint, *args, **kwargs):
 
-        if 'name' not in _upctx:
-            _upctx['name'] = joinpoint.kwargs['name']
-        elif 'port' not in _upctx:
-            name = _upctx['name']
-            _upctx['port'] = component.get(name)
-        elif 'when' not in _upctx:
-            _upctx['when'] = self.when
+        result = None
 
-        result = _upctx.get(pname)
+        if name == 'name':
+            result = joinpoint.kwargs.get('name', joinpoint.args[0])
 
         return result

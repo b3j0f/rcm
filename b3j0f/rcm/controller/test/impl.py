@@ -1395,32 +1395,36 @@ class TestC2BAnnotationInterceptor(UTCase):
                 self.test.before += 1
                 self.test.after += 1
 
-            @TestC2BAnnotationInterceptor.C2BAI(vparams=['when'])
-            def test_both_v(self, _when):
+            @TestC2BAnnotationInterceptor.C2BAI(vparams=['when', 'result'])
+            def test_both_v(self, _when, _result):
                 if _when == ImplAnnotationInterceptor.BEFORE:
                     self.test.before += 1
-                else:
+                elif _result:
                     self.test.after += 1
 
-            @TestC2BAnnotationInterceptor.C2BAI(vparams=['when'])
+            @TestC2BAnnotationInterceptor.C2BAI(vparams=['when', 'result'])
             def test_both_vv(self, *args):
                 if args[0] == ImplAnnotationInterceptor.BEFORE:
                     self.test.before += 1
-                else:
+                elif args[1]:
                     self.test.after += 1
 
-            @TestC2BAnnotationInterceptor.C2BAI(kparams={'when': '_when'})
-            def test_both_k(self, _when):
+            @TestC2BAnnotationInterceptor.C2BAI(
+                kparams={'when': '_when', 'result': '_result'}
+            )
+            def test_both_k(self, _when, _result):
                 if _when == ImplAnnotationInterceptor.BEFORE:
                     self.test.before += 1
-                else:
+                elif _result:
                     self.test.after += 1
 
-            @TestC2BAnnotationInterceptor.C2BAI(kparams={'when': '_when'})
+            @TestC2BAnnotationInterceptor.C2BAI(
+                kparams={'when': '_when', 'result': '_result'}
+            )
             def test_both_kk(self, **kwargs):
                 if kwargs['_when'] == ImplAnnotationInterceptor.BEFORE:
                     self.test.before += 1
-                else:
+                elif kwargs['_result']:
                     self.test.after += 1
 
             @TestC2BAnnotationInterceptor.C2BAI(
@@ -1466,33 +1470,38 @@ class TestC2BAnnotationInterceptor(UTCase):
                 self.test.after += 1
 
             @TestC2BAnnotationInterceptor.C2BAI(
-                when=ImplAnnotationInterceptor.AFTER, vparams=['when']
+                when=ImplAnnotationInterceptor.AFTER,
+                vparams=['when', 'result']
             )
-            def test_after_v(self, _when):
-                if _when == ImplAnnotationInterceptor.AFTER:
+            def test_after_v(self, _when, _result):
+                if _when == ImplAnnotationInterceptor.AFTER and _result:
                     self.test.after += 1
 
             @TestC2BAnnotationInterceptor.C2BAI(
-                when=ImplAnnotationInterceptor.AFTER, vparams=['when']
+                when=ImplAnnotationInterceptor.AFTER,
+                vparams=['when', 'result']
             )
             def test_after_vv(self, *args):
-                if args[0] == ImplAnnotationInterceptor.AFTER:
+                if args[0] == ImplAnnotationInterceptor.AFTER and args[1]:
                     self.test.after += 1
 
             @TestC2BAnnotationInterceptor.C2BAI(
                 when=ImplAnnotationInterceptor.AFTER,
-                kparams={'when': '_when'}
+                kparams={'when': '_when', 'result': '_result'}
             )
-            def test_after_k(self, _when):
-                if _when == ImplAnnotationInterceptor.AFTER:
+            def test_after_k(self, _when, _result):
+                if _when == ImplAnnotationInterceptor.AFTER and _result:
                     self.test.after += 1
 
             @TestC2BAnnotationInterceptor.C2BAI(
                 when=ImplAnnotationInterceptor.AFTER,
-                kparams={'when': '_when'}
+                kparams={'when': '_when', 'result': '_result'}
             )
             def test_after_kk(self, **kwargs):
-                if kwargs['_when'] == ImplAnnotationInterceptor.AFTER:
+                if (
+                    kwargs['_when'] == ImplAnnotationInterceptor.AFTER
+                    and kwargs['_result']
+                ):
                     self.test.after += 1
 
         self.before = 0
