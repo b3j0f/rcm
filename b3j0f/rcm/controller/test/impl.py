@@ -37,7 +37,7 @@ from b3j0f.rcm.controller.impl import (
     B2CAnnotation, C2BAnnotation, C2B2CAnnotation, Ctrl2BAnnotation,
     Context, Port, Impl, Stateless, ImplAnnotationInterceptor,
     getter_name, setter_name,
-    Bind, Unbind
+    SetPort, RemPort
 )
 
 
@@ -1371,7 +1371,7 @@ class TestC2BAnnotationInterceptor(UTCase):
             """Intercept component __getitem__ method.
             """
 
-            return component.__contains__, component
+            return component.contains, component
 
     def setUp(self, *args, **kwargs):
 
@@ -1391,24 +1391,109 @@ class TestC2BAnnotationInterceptor(UTCase):
                 self.test = test
 
             @TestC2BAnnotationInterceptor.C2BAI()
-            def test_both(self, *args, **kwargs):
-
+            def test_both(self):
                 self.test.before += 1
                 self.test.after += 1
+
+            @TestC2BAnnotationInterceptor.C2BAI(vparams=['when'])
+            def test_both_v(self, _when):
+                if _when == ImplAnnotationInterceptor.BEFORE:
+                    self.test.before += 1
+                else:
+                    self.test.after += 1
+
+            @TestC2BAnnotationInterceptor.C2BAI(vparams=['when'])
+            def test_both_vv(self, *args):
+                if args[0] == ImplAnnotationInterceptor.BEFORE:
+                    self.test.before += 1
+                else:
+                    self.test.after += 1
+
+            @TestC2BAnnotationInterceptor.C2BAI(kparams={'when': '_when'})
+            def test_both_k(self, _when):
+                if _when == ImplAnnotationInterceptor.BEFORE:
+                    self.test.before += 1
+                else:
+                    self.test.after += 1
+
+            @TestC2BAnnotationInterceptor.C2BAI(kparams={'when': '_when'})
+            def test_both_kk(self, **kwargs):
+                if kwargs['_when'] == ImplAnnotationInterceptor.BEFORE:
+                    self.test.before += 1
+                else:
+                    self.test.after += 1
 
             @TestC2BAnnotationInterceptor.C2BAI(
                 when=ImplAnnotationInterceptor.BEFORE
             )
-            def test_before(self, *args, **kwargs):
-
+            def test_before(self):
                 self.test.before += 1
+
+            @TestC2BAnnotationInterceptor.C2BAI(
+                when=ImplAnnotationInterceptor.BEFORE, vparams=['when']
+            )
+            def test_before_v(self, _when):
+                if _when == ImplAnnotationInterceptor.BEFORE:
+                    self.test.before += 1
+
+            @TestC2BAnnotationInterceptor.C2BAI(
+                when=ImplAnnotationInterceptor.BEFORE, vparams=['when']
+            )
+            def test_before_vv(self, *args):
+                if args[0] == ImplAnnotationInterceptor.BEFORE:
+                    self.test.before += 1
+
+            @TestC2BAnnotationInterceptor.C2BAI(
+                when=ImplAnnotationInterceptor.BEFORE,
+                kparams={'when': '_when'}
+            )
+            def test_before_k(self, _when):
+                if _when == ImplAnnotationInterceptor.BEFORE:
+                    self.test.before += 1
+
+            @TestC2BAnnotationInterceptor.C2BAI(
+                when=ImplAnnotationInterceptor.BEFORE,
+                kparams={'when': '_when'}
+            )
+            def test_before_kk(self, **kwargs):
+                if kwargs['_when'] == ImplAnnotationInterceptor.BEFORE:
+                    self.test.before += 1
 
             @TestC2BAnnotationInterceptor.C2BAI(
                 when=ImplAnnotationInterceptor.AFTER
             )
-            def test_after(self, *args, **kwargs):
-
+            def test_after(self):
                 self.test.after += 1
+
+            @TestC2BAnnotationInterceptor.C2BAI(
+                when=ImplAnnotationInterceptor.AFTER, vparams=['when']
+            )
+            def test_after_v(self, _when):
+                if _when == ImplAnnotationInterceptor.AFTER:
+                    self.test.after += 1
+
+            @TestC2BAnnotationInterceptor.C2BAI(
+                when=ImplAnnotationInterceptor.AFTER, vparams=['when']
+            )
+            def test_after_vv(self, *args):
+                if args[0] == ImplAnnotationInterceptor.AFTER:
+                    self.test.after += 1
+
+            @TestC2BAnnotationInterceptor.C2BAI(
+                when=ImplAnnotationInterceptor.AFTER,
+                kparams={'when': '_when'}
+            )
+            def test_after_k(self, _when):
+                if _when == ImplAnnotationInterceptor.AFTER:
+                    self.test.after += 1
+
+            @TestC2BAnnotationInterceptor.C2BAI(
+                when=ImplAnnotationInterceptor.AFTER,
+                kparams={'when': '_when'}
+            )
+            def test_after_kk(self, **kwargs):
+                if kwargs['_when'] == ImplAnnotationInterceptor.AFTER:
+                    self.test.after += 1
 
         self.before = 0
         self.after = 0
@@ -1421,10 +1506,10 @@ class TestC2BAnnotationInterceptor(UTCase):
         self.assertEqual(self.before, 0)
         self.assertEqual(self.after, 0)
 
-        self.component.__contains__('')
+        self.controller in self.component
 
-        self.assertEqual(self.before, 2)
-        self.assertEqual(self.after, 2)
+        self.assertEqual(self.before, 11)
+        self.assertEqual(self.after, 11)
 
 if __name__ == '__main__':
     main()

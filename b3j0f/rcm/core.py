@@ -35,7 +35,7 @@ from uuid import uuid4 as uuid
 
 from collections import Iterable
 
-from inspect import ismethod, getmembers
+from inspect import isroutine, getmembers
 
 
 class Component(dict):
@@ -121,14 +121,21 @@ class Component(dict):
 
         return result
 
+    def __str__(self):
+
+        result = '{0}({1})'.format(self.__class__, self.hash())
+
+        return result
+
     def __repr__(self):
 
         result = super(Component, self).__repr__()
 
         result = '{0}({1}'.format(self.__class__, result)
 
-        for name, attr in getmembers(self, lambda m: not ismethod(m)):
-            result = '{0}, {1}={2}'.format(result, name, attr)
+        for name, attr in getmembers(self, lambda m: not isroutine(m)):
+            if 'a' < name[0] < 'z':  # display only public attributes
+                result = '{0}, {1}={2}'.format(result, name, attr)
 
         result += ')'
 

@@ -66,7 +66,6 @@ class ControllerTest(UTCase):
     class TestSlotsController(TestController):
         """Controller test class with slots.
         """
-        __slots__ = Controller.__slots__
 
     class NotController(Controller):
         """Controller test class which won't be added to the tests.
