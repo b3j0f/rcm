@@ -105,6 +105,7 @@ class ComponentTest(UTCase):
 
         self.assertEqual(len(self.component), len(self.named_ports))
         for name in self.named_ports:
+            self.assertTrue(self.component.contains(name))
             self.assertIn(name, self.component)
             port = self.component[name]
             self.assertIs(port, self.named_ports[name])
@@ -200,6 +201,16 @@ class ComponentTest(UTCase):
             self.component[name] = port
         self._test_existing_ports()
 
+    def test_set_ports(self):
+        """
+        Test to set ports.
+        """
+
+        for name in self.named_ports:
+            port = self.named_ports[name]
+            self.component.set_port(name, port)
+        self._test_existing_ports()
+
     def test_unbind_port(self):
         """
         Test to unbind ports.
@@ -211,6 +222,20 @@ class ComponentTest(UTCase):
             self.assertIn(name, self.component)
             del self.component[name]
             self.assertNotIn(name, self.component)
+
+        self.assertEqual(len(self.component), 0)
+
+    def test_remove_port(self):
+        """
+        Test to remove ports.
+        """
+
+        self._init_component_with_ports()
+
+        for name in self.named_ports:
+            self.assertTrue(self.component.contains(name))
+            self.component.remove_port(name)
+            self.assertFalse(self.component.contains(name))
 
         self.assertEqual(len(self.component), 0)
 
@@ -308,6 +333,17 @@ class ComponentTest(UTCase):
 
         self.assertEqual(len(ports), components_count)
 
+    def test_delete(self):
+        """Test to delete component with delete method.
+        """
+
+        self._init_component_with_ports()
+
+        self.component.delete()
+
+        self.assertEqual(len(self.component), 0)
+        self.assertEqual(self.unbindcount, 0)
+
     def test__del__(self):
         """Test to delete component with __del__ method.
         """
@@ -339,6 +375,21 @@ class ComponentTest(UTCase):
         self.component[names[0]] = None
         self.component[names[1]] = value
 
+        self.assertTrue(self.component.contains(names[0]))
+        self.assertFalse(self.component.contains('not existing'))
+        self.assertTrue(self.component.contains(names[1]))
+        self.assertTrue(self.component.contains(value))
+
+    def test__contains__str(self):
+        """Test __contains__ method with a str.
+        """
+
+        names = 'test', 'example'
+        value = 'testcase'
+
+        self.component[names[0]] = None
+        self.component[names[1]] = value
+
         self.assertIn(names[0], self.component)
         self.assertNotIn('not existing', self.component)
         self.assertIn(names[1], self.component)
@@ -346,6 +397,17 @@ class ComponentTest(UTCase):
 
     def test_contains(self):
         """Test contains method with an object.
+        """
+
+        name = 'test'
+        values = None, Component(), 2
+
+        for value in values:
+            self.component[name] = value
+            self.assertTrue(self.component.contains(value))
+
+    def test__contains__(self):
+        """Test __contains__ method with an object.
         """
 
         name = 'test'

@@ -35,7 +35,7 @@ from b3j0f.rcm.controller.impl import (
     ImplController,
     ImplAnnotation,
     B2CAnnotation, C2BAnnotation, C2B2CAnnotation, Ctrl2BAnnotation,
-    Context, Port, Impl, Stateless, C2BAnnotationInterceptor,
+    Context, Port, Impl, Stateless, ImplAnnotationInterceptor,
     getter_name, setter_name,
     Bind, Unbind
 )
@@ -1230,6 +1230,57 @@ class ImplTest(UTCase):
         self._get_instance(param={'p0': None, 'p2': None}, error=RuntimeError)
 
 
+class TestStateless(UTCase):
+
+    def setUp(self, *args, **kwargs):
+
+        super(TestStateless, self).setUp(*args, **kwargs)
+
+        self.component = Component()
+        self.controller = ImplController.bind_to(self.component)
+
+    def test_change(self):
+        """Apply Stateless.
+        """
+
+        # ensure controller stateful is True
+        self.assertTrue(self.controller.stateful)
+
+        # annotate a cls implementation
+        @Stateless()
+        class Test(object):
+            pass
+
+        # renew the impl and assert stateful is False
+        self.controller.impl = Test()
+        self.assertFalse(self.controller.stateful)
+
+        # unapply annotation and assert stateful is True
+        self.controller.impl = None
+        self.assertTrue(self.controller.stateful)
+
+    def test_change_and_recover(self):
+        """Apply stateless and recover its value after unapplying it.
+        """
+
+        # ensure controller stateful is False
+        self.controller.stateful = False
+        self.assertFalse(self.controller.stateful)
+
+        # annotate a cls implementation
+        @Stateless()
+        class Test(object):
+            pass
+
+        # renew the impl and assert stateful is False
+        self.controller.impl = Test()
+        self.assertFalse(self.controller.stateful)
+
+        # unapply annotation and assert stateful is still False
+        self.controller.impl = None
+        self.assertFalse(self.controller.stateful)
+
+
 class TestGetterName(UTCase):
     """Test getter_name function.
     """
@@ -1308,55 +1359,72 @@ class TestSetterName(UTCase):
         self.assertEqual(name, 'test')
 
 
-class TestStateless(UTCase):
+class TestC2BAnnotationInterceptor(UTCase):
+    """Test ImplAnnotationInterceptor annotation.
+    """
+
+    class C2BAI(ImplAnnotationInterceptor):
+        """ImplAnnotationInterceptor test class.
+        """
+
+        def get_target_ctx(self, component, *args, **kwargs):
+            """Intercept component __getitem__ method.
+            """
+
+            return component.__contains__, component
 
     def setUp(self, *args, **kwargs):
 
-        super(TestStateless, self).setUp(*args, **kwargs)
+        super(TestC2BAnnotationInterceptor, self).setUp(*args, **kwargs)
 
         self.component = Component()
         self.controller = ImplController.bind_to(self.component)
 
-    def test_change(self):
-        """Apply Stateless.
-        """
+        class ImplTest(object):
+            """Implementation test class.
+            """
 
-        # ensure controller stateful is True
-        self.assertTrue(self.controller.stateful)
+            def __init__(self, test):
 
-        # annotate a cls implementation
-        @Stateless()
-        class Test(object):
-            pass
+                super(ImplTest, self).__init__()
 
-        # renew the impl and assert stateful is False
-        self.controller.impl = Test()
-        self.assertFalse(self.controller.stateful)
+                self.test = test
 
-        # unapply annotation and assert stateful is True
-        self.controller.impl = None
-        self.assertTrue(self.controller.stateful)
+            @TestC2BAnnotationInterceptor.C2BAI()
+            def test_both(self, *args, **kwargs):
 
-    def test_change_and_recover(self):
-        """Apply stateless and recover its value after unapplying it.
-        """
+                self.test.before += 1
+                self.test.after += 1
 
-        # ensure controller stateful is False
-        self.controller.stateful = False
-        self.assertFalse(self.controller.stateful)
+            @TestC2BAnnotationInterceptor.C2BAI(
+                when=ImplAnnotationInterceptor.BEFORE
+            )
+            def test_before(self, *args, **kwargs):
 
-        # annotate a cls implementation
-        @Stateless()
-        class Test(object):
-            pass
+                self.test.before += 1
 
-        # renew the impl and assert stateful is False
-        self.controller.impl = Test()
-        self.assertFalse(self.controller.stateful)
+            @TestC2BAnnotationInterceptor.C2BAI(
+                when=ImplAnnotationInterceptor.AFTER
+            )
+            def test_after(self, *args, **kwargs):
 
-        # unapply annotation and assert stateful is still False
-        self.controller.impl = None
-        self.assertFalse(self.controller.stateful)
+                self.test.after += 1
+
+        self.before = 0
+        self.after = 0
+
+        self.controller.cls = ImplTest
+        self.controller.impl = ImplTest(self)
+
+    def test(self):
+
+        self.assertEqual(self.before, 0)
+        self.assertEqual(self.after, 0)
+
+        self.component.__contains__('')
+
+        self.assertEqual(self.before, 2)
+        self.assertEqual(self.after, 2)
 
 if __name__ == '__main__':
     main()

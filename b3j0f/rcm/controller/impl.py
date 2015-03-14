@@ -32,20 +32,18 @@ __all__ = [
     # impl annotations
     'ImplAnnotation', 'B2CAnnotation', 'C2BAnnotation', 'Ctrl2BAnnotation',
     'Context', 'Port', 'Impl',
-    'Stateless',
-    'getter_name', 'setter_name',
-    'Bind', 'Unbind'
+    'Stateless'
 ]
 
 from inspect import isclass, getmembers, isroutine
 
 from collections import Iterable
 
+from b3j0f.aop import weave, unweave
 from b3j0f.annotation import Annotation
 from b3j0f.annotation.check import Target, MaxCount
 from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
-from b3j0f.aop import weave, unweave
 from b3j0f.rcm.controller.core import Controller
 
 
@@ -57,8 +55,6 @@ class ImplController(Controller):
     STATEFUL = 'stateful'  #: stateful property
     CLS = '_cls'  #: cls field name
     IMPL = '_impl'  #: impl field name
-
-    __slots__ = (STATEFUL, CLS, IMPL) + Controller.__slots__
 
     class ImplError(Exception):
         """Handle impl errors.
@@ -912,22 +908,22 @@ def setter_name(setter):
     return _accessor_name(setter, 'set')
 
 
-class C2BAnnotationInterceptor(C2BAnnotation):
+class ImplAnnotationInterceptor(ImplAnnotation):
     """C2B annotation dedicated to intercept context methods and to set
     corresponding methods in implementation.
 
     Implementation setters can be fired before, after or both.
     """
 
-    BEFORE = 1  #: before flag value
-    AFTER = 2  #: after flag value
-    BOTH = BEFORE + AFTER  #: before and after flag values
+    BEFORE = 1 << 0  #: before flag value
+    AFTER = 1 << 1  #: after flag value
+    BOTH = BEFORE | AFTER  #: before and after flag values
 
     WHEN = 'when'  #: when attribute name
 
     def __init__(self, when=BOTH, *args, **kwargs):
 
-        super(C2BAnnotationInterceptor, self).__init__(*args, **kwargs)
+        super(ImplAnnotationInterceptor, self).__init__(*args, **kwargs)
 
         self.when = when
 
@@ -941,10 +937,11 @@ class C2BAnnotationInterceptor(C2BAnnotation):
         raise NotImplementedError()
 
     def advice(self, joinpoint):
-
+        print joinpoint
+        # get component
         component = joinpoint.kwargs.get('component')
 
-        if self.when & C2BAnnotationInterceptor.BEFORE:
+        if self.when & ImplAnnotationInterceptor.BEFORE:
             for target in self.targets:
                 impl = target.__self__
                 args, kwargs = [], {}
@@ -956,11 +953,14 @@ class C2BAnnotationInterceptor(C2BAnnotation):
                     kwargs=kwargs,
                     joinpoint=joinpoint
                 )
-                target(*args, **kwargs)
+                try:  # catch any exception
+                    target(*args, **kwargs)
+                except Exception:
+                    pass
 
         joinpoint.proceed()
 
-        if self.when & C2BAnnotationInterceptor.AFTER:
+        if self.when & ImplAnnotationInterceptor.AFTER:
             for target in self.targets:
                 impl = target.__self__
                 args, kwargs = [], {}
@@ -972,22 +972,25 @@ class C2BAnnotationInterceptor(C2BAnnotation):
                     kwargs=kwargs,
                     joinpoint=joinpoint
                 )
-                target(*args, **kwargs)
+                try:  # catch any exception
+                    target(*args, **kwargs)
+                except Exception:
+                    pass
 
     def apply(self, *args, **kwargs):
 
-        target, ctx = self.get_target(*args, **kwargs)
+        target, ctx = self.get_target_ctx(*args, **kwargs)
 
         weave(target, advices=self.advice, ctx=ctx)
 
     def unapply(self, *args, **kwargs):
 
-        target, ctx = self.get_target(*args, **kwargs)
+        target, ctx = self.get_target_ctx(*args, **kwargs)
 
         unweave(target, advices=self.advice, ctx=ctx)
 
 
-class Bind(C2BAnnotationInterceptor):
+class Bind(ImplAnnotationInterceptor):
     """Called when a port is bound to component.
     """
 
@@ -1009,7 +1012,7 @@ class Bind(C2BAnnotationInterceptor):
         return result
 
 
-class Unbind(C2BAnnotation):
+class Unbind(ImplAnnotationInterceptor):
     """Called when a port is unbound from component.
     """
 

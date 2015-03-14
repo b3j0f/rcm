@@ -42,8 +42,6 @@ class Controller(Component):
     COMPONENTS = '_components'  #: components attribute name
     IMPL_ANNOTATIONS = 'impl_ann_types'  #: impl_ann_types attribute name
 
-    __slots__ = (COMPONENTS, IMPL_ANNOTATIONS) + Component.__slots__
-
     def __init__(self, components=None, impl_ann_types=None, *args, **kwargs):
         """
         :param components: Components to bind this controller.
@@ -62,9 +60,9 @@ class Controller(Component):
             impl_ann_types
         )
 
-    def __del__(self):
+    def delete(self, *args, **kwargs):
 
-        super(Controller, self).__del__()
+        super(Controller, self).delete(*args, **kwargs)
         # unbind from self components
         for component in self.components:
             Controller.unbind_all(component, self)

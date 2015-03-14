@@ -31,7 +31,7 @@ __all__ = [
     'Proxy', 'OutputProxy', 'InputProxy',
     'Input', 'Output',
     'Proxies',
-    'Stateless', 'Async',
+    'Async',
     'getter_name', 'setter_name',  # util function
 ]
 
@@ -66,11 +66,6 @@ class Proxy(Component):
     INTERFACES = '_interfaces'  #: interfaces field name
     _SOURCES = '_sources'  #: source proxy
     _LOCK = '_lock'  #: private lock field name
-
-    __slots__ = (
-        INTERFACES,  # public attributes
-        _LOCK, _SOURCES  # private attributes
-    ) + Component.__slots__
 
     def __init__(
         self, interfaces=None, sources=None, *args, **kwargs
@@ -173,8 +168,6 @@ class InputProxy(Proxy):
     """Input port.
     """
 
-    __slots__ = Proxy.__slots__
-
 
 class Input(C2BAnnotation):
     """InputProxy injector which uses a name in order to inject a InputProxy.
@@ -205,8 +198,6 @@ class ProxyBinding(Component):
 
     NAME = 'name'  #: binding name field name
     PROXY = '_proxy'  #: proxy value field name
-
-    __slots__ = (NAME, PROXY) + Component.__slots__
 
     def __init__(self, name, *args, **kwargs):
 
@@ -253,8 +244,6 @@ class OutputProxy(Proxy):
 
     ASYNC = 'async'  #: asynchronous mode attribute name
     INPUTS = 'inputs'  #: inputs attribute name
-
-    __slots__ = (ASYNC, ) + Proxy.__slots__
 
     def __init__(self, async=False, stateless=False, *args, **kwargs):
 

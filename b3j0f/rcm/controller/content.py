@@ -41,8 +41,6 @@ class ContentController(Controller):
 
     CONTENT = '_content'
 
-    __slots__ = (CONTENT, ) + Controller.__slots__
-
     def __init__(self, content=None, *args, **kwargs):
         """
         :param content: inner components.

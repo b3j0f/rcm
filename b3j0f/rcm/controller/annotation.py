@@ -24,7 +24,8 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-"""Regroup all controller annotations.
+"""Regroup all controller annotations and utilities in order to develop your
+own annotations.
 """
 
 __all__ = [
@@ -38,7 +39,10 @@ __all__ = [
 
 from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.impl import (
-    ImplAnnotation, Impl, Context, Property, GetProperty, SetProperty
+    ImplAnnotation, Impl, Context
+)
+from b3j0f.rcm.controller.property import (
+    Property, GetProperty, SetProperty
 )
 from b3j0f.rcm.controller.binding import Binding, Input, Output
 from b3j0f.rcm.controller.lifecycle import Lifecycle, Before, After

@@ -131,11 +131,6 @@ class LifecycleController(Controller):
     _LOCK = '_lock'  #: private lock field name
     _CALLSTACK = '_callstack'  #: private callstack field name
 
-    __slots__ = (
-        STATUS, KEEP_LAST, MEM_SIZE, IDLE_STATUSES, PROPAGATE,  # public
-        _LOCK, _CALLSTACK  # private
-    ) + Controller.__slots__
-
     def __init__(
         self,
         status=STOP,

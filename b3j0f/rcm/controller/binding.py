@@ -40,8 +40,6 @@ class BindingController(Controller):
     """Manage component interface bindings between proxies of ports.
     """
 
-    __slots__ = Controller.__slots__
-
     class BindingError(Exception):
         pass
 
@@ -123,8 +121,6 @@ class ProxyBinding(Component):
     NAME = 'name'  #: binding name field name
     PROXY = '_proxy'  #: proxy value field name
 
-    __slots__ = (NAME, PROXY) + Component.__slots__
-
     def __init__(self, name, *args, **kwargs):
 
         super(ProxyBinding, self).__init__(*args, **kwargs)
@@ -185,13 +181,9 @@ class PromotedOutputProxy(OutputProxy, PromotedProxy):
     Those bindings are bound to the output port such as any component.
     """
 
-    __slots__ = OutputProxy.__slots__
-
 
 class PromotedInputProxy(InputProxy, PromotedProxy):
     """Output port which provides component content thanks to port bindings.
 
     Those bindings are bound to the output port such as any component.
     """
-
-    __slots__ = InputProxy.__slots__

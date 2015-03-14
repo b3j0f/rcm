@@ -41,8 +41,6 @@ class NameController(Controller):
     #: content controller field name
     CONTENT_CONTROLLER = '_content_controller'
 
-    __slots__ = (NAME, ) + Controller.__slots__
-
     class NameControllerError(Exception):
         """
         Raised for error in processing a NameController.

@@ -43,8 +43,6 @@ class PropertyController(Controller):
 
     PROPERTIES = 'properties'  #: properties field name
 
-    __slots__ = (PROPERTIES, ) + Controller.__slots__
-
     def __init__(self, properties=None, *args, **kwargs):
 
         super(PropertyController, self).__init__(*args, **kwargs)

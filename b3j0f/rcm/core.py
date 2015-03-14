@@ -35,14 +35,14 @@ from uuid import uuid4 as uuid
 
 from collections import Iterable
 
+from inspect import ismethod, getmembers
+
 
 class Component(dict):
     """Component which contains named ports and an id.
     """
 
     ID = '_id'  #: id field name
-
-    __slots__ = (ID, )
 
     def __init__(
         self, _id=None, **named_ports
@@ -62,31 +62,64 @@ class Component(dict):
 
     def __hash__(self):
 
+        return self.hash()
+
+    def hash(self):
+        """Get self hash value.
+        """
+
         return hash(self._id)
 
     def __delitem__(self, key):
 
+        self.remove_port(name=key)
+
+    def remove_port(self, name):
+        """Remove a port by name and returns it.
+
+        :param str name: port name to remove.
+        :return: port.
+        :raises: KeyError if name is not a bound port name.
+        """
+
         # if port is a component
-        port = self[key]
-        if isinstance(port, Component):
+        result = self[name]
+
+        if isinstance(result, Component):
             # unbind it from self
-            port.on_unbind(component=self, name=key)
+            result.on_unbind(component=self, name=name)
         # and call super __delitem__
-        super(Component, self).__delitem__(key)
+        super(Component, self).__delitem__(name)
+
+        return result
 
     def __setitem__(self, key, value):
 
+        self.set_port(name=key, port=value)
+
+    def set_port(self, name, port):
+        """Set new port with input name. And returns previous port if exists.
+
+        :param str name: port name to bind.
+        :param port: new port to bind.
+        :return: old port if name already used.
+        """
+        # default result
+        result = None
+
         # unbind old component
-        if key in self:
-            old_value = self[key]
-            if isinstance(old_value, Component):
-                old_value.on_unbind(component=self, name=key)
-        # if value is a component
-        if isinstance(value, Component):
+        if name in self:
+            result = self[name]
+            if isinstance(result, Component):
+                result.on_unbind(component=self, name=name)
+        # if port is a component
+        if isinstance(port, Component):
             # bind it to self
-            value.on_bind(component=self, name=key)
+            port.on_bind(component=self, name=name)
         # and call super __setitem__
-        super(Component, self).__setitem__(key, value)
+        super(Component, self).__setitem__(name, port)
+
+        return result
 
     def __repr__(self):
 
@@ -94,9 +127,8 @@ class Component(dict):
 
         result = '{0}({1}'.format(self.__class__, result)
 
-        for slot in self.__slots__:
-            attr = getattr(self, slot, None)
-            result = '{0}, {1}={2}'.format(result, slot, attr)
+        for name, attr in getmembers(self, lambda m: not ismethod(m)):
+            result = '{0}, {1}={2}'.format(result, name, attr)
 
         result += ')'
 
@@ -104,6 +136,13 @@ class Component(dict):
 
     def __del__(self):
 
+        self.delete()
+
+    def delete(self):
+        """Delete this component.
+        """
+
+        # remove all ports
         self.clear()
 
     def __contains__(self, value):
@@ -118,14 +157,28 @@ class Component(dict):
         :rtype: bool
         """
 
+        return self.contains(name_or_port=value)
+
+    def contains(self, name_or_port):
+        """Check if name_or_port is in self ports depending on type:
+
+        - str: search among port names then among ports.
+        - other: search among ports.
+
+        :param name_or_port: name_or_port to search among ports or port names.
+        :type name_or_port: str or object
+        :return: True if name_or_port is among self ports.
+        :rtype: bool
+        """
+
         result = False
 
         # in case of str, search among keys
-        if isinstance(value, basestring):
-            result = super(Component, self).__contains__(value)
+        if isinstance(name_or_port, basestring):
+            result = super(Component, self).__contains__(name_or_port)
 
         if not result:  # otherwise, search among values
-            result = value in self.values()
+            result = name_or_port in self.values()
 
         return result
 
