@@ -1520,5 +1520,431 @@ class TestC2BAnnotationInterceptor(UTCase):
         self.assertEqual(self.before, 11)
         self.assertEqual(self.after, 11)
 
+
+class TestSetPort(UTCase):
+    """Test SetPort annotation.
+    """
+
+    def setUp(self, *args, **kwargs):
+
+        super(TestSetPort, self).setUp(*args, **kwargs)
+
+        self.component = Component()
+        self.controller = ImplController.bind_to(self.component)
+
+        class ImplTest(object):
+            """Implementation test class.
+            """
+
+            def __init__(self, test):
+
+                super(ImplTest, self).__init__()
+
+                self.test = test
+
+            def check_params(self, *args, **kwargs):
+
+                result = False
+
+                result = (
+                    (args == ('test', 'example'))
+                    or
+                    (
+                        kwargs
+                        and kwargs['_name'] == 'test'
+                        and kwargs['_port'] == 'example'
+                    )
+                )
+
+                return result
+
+            @SetPort()
+            def test_both(self):
+                self.test.before += 1
+                self.test.after += 1
+
+            @SetPort(
+                vparams=['when', 'result', 'name', 'port']
+            )
+            def test_both_v(self, _when, _result, _name, _port):
+                if self.check_params(_name, _port):
+                    if _when == ImplAnnotationInterceptor.BEFORE:
+                        self.test.before += 1
+                    elif _result:
+                        self.test.after += 1
+
+            @SetPort(
+                vparams=['when', 'result', 'name', 'port']
+            )
+            def test_both_vv(self, *args):
+                if self.check_params(*args[2:]):
+                    if args[0] == ImplAnnotationInterceptor.BEFORE:
+                        self.test.before += 1
+                    elif args[1]:
+                        self.test.after += 1
+
+            @SetPort(
+                kparams={
+                    'when': '_when',
+                    'result': '_result',
+                    'name': '_name',
+                    'port': '_port'
+                }
+            )
+            def test_both_k(self, _when, _result, _name, _port):
+                if self.check_params(_name, _port):
+                    if _when == ImplAnnotationInterceptor.BEFORE:
+                        self.test.before += 1
+                    elif _result:
+                        self.test.after += 1
+
+            @SetPort(
+                kparams={
+                    'when': '_when',
+                    'result': '_result',
+                    'name': '_name',
+                    'port': '_port'
+                }
+            )
+            def test_both_kk(self, **kwargs):
+                if self.check_params(**kwargs):
+                    if kwargs['_when'] == ImplAnnotationInterceptor.BEFORE:
+                        self.test.before += 1
+                    elif kwargs['_result']:
+                        self.test.after += 1
+
+            @SetPort(
+                when=ImplAnnotationInterceptor.BEFORE
+            )
+            def test_before(self):
+                self.test.before += 1
+
+            @SetPort(
+                when=ImplAnnotationInterceptor.BEFORE,
+                vparams=['when', 'name', 'port']
+            )
+            def test_before_v(self, _when, _name, _port):
+                if self.check_params(_name, _port):
+                    if _when == ImplAnnotationInterceptor.BEFORE:
+                        self.test.before += 1
+
+            @SetPort(
+                when=ImplAnnotationInterceptor.BEFORE,
+                vparams=['when', 'name', 'port']
+            )
+            def test_before_vv(self, *args):
+                if self.check_params(*args[1:]):
+                    if args[0] == ImplAnnotationInterceptor.BEFORE:
+                        self.test.before += 1
+
+            @SetPort(
+                when=ImplAnnotationInterceptor.BEFORE,
+                kparams={
+                    'when': '_when',
+                    'name': '_name',
+                    'port': '_port'
+                }
+            )
+            def test_before_k(self, _when, _name, _port):
+                if self.check_params(_name, _port):
+                    if _when == ImplAnnotationInterceptor.BEFORE:
+                        self.test.before += 1
+
+            @SetPort(
+                when=ImplAnnotationInterceptor.BEFORE,
+                kparams={
+                    'when': '_when',
+                    'name': '_name',
+                    'port': '_port'
+                }
+            )
+            def test_before_kk(self, **kwargs):
+                if self.check_params(**kwargs):
+                    if kwargs['_when'] == ImplAnnotationInterceptor.BEFORE:
+                        self.test.before += 1
+
+            @SetPort(
+                when=ImplAnnotationInterceptor.AFTER
+            )
+            def test_after(self):
+                self.test.after += 1
+
+            @SetPort(
+                when=ImplAnnotationInterceptor.AFTER,
+                vparams=['when', 'result', 'name', 'port']
+            )
+            def test_after_v(self, _when, _result, _name, _port):
+                if self.check_params(_name, _port):
+                    if _when == ImplAnnotationInterceptor.AFTER and _result:
+                        self.test.after += 1
+
+            @SetPort(
+                when=ImplAnnotationInterceptor.AFTER,
+                vparams=['when', 'result', 'name', 'port']
+            )
+            def test_after_vv(self, *args):
+                if self.check_params(*args[2:]):
+                    if args[0] == ImplAnnotationInterceptor.AFTER and args[1]:
+                        self.test.after += 1
+
+            @SetPort(
+                when=ImplAnnotationInterceptor.AFTER,
+                kparams={
+                    'when': '_when',
+                    'result': '_result',
+                    'name': '_name',
+                    'port': '_port'
+                }
+            )
+            def test_after_k(self, _when, _result, _name, _port):
+                if self.check_params(_name, _port):
+                    if _when == ImplAnnotationInterceptor.AFTER and _result:
+                        self.test.after += 1
+
+            @SetPort(
+                when=ImplAnnotationInterceptor.AFTER,
+                kparams={
+                    'when': '_when',
+                    'result': '_result',
+                    'name': '_name',
+                    'port': '_port'
+                }
+            )
+            def test_after_kk(self, **kwargs):
+                if self.check_params(**kwargs):
+                    if (
+                        kwargs['_when'] == ImplAnnotationInterceptor.AFTER
+                        and kwargs['_result']
+                    ):
+                        self.test.after += 1
+
+        self.before = 0
+        self.after = 0
+
+        self.component['test'] = True
+
+        self.controller.cls = ImplTest
+        self.controller.impl = ImplTest(self)
+
+    def test(self):
+
+        self.assertEqual(self.before, 0)
+        self.assertEqual(self.after, 0)
+
+        self.component.set_port('test', 'example')
+
+        self.assertEqual(self.before, 11)
+        self.assertEqual(self.after, 11)
+
+
+class TestRemPort(UTCase):
+    """Test RemPort annotation.
+    """
+
+    def setUp(self, *args, **kwargs):
+
+        super(TestRemPort, self).setUp(*args, **kwargs)
+
+        self.component = Component()
+        self.controller = ImplController.bind_to(self.component)
+
+        class ImplTest(object):
+            """Implementation test class.
+            """
+
+            def __init__(self, test):
+
+                super(ImplTest, self).__init__()
+
+                self.test = test
+
+            def check_params(self, *args, **kwargs):
+
+                result = False
+
+                result = (
+                    (args == ('test',))
+                    or
+                    (
+                        kwargs
+                        and kwargs['_name'] == 'test'
+                    )
+                )
+
+                return result
+
+            @RemPort()
+            def test_both(self):
+                self.test.before += 1
+                self.test.after += 1
+
+            @RemPort(
+                vparams=['when', 'result', 'name']
+            )
+            def test_both_v(self, _when, _result, _name):
+                if self.check_params(_name):
+                    if _when == ImplAnnotationInterceptor.BEFORE:
+                        self.test.before += 1
+                    elif _result:
+                        self.test.after += 1
+
+            @RemPort(
+                vparams=['when', 'result', 'name']
+            )
+            def test_both_vv(self, *args):
+                if self.check_params(*args[2:]):
+                    if args[0] == ImplAnnotationInterceptor.BEFORE:
+                        self.test.before += 1
+                    elif args[1]:
+                        self.test.after += 1
+
+            @RemPort(
+                kparams={
+                    'when': '_when',
+                    'result': '_result',
+                    'name': '_name'
+                }
+            )
+            def test_both_k(self, _when, _result, _name):
+                if self.check_params(_name):
+                    if _when == ImplAnnotationInterceptor.BEFORE:
+                        self.test.before += 1
+                    elif _result:
+                        self.test.after += 1
+
+            @RemPort(
+                kparams={
+                    'when': '_when',
+                    'result': '_result',
+                    'name': '_name'
+                }
+            )
+            def test_both_kk(self, **kwargs):
+                if self.check_params(**kwargs):
+                    if kwargs['_when'] == ImplAnnotationInterceptor.BEFORE:
+                        self.test.before += 1
+                    elif kwargs['_result']:
+                        self.test.after += 1
+
+            @RemPort(
+                when=ImplAnnotationInterceptor.BEFORE
+            )
+            def test_before(self):
+                self.test.before += 1
+
+            @RemPort(
+                when=ImplAnnotationInterceptor.BEFORE,
+                vparams=['when', 'name']
+            )
+            def test_before_v(self, _when, _name):
+                if self.check_params(_name):
+                    if _when == ImplAnnotationInterceptor.BEFORE:
+                        self.test.before += 1
+
+            @RemPort(
+                when=ImplAnnotationInterceptor.BEFORE,
+                vparams=['when', 'name']
+            )
+            def test_before_vv(self, *args):
+                if self.check_params(*args[1:]):
+                    if args[0] == ImplAnnotationInterceptor.BEFORE:
+                        self.test.before += 1
+
+            @RemPort(
+                when=ImplAnnotationInterceptor.BEFORE,
+                kparams={
+                    'when': '_when',
+                    'name': '_name'
+                }
+            )
+            def test_before_k(self, _when, _name):
+                if self.check_params(_name):
+                    if _when == ImplAnnotationInterceptor.BEFORE:
+                        self.test.before += 1
+
+            @RemPort(
+                when=ImplAnnotationInterceptor.BEFORE,
+                kparams={
+                    'when': '_when',
+                    'name': '_name'
+                }
+            )
+            def test_before_kk(self, **kwargs):
+                if self.check_params(**kwargs):
+                    if kwargs['_when'] == ImplAnnotationInterceptor.BEFORE:
+                        self.test.before += 1
+
+            @RemPort(
+                when=ImplAnnotationInterceptor.AFTER
+            )
+            def test_after(self):
+                self.test.after += 1
+
+            @RemPort(
+                when=ImplAnnotationInterceptor.AFTER,
+                vparams=['when', 'result', 'name']
+            )
+            def test_after_v(self, _when, _result, _name):
+                if self.check_params(_name):
+                    if _when == ImplAnnotationInterceptor.AFTER and _result:
+                        self.test.after += 1
+
+            @RemPort(
+                when=ImplAnnotationInterceptor.AFTER,
+                vparams=['when', 'result', 'name']
+            )
+            def test_after_vv(self, *args):
+                if self.check_params(*args[2:]):
+                    if args[0] == ImplAnnotationInterceptor.AFTER and args[1]:
+                        self.test.after += 1
+
+            @RemPort(
+                when=ImplAnnotationInterceptor.AFTER,
+                kparams={
+                    'when': '_when',
+                    'result': '_result',
+                    'name': '_name'
+                }
+            )
+            def test_after_k(self, _when, _result, _name):
+                if self.check_params(_name):
+                    if _when == ImplAnnotationInterceptor.AFTER and _result:
+                        self.test.after += 1
+
+            @RemPort(
+                when=ImplAnnotationInterceptor.AFTER,
+                kparams={
+                    'when': '_when',
+                    'result': '_result',
+                    'name': '_name'
+                }
+            )
+            def test_after_kk(self, **kwargs):
+                if self.check_params(**kwargs):
+                    if (
+                        kwargs['_when'] == ImplAnnotationInterceptor.AFTER
+                        and kwargs['_result']
+                    ):
+                        self.test.after += 1
+
+        self.before = 0
+        self.after = 0
+
+        self.component['test'] = True
+
+        self.controller.cls = ImplTest
+        self.controller.impl = ImplTest(self)
+
+    def test(self):
+
+        self.assertEqual(self.before, 0)
+        self.assertEqual(self.after, 0)
+
+        self.component.remove_port(name='test')
+
+        self.assertEqual(self.before, 11)
+        self.assertEqual(self.after, 11)
+
+
 if __name__ == '__main__':
     main()

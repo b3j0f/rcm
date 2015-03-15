@@ -35,7 +35,7 @@ __all__ = [
     'Stateless'
 ]
 
-from inspect import isclass, getmembers, isroutine
+from inspect import isclass, getmembers, isroutine, getargspec
 
 from collections import Iterable
 
@@ -915,13 +915,13 @@ class ImplAnnotationInterceptor(ImplAnnotation):
     Implementation setters can be fired before, after or both.
 
     It is possible to specify intercepted parameters to bind to interception
-    parameters with both varargs and kwargs respectively named vparams and
-    kparams. For example, if you want to retrieve the interception moment
-    among (before, after), you can ask to get back the 'when' parameter value
-    in both ways:
+    parameters with both varargs and kwargs respectively named ``vparams`` and
+    ``kparams``. For example, if you want to retrieve the interception moment
+    among (before, after) and the intercepted result, you can ask to get back
+    the 'when' and 'result' parameter values in several ways such as:
 
-    - @ImplAnnotationInterceptor(vparams=['when'])
-    - @ImplAnnotationInterceptor(kparams={'when': 'interception param name'})
+    - vparams=['when', 'result']
+    - kparams={'when': 'interception param name', 'result': '...'}
     """
 
     BEFORE = 1 << 0  #: before flag value.
@@ -958,7 +958,7 @@ class ImplAnnotationInterceptor(ImplAnnotation):
         self.kparams = {} if kparams is None else kparams
 
     def _get_params(
-        self, component, impl, member, joinpoint, when, result=None
+        self, component, impl, member, joinpoint, when, argspec, result=None
     ):
         """Get right args and kwargs related to self vparams and kparams.
 
@@ -968,6 +968,7 @@ class ImplAnnotationInterceptor(ImplAnnotation):
         :param b3j0f.aop.Joinpoint joinpoint: interception joinpoint.
         :param int when: interception moment.
         :param result: interception result if when is AFTER.
+        :param tuple argspec: member argspec.
 
         :return: both interception args and kwargs.
         :rtype: tuple
@@ -982,7 +983,8 @@ class ImplAnnotationInterceptor(ImplAnnotation):
                 member=member,
                 joinpoint=joinpoint,
                 when=when,
-                result=result
+                result=result,
+                argspec=argspec
             )
             for name in self.vparams
         ]
@@ -997,13 +999,14 @@ class ImplAnnotationInterceptor(ImplAnnotation):
                 member=member,
                 joinpoint=joinpoint,
                 when=when,
-                result=result
+                result=result,
+                argspec=argspec
             )
 
         return args, kwargs
 
     def _get_param(
-        self, name, component, impl, member, joinpoint, when, result
+        self, name, component, impl, member, joinpoint, when, result, argspec
     ):
         """Get specific param value related to input parameters.
 
@@ -1013,6 +1016,7 @@ class ImplAnnotationInterceptor(ImplAnnotation):
         :param b3j0f.aop.Joinpoint joinpoint: interception joinpoint.
         :param int when: interception moment.
         :param result: interception result if when is AFTER.
+        :param tuple argspec: member argspec.
 
         :return: specific parameter.
         :raises: ImplAnnotationInterceptor.Error if parameter value does
@@ -1027,12 +1031,17 @@ class ImplAnnotationInterceptor(ImplAnnotation):
             result = impl
         elif name == 'joinpoint':
             result = joinpoint
-        elif name == 'result':
+        elif name == 'result':  # do nothing if result is asked
             pass
+        elif name in joinpoint.kwargs:  # check among joinpoint kwargs
+            result = joinpoint.kwargs[name]
+        elif name in argspec.args:  # check among joinpoint args
+            index = argspec.args.index(name)
+            result = joinpoint.args[index]
 
         else:  # if name is not handled, raise an Error
             raise ImplAnnotationInterceptor.Error(
-                'Wrong parameter name {0} in {1} {2}.'.format(
+                "Wrong parameter name '{0}' in {1} ({2}).".format(
                     name, member, component
                 )
             )
@@ -1043,6 +1052,8 @@ class ImplAnnotationInterceptor(ImplAnnotation):
         """Get an advice able to proceed impl member.
         """
 
+        argspec = getargspec(member)
+
         def advice(joinpoint):
 
             if self.when & ImplAnnotationInterceptor.BEFORE:
@@ -1051,7 +1062,8 @@ class ImplAnnotationInterceptor(ImplAnnotation):
                     impl=impl,
                     member=member,
                     joinpoint=joinpoint,
-                    when=ImplAnnotationInterceptor.BEFORE
+                    when=ImplAnnotationInterceptor.BEFORE,
+                    argspec=argspec
                 )
                 try:  # catch any exception
                     member(*args, **kwargs)
@@ -1067,7 +1079,8 @@ class ImplAnnotationInterceptor(ImplAnnotation):
                     member=member,
                     joinpoint=joinpoint,
                     when=ImplAnnotationInterceptor.AFTER,
-                    result=result
+                    result=result,
+                    argspec=argspec
                 )
                 try:  # catch any exception
                     member(*args, **kwargs)
@@ -1102,41 +1115,26 @@ class ImplAnnotationInterceptor(ImplAnnotation):
 
 class SetPort(ImplAnnotationInterceptor):
     """Called when a port is bound to component.
+
+    Specific parameters are Component.set_port parameters:
+
+    - name: new port name.
+    - port: new port.
     """
 
     def get_target_ctx(self, component, *args, **kwargs):
 
         return component.set_port, component
 
-    def _get_param(self, name, joinpoint, *args, **kwargs):
-
-        result = None
-
-        if name == 'name':
-            result = joinpoint.kwargs.get('name', joinpoint.args[0])
-        elif name == 'port':
-            result = joinpoint.kwargs.get('port', joinpoint.args[1])
-        else:
-            result = super(SetPort, self)._get_param(
-                name=name, joinpoint=joinpoint, *args, **kwargs
-            )
-
-        return result
-
 
 class RemPort(ImplAnnotationInterceptor):
     """Called when a port is unbound from component.
+
+    Specific parameters are Component.remove_port parameters:
+
+    - name: port name to remove.
     """
 
     def get_target_ctx(self, component, *args, **kwargs):
 
         return component.remove_port, component
-
-    def _get_param(self, name, component, joinpoint, *args, **kwargs):
-
-        result = None
-
-        if name == 'name':
-            result = joinpoint.kwargs.get('name', joinpoint.args[0])
-
-        return result
