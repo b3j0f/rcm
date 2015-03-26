@@ -24,15 +24,14 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-"""Contains Impl and Property controller definition.
+"""Component Input/Output.
 """
 
 __all__ = [
     'Proxy', 'OutputProxy', 'InputProxy',
     'Input', 'Output',
     'Proxies',
-    'Async',
-    'getter_name', 'setter_name',  # util function
+    'Async'
 ]
 
 try:
@@ -48,14 +47,13 @@ from b3j0f.utils.path import lookup
 from b3j0f.utils.proxy import get_proxy
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.annotation import (
-    CtrlAnnotation, Ctrl2CAnnotation, C2CtrlAnnotation,
-    getter_name, setter_name
+    CtrlAnnotation, Ctrl2CAnnotation, C2CtrlAnnotation
 )
 from b3j0f.rcm.controller.impl import ImplController
 
 
 class Proxy(Component):
-    """Base class for InputProxy and OutputProxy.
+    """Base class of InputProxy and OutputProxy.
 
     Its role is to bind the component with the environment resources.
 

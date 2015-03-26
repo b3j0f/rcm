@@ -429,7 +429,6 @@ class TestC2CtrlAnnotation(BaseControllerTest):
         # check if a list of param names are ok
         assertMultiAnnotation(p1=['b', 'c'], a=2, b=1, c=1)
 
-
     def _get_parameterized_class(self):
 
         class Test(object):
