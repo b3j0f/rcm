@@ -26,61 +26,19 @@
 
 __all__ = ['IntentController', 'Intent']
 
-from b3j0f.aop import weave, unweave
-from b3j0f.rcm.controller.impl import Context
+from b3j0f.aop import weave
 from b3j0f.rcm.controller.core import Controller
+from b3j0f.rcm.controller.annotation import C2CtrlAnnotation
 
-from re import compile
+from re import compile as re_compile
+
+from inspect import getmembers
 
 
 class IntentController(Controller):
     """Component intent controller. Manages interception of component interface
     calls.
     """
-
-    class InterfaceCall(object):
-        """Interface call for Interface call interception.
-
-        Contains an interface_name, a callee_name, \
-        called arguments (args and kwargs), \
-        list of intents and the intercepted callee resource.
-
-        When a intent intercepts this, it just has to call this \
-        in order to follow interception mechanism.
-        """
-
-        def __init__(
-            self,
-            interface_name,
-            callee_name,
-            args,
-            kwargs,
-            intents,
-            callee
-        ):
-
-            self.interface_name = interface_name
-            self.callee_name = callee_name
-            self.next = next
-            self.args = args
-            self.kwargs = kwargs
-            self.intents = intents
-
-        def __call__(self):
-            """
-            Call first intent with this such as argument \
-            or the intercepted callee resource.
-            """
-
-            result = None
-
-            if self.intents:
-                intent = self.intents.pop()
-                result = intent.intercepts(self)
-            else:
-                result = self.callee(*self.args, **self.kwargs)
-
-            return result
 
     class _IntentMatching(object):
         """
@@ -128,16 +86,11 @@ class IntentController(Controller):
 
             return result
 
-    def __init__(self, component):
-
-        self.component = component
-        self.matchings_per_intent = []
-
-    def add_intent(
+    def add_intents(
         self,
-        intent,
-        interface_name=None,
-        callee_name=None,
+        intents,
+        target_name=None,
+        member_name=None,
         dynamic_matching=None
     ):
         """
@@ -148,19 +101,27 @@ class IntentController(Controller):
         * input dynamic_matching matches the interface_call.
         """
 
-        intent_matching = IntentController._IntentMatching(
-            interface_name,
-            callee_name,
-            dynamic_matching)
-
-        intent_matchings = self.matchings_per_intent.get(
-            intent, None)
-
-        if intent_matchings is None:
-            intent_matchings = [intent_matching]
-            self.matchings_per_intent[intent] = intent_matchings
+        splitter_target_name = target_name.split('.')
+        port_name = splitter_target_name[0]
+        if len(splitter_target_name) > 1:
+            member_name = splitter_target_name[1]
         else:
-            intent_matchings.append(intent_matching)
+            member_name = '*'
+
+        port_regex = re_compile(port_name)
+        member_regex = re_compile(member_name)
+
+        for component in self.components:
+            ports = component.get_ports(
+                select=lambda name, port: port_regex.matches(name)
+            )
+            for port in ports:
+                for name, member in getmembers(
+                    port, lambda m: member_regex.matches(
+                        getattr(m, '__name__', '')
+                    )
+                ):
+                    weave(member, advices=intents, ctx=port)
 
     def remove_intent(self, intent):
         """
@@ -181,23 +142,10 @@ class IntentController(Controller):
         return result
 
 
-class BasicIntent(object):
-    """
-    Dedicated to intercepts component interface calls.
-    """
-
-    def intercepts(interface_caller):
-        """
-        Intercept a call to an interface.
-        """
-
-        return interface_caller()
-
-
-class Intent(Context):
+class Intent(C2CtrlAnnotation):
     """Inject an IntentController into a component implementation.
     """
 
-    def __init__(self, name=IntentController.ctrl_name(), *args, **kwargs):
+    def get_value(self, component, *args, **kwargs):
 
-        super(Intent, self).__init__(name=name, *args, **kwargs)
+        return IntentController.get_controller(component)

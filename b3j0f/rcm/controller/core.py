@@ -27,6 +27,7 @@
 __all__ = ['Controller']
 
 from b3j0f.rcm.core import Component
+from b3j0f.rcm.controller.annotation import CtrlAnnotation
 
 
 class Controller(Component):
@@ -101,13 +102,58 @@ class Controller(Component):
 
         return result
 
-    def on_bind(self, component, name, *args, **kwargs):
+    def on_bind(self, component, *args, **kwargs):
+
+        super(Controller, self).on_bind(component=component, *args, **kwargs)
+
         # add component to self.components
         self._components.add(component)
 
-    def on_unbind(self, component, name, *args, **kwargs):
-        # remove component from self.components
+        # notify all controllers
+        controllers = Controller.get_cls_ports(component=component)
+        for port_name in controllers:
+            controller = controllers[port_name]
+            controller.on_bind_ctrl(self, component=component)
+
+        # apply all Controller annotations
+        CtrlAnnotation.apply_on(component=component, impl=self)
+
+    def on_bind_ctrl(self, controller, component):
+        """Callback when a component is bound to the component.
+
+        :param Controller controller: newly bound controller.
+        :param Component component: component using the controller.
+        """
+
+        pass
+
+    def on_unbind(self, component, *args, **kwargs):
+
+        super(Controller, self).on_bind(component=component, *args, **kwargs)
+
+        # remove component to self.components
         self._components.remove(component)
+
+        # notify all controllers
+        controllers = Controller.get_cls_ports(component=component)
+        for port_name in controllers:
+            controller = controllers[port_name]
+            controller.on_unbind_ctrl(self, component=component)
+
+        # unapply all Controller Annotation
+        CtrlAnnotation.unapply_from(
+            component=component,
+            impl=self
+        )
+
+    def on_unbind_ctrl(self, controller, component):
+        """Callback when a component is unbound from the component.
+
+        :param Controller controller: newly bound controller.
+        :param Component component: component using the controller.
+        """
+
+        pass
 
     @staticmethod
     def bind_all(component, *controllers):

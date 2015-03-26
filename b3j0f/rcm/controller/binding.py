@@ -32,7 +32,8 @@ __all__ = [
 from b3j0f.utils.proxy import get_proxy
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
-from b3j0f.rcm.controller.impl import Context, ImplController, Port
+from b3j0f.rcm.controller.annotation import C2CtrlAnnotation
+from b3j0f.rcm.controller.impl import ImplController
 from b3j0f.rcm.controller.proxy import InputProxy, OutputProxy, Proxy
 
 
@@ -99,15 +100,13 @@ class BindingController(Controller):
             bc.unpromote(port_name)
 
 
-class Binding(Context):
+class Binding(C2CtrlAnnotation):
     """Inject Binding controller in component implementation.
     """
 
-    __slots__ = Context.__slots__
+    def get_value(self, component, *args, **kargs):
 
-    def __init__(self, name=BindingController.ctrl_name(), *args, **kwargs):
-
-        super(Binding, self).__init__(name=name, *args, **kwargs)
+        return BindingController.get_controller(component)
 
 
 class ProxyBinding(Component):

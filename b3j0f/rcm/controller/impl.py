@@ -30,21 +30,20 @@
 __all__ = [
     'ImplController',  # impl controller
     # impl annotations
-    'ImplAnnotation', 'B2CAnnotation', 'C2BAnnotation', 'Ctrl2BAnnotation',
-    'Context', 'Port', 'Impl',
-    'Stateless'
+    'Impl', 'Stateless',
+    'new_component'
 ]
 
-from inspect import isclass, getmembers, isroutine, getargspec
+from inspect import isclass
 
-from collections import Iterable
-
-from b3j0f.aop import weave, unweave
-from b3j0f.annotation import Annotation
 from b3j0f.annotation.check import Target, MaxCount
 from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
+from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
+from b3j0f.rcm.controller.annotation import (
+    CtrlAnnotation, C2CtrlAnnotation
+)
 
 
 class ImplController(Controller):
@@ -124,7 +123,7 @@ class ImplController(Controller):
             kwargs = {}
         # try to instantiate the implementation
         try:
-            result = C2BAnnotation.call_setter(
+            result = C2CtrlAnnotation.call_setter(
                 component=component, impl=self._cls, args=args, kwargs=kwargs,
                 force=True
             )
@@ -190,7 +189,7 @@ class ImplController(Controller):
         # unapply business annotations on old impl
         if self._impl is not None:
             for component in self.components:
-                    ImplAnnotation.unapply_from(
+                    CtrlAnnotation.unapply_from(
                         component=component, impl=self._impl
                     )
 
@@ -201,9 +200,9 @@ class ImplController(Controller):
             self._impl = value
             # apply business annotations on impl
             for component in self.components:
-                ImplAnnotation.apply_on(component=component, impl=self._impl)
+                CtrlAnnotation.apply_on(component=component, impl=self._impl)
                 # and call setters then getters
-                C2BAnnotation.call_setters(
+                C2CtrlAnnotation.call_setters(
                     component=component, impl=self._impl, call_getters=True
                 )
 
@@ -315,554 +314,56 @@ class ImplController(Controller):
         return result
 
 
-class ImplAnnotation(Annotation):
-    """Annotation dedicated to Impl implementations.
+def new_component(cls, *controllers):
+    """Generate a component related to an input business cls and controller
+    classes.
+
+    :param type cls: class implementation.
+    :param controllers: types of controllers to bind to the component.
     """
 
-    def apply(self, component, impl, member=None):
-        """Callback when Impl component renew its implementation.
+    result = Component()
 
-        :param Component component: business implementation component.
-        :param impl: component business implementation.
-        :param member: business implementation member.
-        """
+    ic = ImplController.bind_to(result)
+    ic.cls = cls
 
-        pass
+    for controller in controllers:
+        controller.bind_to(result)
 
-    def unapply(self, component, impl, member=None):
-        """Callback when Impl component change of implementation.
+    ic.instantiate()
 
-        :param Component component: business implementation component.
-        :param impl: component business implementation.
-        :param member: business implementation member.
-        """
+    return result
 
-        pass
 
-    @classmethod
-    def _process(cls, component, impl=None, check=None, _apply=True):
-        """Apply all cls annotations on component and impl.
-
-        :param Component component: business implementation component.
-        :param impl: component business implementation.
-        :param check: check function which takes in parameter an annotation in
-        order to do annotation.apply_on. If None, annotations are applied.
-        """
-
-        if impl is None:
-            impl = ImplController.get_impl(component=component)
-
-        if impl is not None:
-            annotations = cls.get_annotations(impl)
-            for annotation in annotations:
-                if check is None or check(annotation):
-                    if _apply:
-                        annotation.apply(component=component, impl=impl)
-                    else:
-                        annotation.unapply(component=component, impl=impl)
-
-            for name, member in getmembers(
-                impl.__class__,
-                lambda m: isroutine(m)
-            ):
-                annotations = cls.get_annotations(member, ctx=impl.__class__)
-                for annotation in annotations:
-                    if check is None or check(annotation):
-                        member = getattr(impl, name)
-                        if _apply:
-                            annotation.apply(
-                                component=component, impl=impl, member=member
-                            )
-                        else:
-                            annotation.unapply(
-                                component=component, impl=impl, member=member
-                            )
-
-    @classmethod
-    def apply_on(cls, component, impl=None, check=None):
-        """Apply all cls annotations on component and impl.
-
-        :param Component component: business implementation component.
-        :param impl: component business implementation.
-        :param check: check function which takes in parameter an annotation in
-        order to do annotation.apply_on. If None, annotations are applied.
-        """
-
-        return cls._process(
-            component=component, impl=impl, check=check, _apply=True
-        )
-
-    @classmethod
-    def unapply_from(cls, component, impl=None, check=None):
-        """Unapply all cls annotations on component and impl.
-
-        :param Component component: business implementation component.
-        :param impl: component business implementation.
-        :param check: check function which takes in parameter an annotation in
-        order to do annotation.apply_on. If None, annotations are applied.
-        """
-
-        return cls._process(
-            component=component, impl=impl, check=check, _apply=False
-        )
-
-
-class B2CAnnotation(ImplAnnotation):
-    """Business to Component annotation in order to inject implementation
-    values to the component properties.
-
-    It updates its result attribute related to its annotated impl routines.
-    """
-
-    #__slots__ = Annotation.__slots__
-
-    class B2CError(Exception):
-        """Handle B2CAnnotation errors.
-        """
-
-    def get_result(self, component, impl, member, result):
-        """Callback method after calling the annotated implementation routine.
-
-        :param Component component: implementation component.
-        :param impl: implementation instance.
-        :param routine member: called implementation member.
-        :param result: method result.
-        """
-
-        raise NotImplementedError()
-
-    @classmethod
-    def call_getters(cls, component, impl):
-        """Call impl getters of type cls.
-
-        :param Component component: implementation component.
-        :param impl: implementation instance.
-        :raises: B2CAnnotation.B2CError in case of getter call error.
-        """
-        # parse members which are routine and not constructors
-        for name, member in getmembers(
-            impl,
-            lambda m:
-                isroutine(m)
-                and
-                getattr(m, '__name__', None) not in ['__init__', '__new__']
-        ):
-            # for each one, try to call setter annotations
-            cls.call_getter(
-                component=component, impl=impl, getter=member
-            )
-
-    @classmethod
-    def call_getter(
-        cls, component, impl, getter, args=None, kwargs=None, force=False
-    ):
-        """Call getter if it is annotated by cls.
-
-        :param Component component: implementation component.
-        :param impl: implementation instance or cls if getter is None.
-        :param routine getter: getter to call if it is annotated.
-        :param list args: args to use in calling the getter.
-        :param dict kwargs: kwargs to use in calling the getter.
-        :param bool force: force call even if no C2BAnnotation exist.
-        :return: getter call if it is annotated by cls.
-        """
-
-        # init getter result
-        result = None
-        # get SetterImplAnnotations
-        b2cas = cls.get_annotations(getter, ctx=impl)
-        if b2cas or force:  # if getter has getter annotations ?
-            # initialize args and kwargs
-            if args is None:
-                args = []
-            if kwargs is None:
-                kwargs = {}
-            # call the getter and save the result
-            result = getter(*args, **kwargs)
-            for b2ca in b2cas:  # update args and kwargs with sias
-                b2ca.get_result(
-                    component=component,
-                    impl=impl,
-                    getter=getter,
-                    result=result
-                )
-            # call the getter and save the result
-            try:
-                result = getter(*args, **kwargs)
-            except Exception as e:
-                raise B2CAnnotation.B2CError(
-                    "Error ({0}) while calling {1} with {2}".format(
-                        e, getter, (args, kwargs)
-                    )
-                )
-
-        return result
-
-
-class C2BAnnotation(ImplAnnotation):
-    """Component to Business implementation to use in order to configurate the
-    implementation component from the implementation.
-
-    Set a method parameter values before calling it.
-    """
-
-    PARAM = 'param'  #: method params attribute name
-    IS_PNAME = 'ispname'  #: ispname attribute name
-    UPDATE = 'update'  #: update parameter attribute name
-
-    #__slots__ = (PARAM, IS_PNAME, UPDATE) + Annotation.__slots__
-
-    class C2BError(Exception):
-        """Handle C2BAnnotation errors.
-        """
-
-    def __init__(
-        self, param=None, ispname=False, update=False, *args, **kwargs
-    ):
-        """
-        :param param: parameters to inject in a business routine. It can be of
-        different types and also depends on ispname::
-
-            - None: first setter parameter corresponds to self value.
-            - str: if ispname, param is self parameter name which refers to a
-            value, otherwise, param is a setter parameter name.
-            - dict: set of setter parameter name, self parameter name.
-            - list: if ispname, param is a list of self parameter name
-            which refer to a list of values (of the same size), otherwise,
-            param is a list of setter parameter names.
-
-        :type param: NoneType, str, dict or Iterable
-        :param bool ispname: If False (default), param is used such setter
-        parameter names if not specified (when param is a list or a str),
-        otherwise, param is self parameter names.
-        :param bool update: if False (default), do not update existing
-        parameters.
-        """
-
-        super(C2BAnnotation, self).__init__(*args, **kwargs)
-
-        self.param = param
-        self.ispname = ispname
-        self.update = update
-
-    @classmethod
-    def call_setters(cls, component, impl, call_getters=False):
-        """Call impl setters of type cls.
-
-        :param Component component: implementation component.
-        :param impl: implementation instance.
-        :param bool call_getters: call getters at the end of processing.
-        """
-
-        if call_getters:
-            values_by_members = {}
-
-        # get members to parse (routines and not constructors)
-        members = getmembers(
-            impl,
-            lambda m:
-            isroutine(m)
-            and
-            getattr(m, '__name__', None) not in ['__init__', '__new__']
-        )
-
-        # parse members
-        for name, member in members:
-            # for each one, try to call setter annotations
-            value = cls.call_setter(
-                component=component, impl=impl, setter=member
-            )
-            if call_getters and value is not None:
-                values_by_members[member] = value
-
-        if call_getters:
-            # parse members
-            for name, member in members:
-                if member in values_by_members:  # if value already exists
-                    value = values_by_members[member]
-                    # update value in all B2CAnnotations
-                    b2cas = B2CAnnotation.get_annotations(member, ctx=impl)
-                    for b2ca in b2cas:
-                        b2ca.get_result(
-                            component=component, impl=impl, member=member,
-                            result=value
-                        )
-                else:  # execute the member and update B2CAnnotations
-                    B2CAnnotation.call_getter(
-                        component=component, impl=impl, getter=member
-                    )
-
-    @classmethod
-    def call_setter(
-        cls, component, impl, setter=None, args=None, kwargs=None, force=False
-    ):
-        """Call setter if it is annotated by cls.
-
-        If setter is None, use impl such as the setter.
-
-        :param Component component: implementation component.
-        :param impl: implementation instance or cls if setter is None.
-        :param routine setter: setter to call if it is annotated.
-        :param list args: args to use in calling the setter.
-        :param dict kwargs: kwargs to use in calling the setter.
-        :param bool force: force call even if no C2BAnnotation exist.
-        :return: setter call if it is annotated by cls.
-        """
-
-        # init setter result
-        result = None
-        # get the right target
-        if setter is None:
-            target = getattr(impl, '__init__', getattr(impl, '__new__', impl))
-            setter = impl
-        else:
-            target = setter
-        # get SetterImplAnnotations
-        c2bas = cls.get_annotations(target, ctx=impl)
-        if c2bas or force:  # if setter has setter annotations ?
-            # initialize args and kwargs
-            if args is None:
-                args = []
-            if kwargs is None:
-                kwargs = {}
-            for c2ba in c2bas:  # update args and kwargs with sias
-                c2ba._update_params(
-                    component=component, impl=impl, member=setter,
-                    args=args, kwargs=kwargs
-                )
-            # call the target and save the result
-            try:
-                result = setter(*args, **kwargs)
-            except Exception as e:
-                raise C2BAnnotation.C2BError(
-                    "Error ({0}) while calling {1} with {2}".format(
-                        e, setter, (args, kwargs)
-                    )
-                )
-
-        return result
-
-    def _update_params(self, component, impl, member, args, kwargs, **ks):
-        """Update member call parameters.
-
-        :param Component component: implementation component.
-        :param impl: implementation instance.
-        :param routine member: called member.
-        :param list args: member call var args.
-        :param dict kwargs: member call keywords.
-        """
-
-        param = self.param
-
-        if param is None:  # append default value to args
-            value = self.get_value(
-                component=component, impl=impl, member=member, _upctx={},
-                **ks
-            )
-            args.append(value)
-        elif isinstance(param, basestring):  # if param is a str
-            value = self.get_value(
-                component=component, impl=impl, member=member,
-                pname=param if self.ispname else None, _upctx={},
-                **ks
-            )
-            if self.ispname:  # if param is a parameter name
-                # put value in kwargs
-                args.append(value)
-            # else if param is a routine keyword argument
-            elif self.update or param not in kwargs:
-                # do nothing if update and param already in kwargs
-                # value is in vararg
-                kwargs[param] = value
-        elif isinstance(param, dict):  # contains both arg names and values
-            update = self.update
-            # initialize a new ctx related to self setter
-            ctx = {}
-            for kwarg in param:
-                # do nothing if update and param already in kwargs
-                if update or kwarg not in kwargs:
-                    pname = param[kwarg]
-                    value = self.get_value(
-                        component=component, impl=impl, member=member,
-                        pname=pname,
-                        _upctx=ctx,
-                        **ks
-                    )
-                    kwargs[kwarg] = value
-        elif isinstance(param, Iterable):  # contains dynamic values to put
-            values = [None] * len(param)
-            # initialize a new ctx related to self setter
-            ctx = {}
-            for index, pname in enumerate(param):
-                value = self.get_value(
-                    component=component,
-                    impl=impl,
-                    member=member,
-                    pname=pname if self.ispname else None,
-                    _upctx=ctx,
-                    **ks
-                )
-                values[index] = value
-            if self.ispname:
-                args += values
-            else:
-                names_w_value = zip(param, values)
-                update = self.update
-                for name, value in names_w_value:
-                    if update or name not in kwargs:
-                        kwargs[name] = value
-
-    def get_value(
-        self, component, impl, _upctx, member=None, pname=None, **ks
-    ):
-        """Get value parameter.
-
-        :param Component component: implementation component.
-        :param impl: implementation instance.
-        :param dict _upctx: dictionary dedicated to manage shared values among
-            several call of self.get_value in the same execution of
-            self._update_params.
-        :param member: implementation member.
-        :param str pname: parameter name. If None, result is component. Else,
-            result is related component port which matches the port.
-        """
-
-        result = None
-
-        if pname is None:  # if pname is None, return component
-            result = component
-        elif isinstance(pname, basestring):  # if str, return port component
-            result = component.get(pname)
-        elif isinstance(pname, Iterable):  # if iterable, return all get_values
-            result = [
-                self.get_value(
-                    component=component,
-                    impl=impl,
-                    member=member,
-                    pname=name,
-                    _upctx=_upctx,
-                    **ks
-                ) for name in pname
-            ]
-
-        return result
-
-
-class C2B2CAnnotation(C2BAnnotation, B2CAnnotation):
-    """Behaviour of both C2BAnnotation and B2CAnnotation.
-    """
-
-
-class Context(C2BAnnotation):
-    """Annotation dedicated to inject a component into its implementation.
-    """
-
-    __slots__ = C2BAnnotation.__slots__
-
-    def __init__(self, param=None, *args, **kwargs):
-        # forbid to change value of ispname
-        super(Context, self).__init__(
-            param=param, ispname=False, *args, **kwargs
-        )
-
-
-class Port(C2BAnnotation):
-    """Annotation dedicated to inject a port in a component implementation.
-
-    Value(s) to set depends on ``param``::
-
-        - None: value is the component.
-        - str: param is the port name.
-        - list: params are port names.
-        - dict: keys are parameters and values are port names.
-    """
-
-    __slots__ = C2BAnnotation.__slots__
-
-    def __init__(self, param, *args, **kwargs):
-
-        super(Port, self).__init__(
-            param=param, ispname=True, *args, **kwargs
-        )
-
-
-class Ctrl2BAnnotation(C2BAnnotation):
-    """Annotation dedicated to inject a component controller into its component
-    implementation.
-    """
-
-    FORCE = 'force'  #: force attribute name.
-    ERROR = 'error'  #: error attribute name.
-
-    __slots__ = (FORCE, ) + C2BAnnotation.__slots__
-
-    def __init__(self, param=None, force=False, error=None, *args, **kwargs):
-        """
-        :param bool force: force controller creation if not exists.
-        :param type error: Error to raise if controller does not exist. If None
-            (default) do not raise an error.
-        """
-
-        # avoid to define ispname is True
-        super(Ctrl2BAnnotation, self).__init__(
-            param=param, ispname=False, *args, **kwargs
-        )
-
-        self.force = force
-        self.error = error
-
-    def get_ctrl_cls(self):
-        """Get ctrl cls.
-
-        Must be overriden.
-        :raises: NotImplementedError by default.
-        """
-
-        raise NotImplementedError()
-
-    def get_value(self, component, impl, member=None, pname=None, **ks):
-
-        result = None
-
-        # get both controller class and name
-        ctrl_cls = self.get_ctrl_cls()
-        ctrl_name = ctrl_cls.ctrl_name()
-        # get related controller
-        result = component.get(ctrl_name)
-        # if controller is None and self force creation of controller
-        if result is None:
-            if self.force:
-                # get a new controller
-                result = ctrl_cls.bind_to(components=component)
-            elif self.error:
-                raise self.error(
-                    "Impossible to set {0}, controller {1} not bound to {2}"
-                    .format(member, ctrl_cls, component)
-                )
-
-        return result
-
-
-class Impl(Ctrl2BAnnotation):
+class Impl(C2CtrlAnnotation):
     """Annotation dedicated to inject an ImplController in an implementation.
     """
 
-    __slots__ = Ctrl2BAnnotation.__slots__
+    def get_value(self, component, *args, **kwargs):
 
-    def get_ctrl_cls(self):
+        return ImplController.get_controller(component)
 
-        return ImplController
+
+class Context(C2CtrlAnnotation):
+    """Annotation dedicated to inject a component into its implementation.
+    """
+
+    __slots__ = C2CtrlAnnotation.__slots__
+
+    def get_value(self, component, *args, **kwargs):
+
+        return component
 
 
 @MaxCount()
 @Target(type)
-class Stateless(ImplAnnotation):
+class Stateless(CtrlAnnotation):
     """Specify stateless on impl controller.
     """
 
     IMPL_STATEFUL = 'impl_stateful'  #: impl stateful attribute name
 
-    __slots__ = (IMPL_STATEFUL, ) + ImplAnnotation.__slots__
+    __slots__ = (IMPL_STATEFUL, ) + CtrlAnnotation.__slots__
 
     def apply(self, component, *args, **kwargs):
         # save old stateful status
@@ -875,266 +376,3 @@ class Stateless(ImplAnnotation):
         ImplController.set_stateful(
             component=component, stateful=self.impl_stateful
         )
-
-
-def _accessor_name(accessor, prefix):
-    """Get accessor name which could contain prefix.
-    """
-
-    result = accessor.__name__
-
-    if result.startswith(prefix):
-        result = result[len(prefix):]
-        if result and result[0] == '_':
-            result = result[1:]
-
-    if result:  # lower result
-        result = result.lower()
-
-    return result
-
-
-def getter_name(getter):
-    """Get getter name.
-    """
-
-    return _accessor_name(getter, 'get')
-
-
-def setter_name(setter):
-    """Get setter name.
-    """
-
-    return _accessor_name(setter, 'set')
-
-
-class ImplAnnotationInterceptor(ImplAnnotation):
-    """C2B annotation dedicated to intercept context methods and to set
-    corresponding methods in implementation.
-
-    Implementation setters can be fired before, after or both.
-
-    It is possible to specify intercepted parameters to bind to interception
-    parameters with both varargs and kwargs respectively named ``vparams`` and
-    ``kparams``. For example, if you want to retrieve the interception moment
-    among (before, after) and the intercepted result, you can ask to get back
-    the 'when' and 'result' parameter values in several ways such as:
-
-    - vparams=['when', 'result']
-    - kparams={'when': 'interception param name', 'result': '...'}
-    """
-
-    BEFORE = 1 << 0  #: before flag value.
-    AFTER = 1 << 1  #: after flag value.
-    BOTH = BEFORE | AFTER  #: before and after flag values.
-
-    WHEN = 'when'  #: when attribute/parameter name.
-    RESULT = 'result'  #: interception result parameter name.
-
-    PARAMS = 'params'  #: parameters to put in the interceptor
-
-    class Error(Exception):
-        """Handle ImplAnnotationInterceptor Errors.
-        """
-
-    def __init__(self, when=BOTH, vparams=None, kparams=None, *args, **kwargs):
-        """
-        :param int when: when property.
-        :param vparams: intercepted param name(s) to put in the
-            interception parameters.
-        :type vparams: list or str
-        :param dict kparams: dict of (str, str) where keys are intercepted
-        param names and values are interception param names.
-        """
-
-        super(ImplAnnotationInterceptor, self).__init__(*args, **kwargs)
-
-        self.when = when
-
-        self.vparams = (
-            [] if vparams is None else [vparams]
-            if isinstance(vparams, basestring) else vparams
-        )
-        self.kparams = {} if kparams is None else kparams
-
-    def _get_params(
-        self, component, impl, member, joinpoint, when, argspec, result=None
-    ):
-        """Get right args and kwargs related to self vparams and kparams.
-
-        :param Component component: intercepted component.
-        :param impl: intercepted impl.
-        :param member: interception member.
-        :param b3j0f.aop.Joinpoint joinpoint: interception joinpoint.
-        :param int when: interception moment.
-        :param result: interception result if when is AFTER.
-        :param tuple argspec: member argspec.
-
-        :return: both interception args and kwargs.
-        :rtype: tuple
-        """
-
-        # get args
-        args = [
-            self._get_param(
-                name=name,
-                component=component,
-                impl=impl,
-                member=member,
-                joinpoint=joinpoint,
-                when=when,
-                result=result,
-                argspec=argspec
-            )
-            for name in self.vparams
-        ]
-        # and kwargs
-        kwargs = {}
-        for intercepted_param in self.kparams:
-            interception_param = self.kparams[intercepted_param]
-            kwargs[interception_param] = self._get_param(
-                name=intercepted_param,
-                component=component,
-                impl=impl,
-                member=member,
-                joinpoint=joinpoint,
-                when=when,
-                result=result,
-                argspec=argspec
-            )
-
-        return args, kwargs
-
-    def _get_param(
-        self, name, component, impl, member, joinpoint, when, result, argspec
-    ):
-        """Get specific param value related to input parameters.
-
-        :param Component component: intercepted component.
-        :param impl: intercepted impl.
-        :param member: interception member.
-        :param b3j0f.aop.Joinpoint joinpoint: interception joinpoint.
-        :param int when: interception moment.
-        :param result: interception result if when is AFTER.
-        :param tuple argspec: member argspec.
-
-        :return: specific parameter.
-        :raises: ImplAnnotationInterceptor.Error if parameter value does
-        not exist.
-        """
-
-        if name == ImplAnnotationInterceptor.WHEN:
-            result = when
-        elif name == 'component':
-            result = component
-        elif name == 'impl':
-            result = impl
-        elif name == 'joinpoint':
-            result = joinpoint
-        elif name == 'result':  # do nothing if result is asked
-            pass
-        elif name in joinpoint.kwargs:  # check among joinpoint kwargs
-            result = joinpoint.kwargs[name]
-        elif name in argspec.args:  # check among joinpoint args
-            index = argspec.args.index(name)
-            result = joinpoint.args[index]
-
-        else:  # if name is not handled, raise an Error
-            raise ImplAnnotationInterceptor.Error(
-                "Wrong parameter name '{0}' in {1} ({2}).".format(
-                    name, member, component
-                )
-            )
-
-        return result
-
-    def _get_advice(self, component, impl, member):
-        """Get an advice able to proceed impl member.
-        """
-
-        argspec = getargspec(member)
-
-        def advice(joinpoint):
-
-            if self.when & ImplAnnotationInterceptor.BEFORE:
-                args, kwargs = self._get_params(
-                    component=component,
-                    impl=impl,
-                    member=member,
-                    joinpoint=joinpoint,
-                    when=ImplAnnotationInterceptor.BEFORE,
-                    argspec=argspec
-                )
-                try:  # catch any exception
-                    member(*args, **kwargs)
-                except Exception:
-                    pass
-
-            result = joinpoint.proceed()
-
-            if self.when & ImplAnnotationInterceptor.AFTER:
-                args, kwargs = self._get_params(
-                    component=component,
-                    impl=impl,
-                    member=member,
-                    joinpoint=joinpoint,
-                    when=ImplAnnotationInterceptor.AFTER,
-                    result=result,
-                    argspec=argspec
-                )
-                try:  # catch any exception
-                    member(*args, **kwargs)
-                except Exception:
-                    pass
-
-            return result
-
-        return advice
-
-    def get_target_ctx(self, *args, **kwargs):
-        """Get target and ctx related to apply/unapply calls.
-
-        :return: target and ctx.
-        :rtype: tuple
-        """
-
-        raise NotImplementedError()
-
-    def apply(self, component, impl, member, *args, **kwargs):
-
-        target, ctx = self.get_target_ctx(
-            component=component, impl=impl, member=member, *args, **kwargs
-        )
-
-        advice = self._get_advice(
-            component=component, impl=impl, member=member
-        )
-
-        weave(target, advices=advice, ctx=ctx)
-
-
-class SetPort(ImplAnnotationInterceptor):
-    """Called when a port is bound to component.
-
-    Specific parameters are Component.set_port parameters:
-
-    - name: new port name.
-    - port: new port.
-    """
-
-    def get_target_ctx(self, component, *args, **kwargs):
-
-        return component.set_port, component
-
-
-class RemPort(ImplAnnotationInterceptor):
-    """Called when a port is unbound from component.
-
-    Specific parameters are Component.remove_port parameters:
-
-    - name: port name to remove.
-    """
-
-    def get_target_ctx(self, component, *args, **kwargs):
-
-        return component.remove_port, component

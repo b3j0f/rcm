@@ -31,10 +31,10 @@ __all__ = [
 
 from b3j0f.aop import weave, unweave
 from b3j0f.rcm.controller.core import Controller
-from b3j0f.rcm.controller.impl import (
-    ImplController,
-    Context, ImplAnnotation, getter_name, setter_name
+from b3j0f.rcm.controller.annotation import (
+    CtrlAnnotation, getter_name, setter_name, C2CtrlAnnotation
 )
+from b3j0f.rcm.controller.impl import ImplController
 
 
 class PropertyController(Controller):
@@ -119,24 +119,20 @@ class PropertyController(Controller):
             )
 
 
-class Property(Context):
+class Property(C2CtrlAnnotation):
     """Inject a PropertyController in an implementation.
     """
 
-    __slots__ = Context.__slots__
+    def get_value(self, component, *args, **kwargs):
 
-    def __init__(
-        self, name=PropertyController.ctrl_name(), *args, **kwargs
-    ):
-
-        super(Property, self).__init__(name=name, *args, **kwargs)
+        return PropertyController.get_controller(component)
 
 
-class _PropertyAnnotation(ImplAnnotation):
+class _PropertyAnnotation(CtrlAnnotation):
 
     NAME = 'name'  #: name field name
 
-    __slots__ = (NAME, ) + ImplAnnotation.__slots__
+    __slots__ = (NAME, ) + CtrlAnnotation.__slots__
 
     def __init__(self, name, *args, **kwargs):
 

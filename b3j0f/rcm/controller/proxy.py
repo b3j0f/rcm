@@ -47,10 +47,11 @@ from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
 from b3j0f.utils.proxy import get_proxy
 from b3j0f.rcm.core import Component
-from b3j0f.rcm.controller.impl import (
-    ImplController, ImplAnnotation, B2CAnnotation, C2BAnnotation,
+from b3j0f.rcm.controller.annotation import (
+    CtrlAnnotation, Ctrl2CAnnotation, C2CtrlAnnotation,
     getter_name, setter_name
 )
+from b3j0f.rcm.controller.impl import ImplController
 
 
 class Proxy(Component):
@@ -138,8 +139,10 @@ class Proxy(Component):
             proxy = self._component_cls().get_cls_proxy(
                 component=component,
                 select=lambda name, component:
+                (
                     component_rc.match(name)
                     and self._component_filter(name, component)
+                )
             )
             # bind port
             for name in proxy:
@@ -169,13 +172,13 @@ class InputProxy(Proxy):
     """
 
 
-class Input(C2BAnnotation):
+class Input(C2CtrlAnnotation):
     """InputProxy injector which uses a name in order to inject a InputProxy.
     """
 
     NAME = 'name'  #: input port name field name
 
-    __slots__ = (NAME, ) + B2CAnnotation.__slots__
+    __slots__ = (NAME, ) + Ctrl2CAnnotation.__slots__
 
     def __init__(self, name, *args, **kwargs):
 
@@ -261,7 +264,7 @@ class OutputProxy(Proxy):
         Output.unapply(component=component)
 
 
-class Output(B2CAnnotation):
+class Output(Ctrl2CAnnotation):
     """Impl Out descriptor.
     """
 
@@ -269,7 +272,7 @@ class Output(B2CAnnotation):
     STATELESS = 'stateless'  #: stateless mode
     RESOURCE = '_resource'  #: output port resource field name
 
-    __slots__ = (RESOURCE, ) + B2CAnnotation.__slots__
+    __slots__ = (RESOURCE, ) + Ctrl2CAnnotation.__slots__
 
     def __init__(self, async, stateless, resource, *args, **kwargs):
 
@@ -293,19 +296,19 @@ class Output(B2CAnnotation):
 
 @MaxCount()
 @Target([Target.ROUTINE, type])
-class Async(ImplAnnotation):
+class Async(CtrlAnnotation):
     """Specify asynchronous mode on class methods.
     """
 
 
 @Target(type)
-class Proxies(ImplAnnotation):
+class Proxies(CtrlAnnotation):
     """Annotation in charge of binding proxy in a component proxy.
     """
 
     PROXY = 'proxy'
 
-    __slots__ = (PROXY, ) + ImplAnnotation.__slots__
+    __slots__ = (PROXY, ) + CtrlAnnotation.__slots__
 
     def __init__(self, proxy, *args, **kwargs):
         """

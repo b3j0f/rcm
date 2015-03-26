@@ -29,7 +29,7 @@ __all__ = ['ContentController', 'Content', 'Add', 'Remove']
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.name import NameController
-from b3j0f.rcm.controller.impl import Context, ImplAnnotation
+from b3j0f.rcm.controller.annotation import C2CtrlAnnotation, CtrlAnnotation
 
 
 class ContentController(Controller):
@@ -142,25 +142,23 @@ class ContentController(Controller):
             cc -= content
 
 
-class Content(Context):
+class Content(C2CtrlAnnotation):
     """Inject ContentController in an implementation.
     """
 
-    __slots__ = Context.__slots__
+    def get_value(self, component, *args, **kwargs):
 
-    def __init__(self, name=ContentController.ctrl_name(), *args, **kwargs):
-
-        super(Content, self).__init__(name=name, *args, **kwargs)
+        return ContentController.get_controller(component)
 
 
-class Add(ImplAnnotation):
+class Add(CtrlAnnotation):
     """Fired when related component is added to a new parent component.
     """
 
     pass
 
 
-class Remove(ImplAnnotation):
+class Remove(CtrlAnnotation):
     """Fired when related component is removed from a parent component.
     """
 
