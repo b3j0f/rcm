@@ -325,6 +325,9 @@ class TestC2CtrlAnnotation(BaseControllerTest):
 
             @TestC2CtrlAnnotation.Ann(param='test')
             def test(self, a=0, b=1, test=None):
+
+                self.a = a
+                self.b = b
                 self.test = test
 
         test = Test()
@@ -332,6 +335,8 @@ class TestC2CtrlAnnotation(BaseControllerTest):
         C2CtrlAnnotation.call_setter(
             component=None, impl=test, setter=test.test
         )
+        self.assertIs(test.a, 0)
+        self.assertIs(test.b, 1)
         self.assertIs(test.test, 1)
 
     def test_call_setters(self):
@@ -356,14 +361,14 @@ class TestC2CtrlAnnotation(BaseControllerTest):
 
             @Ann()
             def test0(self, a):
-                self.count += a
+                self.count += a * 10
 
             @Ann()
             def test1(self, a):
-                self.count += a
+                self.count += a * 100
 
             def test2(self, a):
-                self.count += a
+                self.count += a * 1000
 
         annotation = Ann()
         annotation(Test.test2)
@@ -372,7 +377,58 @@ class TestC2CtrlAnnotation(BaseControllerTest):
 
         C2CtrlAnnotation.call_setters(component=None, impl=test)
 
-        self.assertEqual(test.count, 4)
+        self.assertEqual(test.count, 1111)
+
+    def test_multi_annotations(self):
+        """Test with multi C2CtrlAnnotations on the same routine.
+        """
+
+        class Ann1(C2CtrlAnnotation):
+            def get_value(self, *args, **kwargs):
+                return 1
+
+        class Ann2(C2CtrlAnnotation):
+            def get_value(self, *args, **kwargs):
+                return 2
+
+        def assertMultiAnnotation(
+            p1=None, p2=None, a=None, b=None, c=None, d=None
+        ):
+            """Annotate a routine with both Ann1 and Ann2 with respective
+            parameters p1 and p2, then assert values of a Test instance
+            with input a, b, c, d.
+            """
+            class Test(object):
+
+                @Ann1(param=p1)
+                @Ann2(param=p2)
+                def __init__(self, a=None, b=None, c=None, d=None):
+                    super(Test, self).__init__()
+                    self.a = a
+                    self.b = b
+                    self.c = c
+                    self.d = d
+
+            test = C2CtrlAnnotation.call_setter(component=None, impl=Test)
+
+            self.assertIs(a, test.a)
+            self.assertIs(b, test.b)
+            self.assertIs(c, test.c)
+            self.assertIs(d, test.d)
+
+        # check if varargs is correctly filled
+        assertMultiAnnotation(a=1, b=2)
+        # check if varargs and kwargs are in a conflict
+        self.assertRaises(
+            C2CtrlAnnotation.C2CtrlError,
+            assertMultiAnnotation,
+            p1='a'
+        )
+        # check if named param is ok
+        assertMultiAnnotation(p1='b', a=2, b=1)
+        # check if a list of param names are ok
+        assertMultiAnnotation(p1=['b', 'c'], a=2, b=1, c=1)
+
 
     def _get_parameterized_class(self):
 
