@@ -1016,15 +1016,13 @@ class TestSetPort(UTCase):
 
             def check_params(self, *args, **kwargs):
 
-                result = False
-
                 result = (
-                    (args == ('test', 'example'))
+                    (args == ('name', 'port'))
                     or
                     (
                         kwargs
-                        and kwargs['_name'] == 'test'
-                        and kwargs['_port'] == 'example'
+                        and kwargs['_name'] == 'name'
+                        and kwargs['_port'] == 'port'
                     )
                 )
 
@@ -1206,7 +1204,7 @@ class TestSetPort(UTCase):
         self.assertEqual(self.before, 0)
         self.assertEqual(self.after, 0)
 
-        self.component.set_port('test', 'example')
+        self.component.set_port(name='name', port='port')
 
         self.assertEqual(self.before, 11)
         self.assertEqual(self.after, 11)
@@ -1233,8 +1231,6 @@ class TestRemPort(UTCase):
                 self.test = test
 
             def check_params(self, *args, **kwargs):
-
-                result = False
 
                 result = (
                     (args == ('test',))
