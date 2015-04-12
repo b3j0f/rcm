@@ -37,6 +37,8 @@ from collections import Iterable
 
 from inspect import isroutine, getmembers
 
+from re import compile as re_compile
+
 
 class Component(dict):
     """Component which contains named ports and an id.
@@ -45,20 +47,29 @@ class Component(dict):
     ID = '_id'  #: id field name
 
     def __init__(
-        self, _id=None, **named_ports
+        self, _id=None, ports=None, named_ports=None
     ):
         """Constructor which register ports with generated name and named
         interfaces.
+
+        :param string _id: component id. Generated if None.
+        :param list ports: list of ports to bind.
+        :param dict named_ports: set of ports to bind by name.
         """
 
         super(Component, self).__init__()
 
         # save _id
         self._id = uuid() if _id is None else _id
-        # save interfaces
-        for name in named_ports:
-            port = named_ports[name]
-            self[name] = port
+        # save ports
+        if ports is not None:
+            for port in ports:
+                self.set_port(port=port)
+        # save named ports
+        if named_ports is not None:
+            for name in named_ports:
+                port = named_ports[name]
+                self.set_port(port=port, name=name)
 
     def __hash__(self):
 
@@ -97,27 +108,38 @@ class Component(dict):
 
         self.set_port(name=key, port=value)
 
-    def set_port(self, name, port):
+    def set_port(self, port, name=None):
         """Set new port with input name. And returns previous port if exists.
 
-        :param str name: port name to bind.
         :param port: new port to bind.
-        :return: old port if name already used.
+        :param str name: port name to bind. If None, generated.
+        :return: (name, old port) if name already used, otherwise (name, None).
+        :rtype: tuple
         """
-        # default result
-        result = None
+        # default old_port
+        old_port = None
+
+        # generate name if None
+        if name is None:
+            # in ensuring the new generated name does not exist in self
+            while True:
+                name = uuid()
+                if name not in self:
+                    break
 
         # unbind old component
         if name in self:
-            result = self[name]
-            if isinstance(result, Component):
-                result.on_unbind(component=self, name=name)
+            old_port = self[name]
+            if isinstance(old_port, Component):
+                old_port.on_unbind(component=self, name=name)
         # if port is a component
         if isinstance(port, Component):
             # bind it to self
             port.on_bind(component=self, name=name)
         # and call super __setitem__
         super(Component, self).__setitem__(name, port)
+
+        result = name, old_port
 
         return result
 
@@ -256,15 +278,16 @@ class Component(dict):
     def get_ports(self, names=None, types=None, select=lambda *p: True):
         """Get ports related to names and types.
 
-        :param names: port names to search for.
+        :param names: port (regex) names to search for.
         :type names: str or list
         :param types: port types to search for.
         :type types: type or iterable of types
         :param bool raiseError: raise an error if no port is found.
         :param select: boolean selection function which takes a name and a port
-        in parameters. True by default.
+            in parameters. True by default.
 
-        :return: dict of ports by name.
+        :return: dictionary of ports by name.
+        :rtype: dict
         """
 
         result = {}
@@ -281,12 +304,20 @@ class Component(dict):
                 names = [names]
             # for all names
             for name in names:
+                # search for exact names
                 if name in self:
                     # get port
                     port = self[name]
                     # add port to result if isinstance(port, types)
                     if isinstance(port, types) and select(name, port):
                         result[name] = self[name]
+                else:  # search for regex expressions
+                    regex = re_compile(name)
+                    for port_name in self:
+                        port = self[port_name]
+                        if regex.match(port_name):
+                            if isinstance(port, types) and select(name, port):
+                                result[port_name] = port
         else:
             # for all ports
             for name in self:

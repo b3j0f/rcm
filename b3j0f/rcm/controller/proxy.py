@@ -24,11 +24,22 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-"""Component Input/Output.
+"""This module provides classes in charge of binding/providing Components to
+the execution environment.
+
+Such operations are granted through the proxy design pattern in order to
+separate ``what`` and ``how`` a component is bound/provided with its
+environment.
+
+The ``what`` is specified through the Proxy class. This one uses interfaces in
+order to describe a resource is bound/provided. InputProxy and OutputProxy
+are respectively used to bound and provided resources.
+The ``how`` is ensured by Binding objects which are used by proxy objects.
 """
 
 __all__ = [
-    'Proxy', 'OutputProxy', 'InputProxy',
+    'Proxy', 'Binding',
+    'OutputProxy', 'InputProxy',
     'Input', 'Output',
     'Proxies',
     'Async'
@@ -40,6 +51,8 @@ except ImportError:
     from dummy_threading import Lock
 
 from re import compile as re_compile
+
+from inspect import isclass
 
 from b3j0f.annotation.check import Target, MaxCount
 from b3j0f.utils.version import basestring
@@ -55,41 +68,47 @@ from b3j0f.rcm.controller.impl import ImplController
 class Proxy(Component):
     """Base class of InputProxy and OutputProxy.
 
-    Its role is to bind the component with the environment resources.
+    Its role is to bind/provide a component with the environment resources in
+    easying separation of what and how a resource is bound/provided to/by a
+    component.
 
-    It uses interfaces in order to describe what is promoted.
+    A proxy description uses a set of interfaces in order to filter which kind
+    of resources can be bound/provided to/by a component.
+    Bindings are proxy ports.
     """
 
-    CMP_PORT_SEPARATOR = ':'  #: char separator between a component and port
-
     INTERFACES = '_interfaces'  #: interfaces field name
-    _SOURCES = '_sources'  #: source proxy
     _LOCK = '_lock'  #: private lock field name
 
     def __init__(
-        self, interfaces=None, sources=None, *args, **kwargs
+        self, interfaces=None, *args, **kwargs
     ):
+        """
+        :param interfaces: proxy interface names/classes.
+        :type interfaces: list or str
+        """
 
         super(Proxy, self).__init__(*args, **kwargs)
 
         self._lock = Lock()
         self.interfaces = interfaces
-        self._sources = []
-        self.sources = sources
 
     @property
     def interfaces(self):
-        """Return an array of self interfaces
+        """Return an array of self interfaces.
+
+        :return: list of proxy interfaces.
+        :rtype: list
         """
 
-        return [self._interfaces]
+        return list(self._interfaces)
 
     @interfaces.setter
     def interfaces(self, value):
         """Update interfaces with a list of interface names/types.
 
-        :param value:
-        :type value: list or str
+        :param value: new interfaces to use.
+        :type value: list or str or type
         """
 
         self._lock.acquire()
@@ -99,29 +118,141 @@ class Proxy(Component):
             value = set([object])
         elif isinstance(value, basestring):
             value = set([lookup(value)])
-        elif isinstance(value, type):
+        elif isclass(value):
             value = set([value])
         # convert all str to tuple of types
         self._interfaces = (
-            v if isinstance(v, type) else lookup(v) for v in value
+            v if isclass(v) else lookup(v) for v in value
         )
 
         self._lock.release()
 
-    def promote(self, component, sources):
-        """Promote this port to input component proxy where names match with
-        input sources.
+    def get_resource(self, bindings=None):
+        """Get proxy resource related to binding name(s).
 
-        :param Component component: component from where find sources.
-        :param sources: sources to promote.
-        :type sources: list or str of type [port_name/]sub_port_name
+        :param bindings: Bound resource (regex) name(s). If None, get default
+        resource which is the component model programming language.
+        :type bindings: list or str or Binding
+        :return: a resource if bindings is None, else a dictionary of
+        resources by binding names.
         """
 
-        #ensure sources are a list of str
-        if isinstance(sources, basestring):
-            sources = [sources]
+        result = None
 
-        for source in sources:
+        if bindings is None:
+            raise NotImplementedError()
+
+        else:  # if specific bindings are requested
+            if isinstance(bindings, basestring):
+                names = (bindings)
+            elif isclass(bindings) and issubclass(bindings, Binding):
+                types = (bindings)
+            else:  # names and types are initialized with input binding types
+                names, types = [], []
+                for binding in bindings:
+                    # add to names if binding is a str
+                    if isinstance(binding, basestring):
+                        names.append(binding)
+                    # or to types if binding is a subclass of binding
+                    elif isclass(binding) and issubclass(binding, Binding):
+                        types.append(binding)
+                    # else the type does not correspond to expected ones
+                    else:
+                        raise TypeError(
+                            "Wrong value {0}. str/ Binding type expected."
+                            .format(binding)
+                        )
+            # get ports by names and types
+            result = self.get_ports(
+                names=names, types=types,
+                select=lambda n, p: isinstance(p, Binding)
+            )
+
+        return result
+
+    def check_resource(self, resource):
+        """Check input resource related to self interfaces.
+        """
+
+        return isinstance(resource, self.interfaces)
+
+    def check_resource_cls(self, resource_cls):
+
+        result = True
+
+        for interface in self.interfaces:
+            result = issubclass(resource_cls, interface)
+
+            if not result:
+                break
+
+        return result
+
+
+class Binding(Component):
+    """Specify how a resource is bound/provided to/by a component.
+    """
+
+    def __init__(self, proxy, *args, **kwargs):
+        """
+        :param Proxy proxy: proxy which uses the binding.
+        """
+
+        self.proxy = proxy
+
+    def start(self, proxy, resource):
+        """Start the binding with input proxy and proxy resource, and return
+        the binding resource.
+
+        :param Proxy proxy: resource proxy.
+        :param resource: proxy resource.
+        :return: proxyfied resource transformed by this binding.
+        """
+
+    def stop(self, proxy, resource):
+        """Stop the binding execution.
+        """
+
+    def get_resource(self, proxy, resource):
+        """Get proxy resource.
+
+        :param Proxy proxy: resource proxy.
+        :param resource: proxy resource.
+        :return: proxyfied resource transformed by this binding.
+        """
+
+        raise NotImplementedError()
+
+    @classmethod
+    def get_name(cls):
+        """Get binding name. Class name in lower case by default.
+
+        :return: class name in lower case by default.
+        :rtype: str
+        """
+        return cls.__name__.lower()
+
+
+class PromotedProxy(Proxy):
+    """A promoted proxy is dedicated to promote other proxies.
+    """
+
+    CMP_PORT_SEPARATOR = '/'
+
+    def promote(self, component, promoted=""):
+        """Promote this port to input component proxy where names match with
+        input promoted.
+
+        :param Component component: component from where find promoted.
+        :param promoted: promoted to promote.
+        :type promoted: list or str of type [port_name/]sub_port_name
+        """
+
+        # ensure promoted is a list of str
+        if isinstance(promoted, basestring):
+            promoted = [promoted]
+
+        for source in promoted:
             # first, identify component name with proxy
             splitted_source = source.split(Proxy.CMP_PORT_SEPARATOR)
             if len(splitted_source) == 1:
