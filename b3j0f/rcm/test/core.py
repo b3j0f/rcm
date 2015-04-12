@@ -68,6 +68,15 @@ class ComponentTest(UTCase):
         self.bindcount = self.number_of_testport
         self.unbindcount = self.number_of_testport
 
+    def test_init(self):
+        """Test to set ports in the constructor.
+        """
+
+        ports = self.named_ports.values()
+        self.component = Component(ports=ports, named_ports=self.named_ports)
+
+        self.assertEqual(2 * len(self.named_ports), len(self.component))
+
     def test_generated_id(self):
         """Test generated ids.
         """
