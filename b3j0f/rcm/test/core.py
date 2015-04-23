@@ -41,11 +41,11 @@ class ComponentTest(UTCase):
 
             self.componentest = componentest
 
-        def on_bind(self, component, name, *args, **kwargs):
+        def _on_bind(self, component, name, *args, **kwargs):
 
             self.componentest.bindcount -= 1
 
-        def on_unbind(self, component, name, *args, **kwargs):
+        def _on_unbind(self, component, name, *args, **kwargs):
 
             self.componentest.unbindcount -= 1
 

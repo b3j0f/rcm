@@ -98,7 +98,7 @@ class Component(dict):
 
         if isinstance(result, Component):
             # unbind it from self
-            result.on_unbind(component=self, name=name)
+            result._on_unbind(component=self, name=name)
         # and call super __delitem__
         super(Component, self).__delitem__(name)
 
@@ -131,11 +131,11 @@ class Component(dict):
         if name in self:
             old_port = self[name]
             if isinstance(old_port, Component):
-                old_port.on_unbind(component=self, name=name)
+                old_port._on_unbind(component=self, name=name)
         # if port is a component
         if isinstance(port, Component):
             # bind it to self
-            port.on_bind(component=self, name=name)
+            port._on_bind(component=self, name=name)
         # and call super __setitem__
         super(Component, self).__setitem__(name, port)
 
@@ -250,7 +250,7 @@ class Component(dict):
 
         return result
 
-    def on_bind(self, component, name):
+    def _on_bind(self, component, name):
         """Callback method before self is bound to a component.
 
         :param Component component: new component from where this one is bound.
@@ -259,7 +259,7 @@ class Component(dict):
 
         pass
 
-    def on_unbind(self, component, name):
+    def _on_unbind(self, component, name):
         """Callback method before self is bound to a component.
 
         :param Component component: component from where this one is unbound.

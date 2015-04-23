@@ -102,9 +102,9 @@ class Controller(Component):
 
         return result
 
-    def on_bind(self, component, *args, **kwargs):
+    def _on_bind(self, component, *args, **kwargs):
 
-        super(Controller, self).on_bind(component=component, *args, **kwargs)
+        super(Controller, self)._on_bind(component=component, *args, **kwargs)
 
         # add component to self.components
         self._components.add(component)
@@ -127,9 +127,11 @@ class Controller(Component):
 
         pass
 
-    def on_unbind(self, component, *args, **kwargs):
+    def _on_unbind(self, component, *args, **kwargs):
 
-        super(Controller, self).on_bind(component=component, *args, **kwargs)
+        super(Controller, self)._on_unbind(
+            component=component, *args, **kwargs
+        )
 
         # remove component to self.components
         self._components.remove(component)
@@ -138,7 +140,7 @@ class Controller(Component):
         controllers = Controller.get_cls_ports(component=component)
         for port_name in controllers:
             controller = controllers[port_name]
-            controller.on_unbind_ctrl(self, component=component)
+            controller._on_unbind_ctrl(self, component=component)
 
         # unapply all Controller Annotation
         CtrlAnnotation.unapply_from(
@@ -146,7 +148,7 @@ class Controller(Component):
             impl=self
         )
 
-    def on_unbind_ctrl(self, controller, component):
+    def _on_unbind_ctrl(self, controller, component):
         """Callback when a component is unbound from the component.
 
         :param Controller controller: newly bound controller.

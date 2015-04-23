@@ -49,15 +49,15 @@ class ControllerTest(UTCase):
 
             self.controllertest = controllertest
 
-        def on_bind(self, *args, **kwargs):
+        def _on_bind(self, *args, **kwargs):
 
-            super(ControllerTest.TestController, self).on_bind(*args, **kwargs)
+            super(ControllerTest.TestController, self)._on_bind(*args, **kwargs)
 
             self.controllertest.bindcount += 1
 
-        def on_unbind(self, *args, **kwargs):
+        def _on_unbind(self, *args, **kwargs):
 
-            super(ControllerTest.TestController, self).on_unbind(
+            super(ControllerTest.TestController, self)._on_unbind(
                 *args, **kwargs
             )
 
