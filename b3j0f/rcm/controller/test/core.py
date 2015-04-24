@@ -112,7 +112,7 @@ class ControllerTest(UTCase):
         for component in self.components:
             ControllerTest.TestController.bind_to(component, self)
             ControllerTest.TestSlotsController.bind_to(component, self)
-            controllers = Controller.get_cls_ports(component)
+            controllers = Controller.GET_PORTS(component)
             self.assertEqual(len(controllers), len(self.controllers))
 
         self.assertEqual(
@@ -142,7 +142,7 @@ class ControllerTest(UTCase):
         for component in self.components:
             ControllerTest.TestController.unbind_from(component)
             ControllerTest.TestSlotsController.unbind_from(component)
-            controllers = Controller.get_cls_ports(component)
+            controllers = Controller.GET_PORTS(component)
             self.assertEqual(len(controllers), 0)
 
         self.assertEqual(self.unbindcount, 2 * len(self.components))
@@ -165,10 +165,10 @@ class ControllerTest(UTCase):
 
         # bind controllers to components
         for component in self.components:
-            controllers = Controller.get_cls_ports(component)
+            controllers = Controller.GET_PORTS(component)
             self.assertFalse(controllers)
             Controller.bind_all(component, *self.controllers)
-            controllers = Controller.get_cls_ports(component)
+            controllers = Controller.GET_PORTS(component)
             self.assertEqual(len(controllers), len(self.controllers))
 
         self.assertEqual(
@@ -182,10 +182,10 @@ class ControllerTest(UTCase):
         # unbind controllers from components
         for component in self.components:
             Controller.bind_all(component, *self.controllers)
-            controllers = Controller.get_cls_ports(component)
+            controllers = Controller.GET_PORTS(component)
             self.assertEqual(len(controllers), len(self.controllers))
             Controller.unbind_all(component, *self.controllers)
-            controllers = Controller.get_cls_ports(component)
+            controllers = Controller.GET_PORTS(component)
             self.assertFalse(controllers)
 
         self.assertEqual(
@@ -196,40 +196,6 @@ class ControllerTest(UTCase):
             self.unbindcount, len(self.controllers) * len(self.components)
         )
 
-    def test_get_components(self):
-        """Test get components.
-        """
-
-        for controller in self.controllers:
-            self.assertFalse(controller.components)
-        # bind controllers to components
-        for component in self.components:
-            Controller.bind_all(component, *self.controllers)
-
-        for controller in self.controllers:
-            components = controller.components
-            self.assertEqual(set(components), set(self.components))
-
-    def test_set_components(self):
-        """Test set components.
-        """
-
-        for controller in self.controllers:
-            for component in self.components:
-                controller.components = component
-                self.assertEqual(controller.components, [component])
-            controller.components = self.components
-            self.assertEqual(set(controller.components), set(self.components))
-            controller.components = None
-            self.assertEqual(set(controller.components), set())
-
-        self.assertEqual(
-            self.bindcount, len(self.components) * len(self.controllers) * 2
-        )
-        self.assertEqual(
-            self.unbindcount, len(self.components) * len(self.controllers) * 2
-        )
-
     def test_del(self):
         """Test del.
         """
@@ -238,8 +204,8 @@ class ControllerTest(UTCase):
             Controller.bind_all(component, *self.controllers)
 
         for controller in self.controllers:
-            controller.__del__()
-            self.assertFalse(controller.components)
+            controller.delete()
+            self.assertFalse(controller._bound_on)
 
         self.assertEqual(
             self.bindcount, len(self.components) * len(self.controllers)

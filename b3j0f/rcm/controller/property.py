@@ -24,9 +24,12 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
+"""Module dedicated to bind properties to components.
+"""
+
 __all__ = [
     'PropertyController',  # property controller
-    'Property', 'GetProperty', 'SetProperty',  # property annotations
+    'SetPropertyCtrl', 'GetProperty', 'SetProperty',  # property annotations
 ]
 
 from b3j0f.aop import weave, unweave
@@ -90,9 +93,9 @@ class PropertyController(Controller):
 
         return result
 
-    def on_bind(self, component, *args, **kwargs):
+    def _on_bind(self, component, *args, **kwargs):
 
-        super(PropertyController, self).on_bind(
+        super(PropertyController, self)._on_bind(
             component=component, *args, **kwargs
         )
 
@@ -104,9 +107,9 @@ class PropertyController(Controller):
                 advices=self.enrich_instantiation_params
             )
 
-    def on_unbind(self, component, *args, **kwargs):
+    def _on_unbind(self, component, *args, **kwargs):
 
-        super(PropertyController, self).on_unbind(
+        super(PropertyController, self)._on_unbind(
             component=component, *args, **kwargs
         )
 
@@ -119,7 +122,7 @@ class PropertyController(Controller):
             )
 
 
-class Property(C2CtrlAnnotation):
+class SetPropertyCtrl(C2CtrlAnnotation):
     """Inject a PropertyController in an implementation.
     """
 

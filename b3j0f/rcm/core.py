@@ -25,6 +25,23 @@
 # --------------------------------------------------------------------
 
 """Contains Component definition.
+
+A Component is like a dictionary where keys are port names and values are
+ports.
+
+A port is simply an object accessible from a component and its goal is to
+enrich the Component behavior, like non-functional properties (lifecycle, etc.)
+or functional properties like references to the environment.
+
+The API respects the PEP8 except for class methods which are in upper case
+due to a requirement to distinguish heavily those ones from instance ones
+(like in the Fractal Framework), when their behavior is really close to
+instance methods.
+
+For example, it is simple to get Component ports with the method get_ports.
+In a lazier approach, it is possible to use the Component.GET_PORTS class
+method which uses the same logic than the instance method but is specific to
+ports which inherits from the Component type.
 """
 
 __all__ = ['Component']
@@ -42,9 +59,23 @@ from re import compile as re_compile
 
 class Component(dict):
     """Component which contains named ports and an id.
+
+    A port is just an object which is bound to the component such as
+    a dict value where key is port name.
+
+    For example, let a Component C and an object o. C['o'] = o is similar to
+    o is the port of C named 'o'.
+
+    A Component also contains in memory a dictionary of port names by Component
+    which are bound to it.
+
+    For example, let A and B two components. If B is both ports b0 and b1,
+    B keeps references to both port names b0 and b1 thanks to B._bound_on dict
+    which contains one key A and both values b0 and b1.
     """
 
     ID = '_id'  #: id field name
+    BOUND_ON = '_bound_on'  #: bound_on field name
 
     def __init__(
         self, _id=None, ports=None, named_ports=None
@@ -58,6 +89,9 @@ class Component(dict):
         """
 
         super(Component, self).__init__()
+
+        # initialiaze private attributes
+        self._bound_on = {}
 
         # save _id
         self._id = uuid() if _id is None else _id
@@ -116,6 +150,7 @@ class Component(dict):
         :return: (name, old port) if name already used, otherwise (name, None).
         :rtype: tuple
         """
+
         # default old_port
         old_port = None
 
@@ -156,7 +191,7 @@ class Component(dict):
         result = '{0}({1}'.format(self.__class__, result)
 
         for name, attr in getmembers(self, lambda m: not isroutine(m)):
-            if 'a' < name[0] < 'z':  # display only public attributes
+            if 'a' <= name[0] <= 'z':  # display only public attributes
                 result = '{0}, {1}={2}'.format(result, name, attr)
 
         result += ')'
@@ -173,6 +208,11 @@ class Component(dict):
 
         # remove all ports
         self.clear()
+
+    def clear(self):
+
+        for portname in self.keys():
+            del self[portname]
 
     def __contains__(self, value):
         """Check if value is in self ports depending on value type:
@@ -233,11 +273,6 @@ class Component(dict):
 
         return result
 
-    def clear(self):
-        # unbind manually all ports
-        for name in self.keys():
-            del self[name]
-
     def pop(self, key, *default):
 
         result = default[0] if default else None
@@ -257,7 +292,8 @@ class Component(dict):
         :param str name: port name from where self is bound to component.
         """
 
-        pass
+        # add reference to bound_on
+        self._bound_on.setdefault(component, set()).add(name)
 
     def _on_unbind(self, component, name):
         """Callback method before self is bound to a component.
@@ -266,7 +302,11 @@ class Component(dict):
         :param str name: port name from where self is unbound.
         """
 
-        pass
+        # remove reference to bound_on
+        bound_on = self._bound_on[component]
+        bound_on.remove(name)
+        if not bound_on:
+            del self._bound_on[component]
 
     @property
     def id(self):
@@ -329,7 +369,7 @@ class Component(dict):
         return result
 
     @classmethod
-    def get_cls_ports(cls, component, names=None, select=lambda *p: True):
+    def GET_PORTS(cls, component, names=None, select=lambda *p: True):
         """Get all component ports which inherits from this class.
 
         :param Component component: component from where get ports.

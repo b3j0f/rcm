@@ -111,7 +111,7 @@ class IntentController(Controller):
         port_regex = re_compile(port_name)
         member_regex = re_compile(member_name)
 
-        for component in self.components:
+        for component in self._bound_to:
             ports = component.get_ports(
                 select=lambda name, port: port_regex.matches(name)
             )

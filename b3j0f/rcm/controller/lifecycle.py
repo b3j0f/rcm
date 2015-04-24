@@ -33,7 +33,7 @@ from b3j0f.rcm.controller.core import Controller
 from b3j0f.rcm.controller.annotation import (
     CtrlAnnotationInterceptor, C2CtrlAnnotation
 )
-from b3j0f.rcm.controller.binding import OutputProxy
+from b3j0f.rcm.controller.port import OutputPort
 from b3j0f.rcm.controller.content import ContentController
 from b3j0f.aop import weave, unweave
 
@@ -281,8 +281,8 @@ class LifecycleController(Controller):
             # if lifecycle controller enters in an idle status
             if self.idle:
                 # weave advices
-                for component in self.components:
-                    ports = OutputProxy.get_cls_ports(component=component)
+                for component in self._bound_to:
+                    ports = OutputPort.get_cls_ports(component=component)
                     for port in ports:
                         weave(port, advices=self.intercept)
 
@@ -290,8 +290,8 @@ class LifecycleController(Controller):
                 # clean call stack
                 self.clear()
                 # unweave advices
-                for component in self.components:
-                    ports = OutputProxy.get_cls_ports(component=component)
+                for component in self._bound_to:
+                    ports = OutputPort.get_cls_ports(component=component)
                     for port in ports:
                         unweave(port, advices=self.intercept)
 

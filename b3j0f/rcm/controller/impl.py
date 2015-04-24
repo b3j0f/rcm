@@ -188,7 +188,7 @@ class ImplController(Controller):
 
         # unapply business annotations on old impl
         if self._impl is not None:
-            for component in self.components:
+            for component in self._bound_to:
                     CtrlAnnotation.unapply_from(
                         component=component, impl=self._impl
                     )
@@ -199,7 +199,7 @@ class ImplController(Controller):
             # and impl
             self._impl = value
             # apply business annotations on impl
-            for component in self.components:
+            for component in self._bound_to:
                 CtrlAnnotation.apply_on(component=component, impl=self._impl)
                 # and call setters then getters
                 C2CtrlAnnotation.call_setters(

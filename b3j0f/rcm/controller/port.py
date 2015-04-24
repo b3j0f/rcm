@@ -40,10 +40,9 @@ which are used by Port objects.
 """
 
 __all__ = [
-    'Port', 'Binding',
+    'Port',
     'OutputPort', 'InputPort',
     'Input', 'Output',
-    'Proxies',
     'Async'
 ]
 
@@ -52,8 +51,6 @@ try:
 except ImportError:
     from dummy_threading import Lock
 
-from re import compile as re_compile
-
 from inspect import isclass
 
 from collections import Iterable
@@ -61,12 +58,11 @@ from collections import Iterable
 from b3j0f.annotation.check import Target, MaxCount
 from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
-from b3j0f.utils.Port import get_proxy
+from b3j0f.utils.proxy import get_proxy
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.annotation import (
     CtrlAnnotation, Ctrl2CAnnotation, C2CtrlAnnotation
 )
-from b3j0f.rcm.controller.impl import ImplController
 
 
 class Port(Component):
@@ -80,23 +76,25 @@ class Port(Component):
     - a resource to proxify.
     - a proxy.
     - a set of bindings which are the mean to proxify a resource.
-    - target ports which use self such as a resource.
 
     While interfaces and proxy are internal to the port, resource and bindings
     are bound to the port because they are seen such as port functional
     properties.
     """
 
+    class ResourceError(Exception):
+        """Raised if new port resource is inconsistent with port requirements.
+        """
+        pass
+
     INTERFACES = '_interfaces'  #: interfaces field name
     PROXY = '_proxy'  #: proxy field name
     RESOURCE = 'resource'  #: resource port name
-    TARGETS = '_targets'  #: targets field name
     _LOCK = '_lock'  #: private lock field name
 
     def __init__(
         self,
         interfaces=None, resource=None, bindings=None,
-        targets=None,
         *args, **kwargs
     ):
         """
@@ -105,8 +103,6 @@ class Port(Component):
         :param resource: resource to proxify.
         :param bindings: binding(s) to use.
         :type bindings: list or Binding
-        :param targets: ports which use self such as a resource.
-        :type targets: list or Port
         """
 
         super(Port, self).__init__(*args, **kwargs)
@@ -114,11 +110,6 @@ class Port(Component):
         # set protected attributes
         self._lock = Lock()
         self._proxy = None
-        self._targets = set()
-        if isinstance(targets, Port):
-            self._targets.add(targets)
-        elif isinstance(targets, Iterable):
-            self._targets |= targets
         # set public attributes
         self.interfaces = interfaces
         self.bindings = bindings
@@ -148,13 +139,36 @@ class Port(Component):
         if value is None:  # none value is a set with object
             value = set([object])
         elif isinstance(value, basestring):
-            value = set([lookup(value)])
+            value = set([value])
         elif isclass(value):
             value = set([value])
-        # convert all str to tuple of types
-        self._interfaces = (
-            v if isclass(v) else lookup(v) for v in value
-        )
+        elif isinstance(value, Iterable):
+            value = set(value)
+        else:
+            self._lock.release()
+            raise TypeError(
+                "Wrong value ({0}) type {0}".format(value, type(value))
+            )
+
+        interfaces = [None] * len(value)
+
+        # convert all str to related class
+        for index, v in enumerate(value):
+            if isinstance(v, basestring):
+                try:
+                    v = lookup(v)
+                except ImportError:
+                    self._lock.release()
+                    raise
+            if not isclass(v):
+                self._lock.release()
+                raise TypeError(
+                    "Wrong value ({0}) type {0}.".format(v, type(v))
+                )
+            interfaces[index] = v
+
+        # convert interfaces to a tuple
+        self._interfaces = tuple(interfaces)
 
         self._lock.release()
 
@@ -183,24 +197,21 @@ class Port(Component):
         self requirements.
 
         :param resource: new resource to use.
-        :return: old resource if exist or None if input resource is
-            inconsistent.
         """
 
-        result = self.resource
-
-        if self.check_source(resource):
+        if self.check_resource(resource):
             # set resource
             self[Port.RESOURCE] = resource
             # set proxy
             self._proxy = self._get_proxy(resource=resource)
             # propagate the new proxy on target ports
-            for target in self._targets:
-                target.resource = self
-        else:  # if resource is inconsistent, nonify result.
-            result = None
-
-        return result
+            for component in self._bound_on:
+                if isinstance(component, Port):
+                    component.resource = self
+        else:
+            raise Port.ResourceError(
+                "Resource {0} not checked by {1}.".format(resource, self)
+            )
 
     def _get_proxy(self, resource):
         """Get resource proxy. Called internally by self resource setter
@@ -220,13 +231,15 @@ class Port(Component):
 
         return result
 
-    def check_source(self, resource):
+    def check_resource(self, resource):
         """Check input resource related to self interfaces.
+
+        :param resource: resource to check.
         """
 
         result = False
 
-        _source = self._get_source(resource)
+        _source = resource._proxy if isinstance(resource, Port) else resource
         # check than _source inherits from all interfaces
         for interface in self.interfaces:
             result = isinstance(_source, interface)
@@ -235,23 +248,20 @@ class Port(Component):
 
         return result
 
-    def _on_bind(self, component, name, *args, **kwargs):
+    def get_proxy(self, binding=None):
+        """Get resource proxy relate to input binding. If binding is None, get
+        default proxy.
 
-        # if component is a Port, name is resource and component is not self
-        if (
-            isinstance(component, Port)
-            and name == Port.RESOURCE
-            and component is not self
-        ):
-            # add component to targets
-            self._targets.add(component)
+        :param Binding binding:
+        """
 
-    def _on_unbind(self, component, name, *args, **kwargs):
+        if binding is None:
+            result = self._proxy
 
-        # if component is a Port, name is resource
-        if isinstance(component, Port) and name == Port.RESOURCE:
-            # remove component from targets
-            self._targets.remove(component)
+        else:
+            result = self.bindings[binding].get_proxy()
+
+        return result
 
 
 class InputPort(Port):
@@ -264,108 +274,6 @@ class OutputPort(Port):
     """Port dedicated to provide resources.
     """
     pass
-
-
-class Binding(Component):
-    """Specify how a resource is bound/provided to/by a component.
-
-    In order to be processed, a binding is bound to port(s).
-    Related ports are choosen at runtime thanks to start/stop methods.
-
-    Therefore, one binding can be used by several ports.
-    """
-
-    def __init__(self, parameters=None, *args, **kwargs):
-        """
-        :param dict parameters: binding parameters.
-        """
-
-        super(Binding, self).__init__(*args, **kwargs)
-
-        self.parameters = parameters
-
-    def start(self, port):
-        """Start the binding with input port and return the binding resource.
-
-        :param Port port: port using this binding.
-        :return: Portfied resource transformed by this binding.
-        """
-
-    def stop(self, port):
-        """Stop the binding execution.
-        """
-
-    def resource(self, port):
-        """Get port resource.
-
-        :param Port port: binding resource port.
-        :return: port binding resource.
-        """
-
-        raise NotImplementedError()
-
-
-class PromotedPort(Port):
-    """A promoted Port is dedicated to promote other proxies.
-    """
-
-    CMP_PORT_SEPARATOR = '/'
-
-    def promote(self, component, promoted=""):
-        """Promote this port to input component Port where names match with
-        input promoted.
-
-        :param Component component: component from where find promoted.
-        :param promoted: promoted to promote.
-        :type promoted: list or str of type [port_name/]sub_port_name
-        """
-
-        # ensure promoted is a list of str
-        if isinstance(promoted, basestring):
-            promoted = [promoted]
-
-        for resource in promoted:
-            # first, identify component name with Port
-            splitted_source = resource.split(PromotedPort.CMP_PORT_SEPARATOR)
-            if len(splitted_source) == 1:
-                # by default, search among the impl controller
-                component_rc = re_compile(
-                    '^{0}'.format(ImplController.ctrl_name())
-                )
-                port_rc = re_compile(splitted_source[0])
-            else:
-                component_rc = re_compile(splitted_source[0])
-                port_rc = re_compile(splitted_source[1])
-
-            Port = self._component_cls().get_cls_Port(
-                component=component,
-                select=lambda name, component:
-                (
-                    component_rc.match(name)
-                    and self._component_filter(name, component)
-                )
-            )
-            # bind port
-            for name in Port:
-                port = Port[name]
-                if port_rc.match(name) and self._port_filter(name, port):
-                    self[name] = port
-
-    def _component_cls(self):
-
-        return Component
-
-    def _port_cls(self):
-
-        return Port
-
-    def _component_filter(self, name, component):
-
-        return True
-
-    def _port_filter(self, name, port):
-
-        return True
 
 
 class Input(C2CtrlAnnotation):
@@ -388,33 +296,22 @@ class Input(C2CtrlAnnotation):
 
 
 class Output(Ctrl2CAnnotation):
-    """Impl Out descriptor.
+    """Output descriptor.
     """
 
     ASYNC = 'async'  #: asynchronous mode
     STATELESS = 'stateless'  #: stateless mode
-    RESOURCE = '_resource'  #: output port resource field name
+    INTERFACES = 'interfaces'  #: interfaces
 
-    __slots__ = (RESOURCE, ) + Ctrl2CAnnotation.__slots__
+    __slots__ = (INTERFACES, ASYNC, STATELESS, ) + Ctrl2CAnnotation.__slots__
 
-    def __init__(self, async, stateless, resource, *args, **kwargs):
+    def __init__(
+        self, async=None, stateless=None, interfaces=None, *args, **kwargs
+    ):
 
-        self.resource = resource
         self.async = async
         self.stateless = stateless
-
-    @property
-    def resource(self):
-
-        return self._resource
-
-    @resource.setter
-    def resource(self, value):
-
-        if isinstance(value, basestring):
-            value = lookup(value)
-
-        self._resource = value
+        self.interfaces = interfaces
 
 
 @MaxCount()

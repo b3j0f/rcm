@@ -31,62 +31,19 @@ from b3j0f.rcm.controller.annotation import CtrlAnnotation
 
 
 class Controller(Component):
-    """Non-functional component which can be (un)bound to several components.
+    """Non-functional component which enriches component non-functional
+    behaviour in beeing bound to them.
     """
 
     class NoSuchControllerError(Exception):
         pass
 
-    COMPONENTS = '_components'  #: components attribute name
-
-    def __init__(self, components=None, *args, **kwargs):
-        """
-        :param components: Components to bind this controller.
-        :type components: list or Component
-        """
-
-        super(Controller, self).__init__(*args, **kwargs)
-        # set components
-        self._components = set()
-        self.components = components
-
     def delete(self, *args, **kwargs):
 
         super(Controller, self).delete(*args, **kwargs)
         # unbind from self components
-        for component in self.components:
+        for component in self._bound_on.keys():
             Controller.unbind_all(component, self)
-
-    @property
-    def components(self):
-        """Get a copy of components.
-        """
-        return list(self._components)
-
-    @components.setter
-    def components(self, value):
-        """Change set of components.
-
-        :param value: new components to use.
-        :type value: Component or iterable of Components
-        """
-
-        # ensure value is a set of components
-        if value is None:
-            value = set()
-        elif isinstance(value, Component):
-            value = set([value])
-        else:
-            value = set(value)
-        # unbind from old components
-        old_components = self._components - value
-        for component in old_components:
-            Controller.unbind_all(component, self)
-        # bind to new components
-        for component in value:
-            Controller.bind_all(component, self)
-        # update new components
-        self._components = value
 
     @classmethod
     def ctrl_name(cls):
@@ -106,19 +63,16 @@ class Controller(Component):
 
         super(Controller, self)._on_bind(component=component, *args, **kwargs)
 
-        # add component to self.components
-        self._components.add(component)
-
         # notify all controllers
-        controllers = Controller.get_cls_ports(component=component)
+        controllers = Controller.GET_PORTS(component=component)
         for port_name in controllers:
             controller = controllers[port_name]
-            controller.on_bind_ctrl(self, component=component)
+            controller._on_bind_ctrl(self, component=component)
 
         # apply all Controller annotations
         CtrlAnnotation.apply_on(component=component, impl=self)
 
-    def on_bind_ctrl(self, controller, component):
+    def _on_bind_ctrl(self, controller, component):
         """Callback when a component is bound to the component.
 
         :param Controller controller: newly bound controller.
@@ -133,11 +87,8 @@ class Controller(Component):
             component=component, *args, **kwargs
         )
 
-        # remove component to self.components
-        self._components.remove(component)
-
         # notify all controllers
-        controllers = Controller.get_cls_ports(component=component)
+        controllers = Controller.GET_PORTS(component=component)
         for port_name in controllers:
             controller = controllers[port_name]
             controller._on_unbind_ctrl(self, component=component)
@@ -157,6 +108,25 @@ class Controller(Component):
 
         pass
 
+    def _unary_process(self, _method, *args, **kwargs):
+        """Process a controller method such as the controller is bound to one
+        component.
+
+        :param MethodType _method: controller method.
+        :param list args: _method args.
+        :param dict kwargs: _method kwargs.
+        :return: _method(components=self.components[0], *args, **kwargs)
+            result.
+        """
+
+        component = None
+        for component in self._bound_on:
+            break
+
+        result = _method(components=component, *args, **kwargs)
+
+        return result
+
     @staticmethod
     def bind_all(component, *controllers):
         """Bind all controllers to input component.
@@ -166,7 +136,8 @@ class Controller(Component):
         """
 
         for controller in controllers:
-            component[controller.ctrl_name()] = controller
+            ctrl_name = controller.ctrl_name()
+            component[ctrl_name] = controller
 
     @staticmethod
     def unbind_all(component, *controllers):
@@ -176,7 +147,8 @@ class Controller(Component):
         """
 
         for controller in controllers:
-            component.pop(controller.ctrl_name(), None)
+            ctrl_name = controller.ctrl_name()
+            component.pop(ctrl_name, None)
 
     @classmethod
     def bind_to(cls, components, *args, **kwargs):
@@ -234,3 +206,96 @@ class Controller(Component):
         result = component.get(controller_name)
 
         return result
+
+    @classmethod
+    def _PROCESSS(cls, _components, _method, *args, **kwargs):
+        """Execute a controller class method bound to components.
+
+        :param _components: Component(s) from where find controllers.
+        :type _components: Component or Iterable
+        :param str _method: controller method name.
+        :param list args: controller method args.
+        :param dict kwargs: controller method kwargs.
+        :return: method result by controller.
+        :rtype: dict
+        """
+        # initialize result
+        result = {}
+
+        # ensure _components is a list of components
+        if isinstance(_components, Component):
+            _components = [_components]
+
+        # get all cls controllers of _components
+        controllers = set()
+        for component in _components:
+            controller = cls.get_controller(component)
+            if controller is not None:
+                controllers.add(controller)
+        # update result
+        for controller in controllers:
+            partial_result = getattr(controller, _method)(*args, **kwargs)
+            result[controller] = partial_result
+
+        return result
+
+    @classmethod
+    def _SETS(cls, _components, _attr, _value):
+        """Set attribute value to cls controllers which are used by
+        _components.
+
+        :param _components: Component(s) which use cls controller.
+        :type _components: Component or Iterable
+        :param str _attr: attribute name to set.
+        :param _value: attribute value to set.
+        """
+        # ensure _components is a list of components
+        if isinstance(_components, Component):
+            _components = [_components]
+
+        controllers = set()
+
+        # get all cls controllers of _components
+        for component in _components:
+            controller = cls.get_controller(component)
+            if controller is not None:
+                controllers.add(controller)
+
+        for controller in controllers:
+            setattr(controller, _attr, _value)
+
+    @classmethod
+    def _PROCESS(cls, _component, _method, *args, **kwargs):
+        """Execute a controller class method bound to a component.
+
+        :param Component _component: Component from where find controller.
+        :param str _method: controller method name.
+        :param list args: controller method args.
+        :param dict kwargs: controller method kwargs.
+        :return: controller method result.
+        """
+
+        result = None
+
+        process_result = cls._PROCESSS(
+            _components=_component, _method=_method, *args, **kwargs
+        )
+
+        if process_result:
+            for controller in process_result:
+                result = process_result[controller]
+                break
+
+        return result
+
+    @classmethod
+    def _SET(cls, _component, _attr, _value):
+        """Set an attribute value to cls controller which is used by
+        _component.
+
+        :param Component _components: Component which use cls controller.
+        :param str _attr: attribute name to set.
+        :param _value: attribute value to set.
+        """
+
+        cls._SETS(_components=_component, _attr=_attr, _value=_value)
