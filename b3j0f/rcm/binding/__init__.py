@@ -26,7 +26,7 @@
 
 __all__ = [
     'Port', 'Binding', 'Interface', 'Resource',
-    'Policy', 'AllPolicy', 'BestEffortPolicy', 'OnePolicy',
+    'Policy', 'AllPolicy', 'BestEffortPolicy', 'OnePolicy', 'CountPolicy',
     'RoundAboutPolicy', 'DynamicPolicy', 'RandomPolicy', 'OneRandomPolicy'
 ]
 
@@ -35,5 +35,5 @@ from b3j0f.rcm.binding.port import Port, Interface
 from b3j0f.rcm.binding.policy import (
     Policy, DynamicPolicy, AllPolicy, BestEffortPolicy,
     OnePolicy, OneRandomPolicy, RoundAboutPolicy,
-    RandomPolicy,
+    RandomPolicy, CountPolicy
 )

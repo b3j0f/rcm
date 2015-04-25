@@ -39,7 +39,7 @@ been called once, the policy starts again with the first resource.
 - Random: select random resources.
 - OneRandom: select one random resource.
 - BestEffort: select the first resource which does not raise an Error.
-- Count: select a number of resources between min and max value.
+- Count: select a number of resources between [inf; sup].
 - Aggregate: use one proxy which delegates its method execution to all input
 resource proxies.
 - Dynamic: select resources which are checked by a function filter.
@@ -47,7 +47,7 @@ resource proxies.
 
 __all__ = [
     'Policy',
-    'OnePolicy', 'AllPolicy', 'DynamicPolicy',
+    'OnePolicy', 'AllPolicy', 'DynamicPolicy', 'CountPolicy',
     'RoundAboutPolicy', 'RandomPolicy', 'OneRandomPolicy',
     'BestEffortPolicy', 'aggregate', 'select_proxies'
 ]
@@ -275,6 +275,37 @@ class AllPolicy(Policy):
         return result
 
 
+class CountPolicy(Policy):
+    """All proxy resource policy.
+
+    Select all resources.
+    """
+
+    class CountError(Exception):
+        pass
+
+    def __init__(self, inf=0, sup=float('inf'), *args, **kwargs):
+
+        super(CountPolicy, self).__init__(*args, **kwargs)
+
+        self.inf = inf
+        self.sup = sup
+
+    def __call__(self, port, proxies, *args, **kwargs):
+
+        len_proxies = len(proxies)
+
+        if len_proxies < self.inf or len_proxies > self.sup:
+            raise CountPolicy.CountError(
+                "Proxies count {0} not in [{1}; {2}]."
+                .format(proxies, self.inf, self.sup)
+            )
+
+        result = select_proxies(port=port, proxies=proxies)
+
+        return result
+
+
 class RandomPolicy(Policy):
     """One Random proxy resource policy.
 
@@ -285,7 +316,7 @@ class RandomPolicy(Policy):
 
     def __call__(self, port, proxies, *args, **kwargs):
 
-        def dynselect(port, proxies):
+        def dynselect(proxies, *args, **kwargs):
             count = self.conf.get('count')
 
             result = list(proxies)
@@ -309,7 +340,7 @@ class OneRandomPolicy(Policy):
 
     def __call__(self, port, proxies, *args, **kwargs):
 
-        def dynselect(port, proxies):
+        def dynselect(proxies, *args, **kwargs):
 
             if proxies:
                 result = proxies[randint(0, len(proxies))]
@@ -339,7 +370,7 @@ class RoundAboutPolicy(Policy):
 
         result = None
 
-        def dynselect(port, proxies):
+        def dynselect(proxies, *args, **kwargs):
             self.index = self.index + 1
             self.index %= len(proxies)
             return proxies[self.index]
@@ -360,7 +391,7 @@ class BestEffortPolicy(Policy):
 
     def __call__(self, port, proxies, *args, **kwargs):
 
-        def dynexec(port, proxies, name, instance, args, kwargs):
+        def dynexec(proxies, name, *args, **kwargs):
 
             for proxy in proxies:
                 method = getattr(proxy, name)
