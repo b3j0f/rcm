@@ -51,6 +51,7 @@ from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
 from b3j0f.utils.proxy import get_proxy
 from b3j0f.rcm.core import Component
+from b3j0f.rcm.binding.core import Binding, Resource
 
 
 class Interface(object):
@@ -142,20 +143,6 @@ class Interface(object):
         """
 
         return isinstance(proxy, self._pvalue)
-
-
-class Resource(object):
-    """Resource element which implements the proxy design pattern in order
-    to separate resource realization from its usage.
-    """
-
-    def get_proxy(self):
-        """Get resource proxy.
-
-        :return: self proxy.
-        """
-
-        raise NotImplementedError()
 
 
 class Port(Component, Resource):
@@ -342,24 +329,3 @@ class Port(Component, Resource):
             result = policy(port=self, proxies=result)
 
         return result
-
-
-class Binding(Component, Resource):
-    """Specify how a resource is bound/provided to/by a component.
-
-    In order to be processed, a binding is bound to port(s).
-    Related ports are choosen at runtime thanks to start/stop methods.
-
-    Therefore, one binding can be used by several ports.
-    """
-
-    CONFIGURATION = 'configuration'
-
-    def __init__(self, configuration=None, *args, **kwargs):
-        """
-        :param dict configuration: binding configuration.
-        """
-
-        super(Binding, self).__init__(*args, **kwargs)
-
-        self.configuration = configuration
