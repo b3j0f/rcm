@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # --------------------------------------------------------------------
@@ -24,6 +25,24 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-# extend b3j0f package with the rcm project
-from pkgutil import extend_path
-__path__ = extend_path(__path__, __name__)
+from unittest import main
+
+from b3j0f.utils.ut import UTCase
+from b3j0f.rcm.binding.policy import Policy, select_proxies, aggregate
+
+
+class SelectProxiesTest(UTCase):
+    pass
+
+
+class AggregateTest(UTCase):
+    pass
+
+
+class PolicyTest(UTCase):
+    """Test Interface.
+    """
+
+
+if __name__ == '__main__':
+    main()

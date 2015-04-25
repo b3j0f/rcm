@@ -24,6 +24,13 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-# extend b3j0f package with the rcm project
-from pkgutil import extend_path
-__path__ = extend_path(__path__, __name__)
+__all__ = [
+    'Port', 'Binding', 'Interface',
+    'Policy', 'AllPolicy', 'BestEffortPolicy', 'OnePolicy'
+]
+
+from b3j0f.rcm.binding.port import Port, Interface, Binding
+from b3j0f.rcm.binding.policy import (
+    Policy, AllPolicy, BestEffortPolicy, Iterable, OnePolicy, RandomPolicy,
+    RoundAboutPolicy
+)

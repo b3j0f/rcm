@@ -24,24 +24,42 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
+"""This module provides classes in charge of proxifying resources around
+components.
+
+It becomes easier to separate resources from the mean of providing/consuming
+them.
+
+Such operations are granted through the proxy design pattern in order to
+separate ``what`` and ``how`` a component is bound/provided with its
+environment.
+
+The ``what`` is specified through the Port class. This one uses interfaces in
+order to describe bound resources. The ``how`` is ensured with Binding objects
+which are used by Port objects.
+"""
+
 __all__ = [
-    'BindingController', 'PromotedInputProxy', 'PromotedOutputProxy',
-    'Binding', 'SetBindingCtrl'
+    'BindingController', 'SetPortCtrl',
+    'InputPort', 'OutputPort', 'Input', 'Output'
 ]
 
 from collections import Iterable
 
+from b3j0f.annotation.check import Target, MaxCount
 from b3j0f.utils.version import basestring
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
-from b3j0f.rcm.controller.annotation import C2CtrlAnnotation
+from b3j0f.rcm.port.core import Port
+from b3j0f.rcm.controller.annotation import (
+    CtrlAnnotation, Ctrl2CAnnotation, C2CtrlAnnotation
+)
 from b3j0f.rcm.controller.impl import ImplController
-from b3j0f.rcm.controller.port import Port, InputPort, OutputPort
 from b3j0f.rcm.controller.name import NameController
 
 
 class BindingController(Controller):
-    """Manage component interface bindings between component ports.
+    """In charge of easiing port promoting/wiring.
     """
 
     class BindingError(Exception):
@@ -83,7 +101,7 @@ class BindingController(Controller):
                 for component in components:
                     # ensure component is in self components
                     if isinstance(component, Component):
-                        if component in sel_components:
+                        if component in self_components:
                             _components.append(component)
                     # if component is a name, get related components
                     elif isinstance(component, basestring):
@@ -114,17 +132,20 @@ class BindingController(Controller):
 
         return result
 
-    def bind(self, inputport, outputport, components=None):
-        """Bind an input port to an output port.
+    def wire(self, components=None, inputports=None, outputports=None):
+        """Wire input and ouptut ports among them.
 
         Input and output ports are bound to components in the same component.
 
-        :param str inputport: input port name.
-        :param str outputport: output port name.
+        :param inputports: input port name. If None, apply method on all
+            input ports.
+        :type inputports: str, InputPort or Iterable
+        :param outputports: output port name. If None, apply method on all
+            output ports.
+        :type outputports: str, OutputPort or Iterable
         :param components: component(s) or component name(s) from where search
             ports. If None, search among all self components.
         :type components: str, Component or Iterable
-        :return: components where binding
         """
 
         cinputports = self.get_sub_ports(
@@ -151,85 +172,160 @@ class BindingController(Controller):
                                 except Port.ResourceError:
                                     pass
 
-    def promote(self, sources, targets, port_name, proxy, components=None):
-        """Promote input proxy to input component port name.
+    def promote(self, sources=None, targets=None, components=None):
+        """Promote source ports to target ports.
 
-        :param Component component: component from where bind a new proxy.
-        :param str port_name: port name to bind to input proxy.
-        :param Proxy proxy: proxy to bind to port name.
+        :param sources: source ports to promote to target ports.
+        :type sources: Port or str or Iterable
+        :param targets: target ports to be promoted by source ports.
+        :type targets: Port or str or Iterable
+        :param components: components from where find targets and sources.
+        :type components: str or Component or Iterable
         """
 
-        sourceports = self.get_sub_ports(
-            components=components, ports=sources
+        pass
+
+    def unpromote(self, components=None, sources=None, targets=None):
+        """Unpromote target from source ports.
+        """
+
+        pass
+
+    @staticmethod
+    def WIRE(components=None, inputports=None, outputports=None):
+
+        BindingController._PROCESSS(
+            _components=components, _method='wire',
+            inputports=inputports, outputports=outputports
         )
 
-    def unpromote(self, component, port_name):
-        """Unpromote port_name.
+    @staticmethod
+    def UNWIRE(components=None, inputports=None, outputports=None):
+
+        BindingController._PROCESSS(
+            _components=components, _method='unwire',
+            inputports=inputports, outputports=outputports
+        )
+
+    @staticmethod
+    def PROMOTE(components=None, sources=None, targets=None):
+
+        BindingController._PROCESSS(
+            _components=components, _method='promote',
+            sources=sources, targets=targets
+        )
+
+    @staticmethod
+    def UNPROMOTE(components=None, sources=None, targets=None):
+
+        BindingController._PROCESSS(
+            _components=components, _method='unpromote',
+            sources=sources, targets=targets
+        )
+
+
+class InputPort(Port):
+    """Port dedicated to consume resources.
+    """
+
+    pass
+
+
+class OutputPort(Port):
+    """Port dedicated to provide resources.
+    """
+
+    pass
+
+
+class Input(C2CtrlAnnotation):
+    """InputPort injector which uses a name in order to inject a InputPort.
+    """
+
+    NAME = 'name'  #: input port name field name
+
+    __slots__ = (NAME, ) + Ctrl2CAnnotation.__slots__
+
+    def __init__(self, name, *args, **kwargs):
+
+        super(Input, self).__init__(*args, **kwargs)
+
+        self.name = name
+
+    def get_port_name(self, *args, **kwargs):
+
+        return self.name
+
+
+class Output(Ctrl2CAnnotation):
+    """Output descriptor.
+    """
+
+    ASYNC = 'async'  #: asynchronous mode
+    STATELESS = 'stateless'  #: stateless mode
+    INTERFACES = 'interfaces'  #: interfaces
+
+    __slots__ = (INTERFACES, ASYNC, STATELESS, ) + Ctrl2CAnnotation.__slots__
+
+    def __init__(
+        self, async=None, stateless=None, interfaces=None, *args, **kwargs
+    ):
+
+        self.async = async
+        self.stateless = stateless
+        self.interfaces = interfaces
+
+
+@MaxCount()
+@Target([Target.ROUTINE, type])
+class Async(CtrlAnnotation):
+    """Specify asynchronous mode on class methods.
+    """
+
+
+@Target(type)
+class Ports(CtrlAnnotation):
+    """Annotation in charge of binding Port in a component Port.
+    """
+
+    Port = 'Port'
+
+    __slots__ = (Port, ) + CtrlAnnotation.__slots__
+
+    def __init__(self, port, *args, **kwargs):
+        """
+        :param dict port: port to bind to component.
         """
 
-        del component[port_name]
+        super(Ports, self).__init__(*args, **kwargs)
 
-    @staticmethod
-    def promote_to(component, port_name, binding):
+        self.port = port
 
-        bc = BindingController.get_controller(component)
-        if bc is not None:
-            bc.promote(port_name, binding)
+    def apply(self, component, *args, **kwargs):
 
-    @staticmethod
-    def unpromote_from(component, port_name):
+        # iterate on all self port
+        self_port = self.port
+        for port_name in self_port:
+            port = self_port[port_name]
+            # bind it with its name
+            component[port_name] = port
 
-        bc = BindingController.get_controller(component)
-        if bc is not None:
-            bc.unpromote(port_name)
+    def unapply(self, component, *args, **kwargs):
+
+        # iterate on all self port
+        self_port = self.port
+        for port_name in self_port:
+            # bind it with its name
+            del component[port_name]
 
 
-class SetBindingCtrl(C2CtrlAnnotation):
+class SetPortCtrl(C2CtrlAnnotation):
     """Inject Binding controller in component implementation.
     """
 
     def get_value(self, component, *args, **kargs):
 
         return BindingController.get_controller(component)
-
-
-class Binding(Component):
-    """Specify how a resource is bound/provided to/by a component.
-
-    In order to be processed, a binding is bound to port(s).
-    Related ports are choosen at runtime thanks to start/stop methods.
-
-    Therefore, one binding can be used by several ports.
-    """
-
-    def __init__(self, parameters=None, *args, **kwargs):
-        """
-        :param dict parameters: binding parameters.
-        """
-
-        super(Binding, self).__init__(*args, **kwargs)
-
-        self.parameters = parameters
-
-    def start(self, port):
-        """Start the binding with input port and return the binding resource.
-
-        :param Port port: port using this binding.
-        :return: Portfied resource transformed by this binding.
-        """
-
-    def stop(self, port):
-        """Stop the binding execution.
-        """
-
-    def resource(self, port):
-        """Get port resource.
-
-        :param Port port: binding resource port.
-        :return: port binding resource.
-        """
-
-        raise NotImplementedError()
 
 
 class PromotedPort(Port):

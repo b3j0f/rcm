@@ -29,8 +29,24 @@ from unittest import main
 
 from b3j0f.utils.ut import UTCase
 from b3j0f.utils.path import getpath
-from b3j0f.rcm.core import Component
-from b3j0f.rcm.controller.port import Port
+from b3j0f.rcm.controller.port import Interface, Port
+
+
+class InterfaceTest(UTCase):
+    """Test Interface.
+    """
+
+    def setUp(self):
+
+        self.interface = Interface()
+
+    def test_none(self):
+        """Test to set a None value.
+        """
+
+        self.interface = None
+        self.assertNone(self.interface.value, None)
+        self.assertIs(self.interface.pvalue, object)
 
 
 class PortTest(UTCase):
@@ -79,7 +95,7 @@ class PortTest(UTCase):
         self.assertRaises(ImportError, setattr, self.port, 'interfaces', "")
 
     def test_resource(self):
-        """Test port resource.
+        """Test port proxy.
         """
 
         class Resource(object):
@@ -87,13 +103,34 @@ class PortTest(UTCase):
                 return 1
         resource = Resource()
 
-        self.port.resource = resource
-        self.assertEqual(self.port.resource, resource)
+        resource_name = 'resource'
 
+        # check object resource
+        self.port[resource_name] = resource
+        self.assertEqual(self.port[resource_name], resource)
+        resources = self.port.resources
+        self.assertEqual(resources, {resource_name: resource})
+
+        # check port resource
         port = Port()
-        self.port.resource = port
-        self.assertEqual(self.port.resource, port)
-        self.assertEqual(port._bound_on[self.port], set([Port.RESOURCE]))
+        self.port[resource_name] = port
+        self.assertEqual(self.port[resource_name], port)
+        resources = self.port.resources
+        self.assertEqual(resources, {resource_name: port})
+
+        # check same port as a second resource
+        second_resource_name = 'resource2'
+        self.port[second_resource_name] = port
+        self.assertEqual(self.port[second_resource_name], port)
+        resources = self.port.resources
+        self.assertEqual(
+            resources, {resource_name: port, second_resource_name: port}
+        )
+
+
+    def test_proxy(self):
+        """Test get proxy.
+        """
 
 
 if __name__ == '__main__':

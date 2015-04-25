@@ -1,6 +1,3 @@
-b3j0f.rcm: Reflective Component Model for Python
-================================================
-
 Reflective component model library for python.
 
 .. image:: https://pypip.in/license/b3j0f.rcm/badge.svg
@@ -54,9 +51,11 @@ pip install b3j0f.rcm
 Features
 --------
 
-A reflective component model eases the separation of concerns in any python project at run/compile-time in adding leazy coupling between objects and in separating business and non-functional code.
+A reflective component model eases the separation of concerns in any development project at run/compile-time in adding leazy coupling between objects and in separating business and non-functional code, whatever used languages and technologies.
 
-This library is mainly inspirated from the projects `Fractal`_ and `FraSCAti`_.
+In this implementation, python is used such as a pivotal language between programming languages and technologies.
+
+This library is mainly inspirated from the projects `Fractal`_ and `FraSCAti`_ in adding more possibilities in usage with management of multiple cardinality in most layers and more lazy coupling without more complexity.
 
 Therefore, reflective components provide:
 
@@ -101,7 +100,7 @@ Perspectives
 ChangeLogs
 ----------
 
-Donating
+Donation
 --------
 
 .. image:: https://cdn.rawgit.com/gratipay/gratipay-badge/2.3.0/dist/gratipay.png
