@@ -35,29 +35,12 @@ class Controller(Component):
     behaviour in beeing bound to them.
     """
 
-    class NoSuchControllerError(Exception):
-        pass
-
     def delete(self, *args, **kwargs):
 
         super(Controller, self).delete(*args, **kwargs)
         # unbind from self components
         for component in self._bound_on.keys():
             Controller.unbind_all(component, self)
-
-    @classmethod
-    def ctrl_name(cls):
-        """Get controller unique name.
-
-        :return: cls python path.
-        :rtype: str
-        """
-
-        cls_name = cls.__name__
-
-        result = "/{0}".format(cls_name)
-
-        return result
 
     def _on_bind(self, component, *args, **kwargs):
 
@@ -149,6 +132,20 @@ class Controller(Component):
         for controller in controllers:
             ctrl_name = controller.ctrl_name()
             component.pop(ctrl_name, None)
+
+    @classmethod
+    def ctrl_name(cls):
+        """Get controller unique name.
+
+        :return: cls python path.
+        :rtype: str
+        """
+
+        cls_name = cls.__name__
+
+        result = "/{0}".format(cls_name)
+
+        return result
 
     @classmethod
     def bind_to(cls, components, *args, **kwargs):
