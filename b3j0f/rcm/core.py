@@ -211,7 +211,7 @@ class Component(dict):
 
     def clear(self):
 
-        for portname in self.keys():
+        for portname in list(self.keys()):
             del self[portname]
 
     def __contains__(self, value):

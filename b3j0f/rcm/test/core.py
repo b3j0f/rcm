@@ -268,7 +268,7 @@ class ComponentTest(UTCase):
         """
 
         self._initcomponentwithports()
-        names = self.namedports.keys()[1:]
+        names = list(self.namedports.keys())[1:]
         ports = self.component.getports(names=names)
 
         self.assertEqual(len(ports), len(self.namedports) - 1)
@@ -373,16 +373,6 @@ class ComponentTest(UTCase):
         self.component.__del__()
 
         self.assertEqual(len(self.component), 0)
-        self.assertEqual(self.unbindcount, 0)
-
-    def test_del(self):
-        """Test to delete component with del operator.
-        """
-
-        self._initcomponentwithports()
-
-        del self.component
-
         self.assertEqual(self.unbindcount, 0)
 
     def test_contains_str(self):
