@@ -29,24 +29,7 @@ from unittest import main
 
 from b3j0f.utils.ut import UTCase
 from b3j0f.utils.path import getpath
-from b3j0f.rcm.controller.port import Interface, Port
-
-
-class InterfaceTest(UTCase):
-    """Test Interface.
-    """
-
-    def setUp(self):
-
-        self.interface = Interface()
-
-    def test_none(self):
-        """Test to set a None value.
-        """
-
-        self.interface = None
-        self.assertNone(self.interface.value, None)
-        self.assertIs(self.interface.pvalue, object)
+from b3j0f.rcm.binding.port import ProxySet, Port
 
 
 class PortTest(UTCase):
@@ -126,11 +109,6 @@ class PortTest(UTCase):
         self.assertEqual(
             resources, {resource_name: port, second_resource_name: port}
         )
-
-
-    def test_proxy(self):
-        """Test get proxy.
-        """
 
 
 if __name__ == '__main__':

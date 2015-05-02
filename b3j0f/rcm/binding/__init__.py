@@ -24,16 +24,27 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
+"""Contains definition of main binding concepts for final user.
+"""
+
 __all__ = [
-    'Port', 'Binding', 'Interface', 'Resource',
-    'Policy', 'AllPolicy', 'BestEffortPolicy', 'OnePolicy', 'CountPolicy',
-    'RoundAboutPolicy', 'DynamicPolicy', 'RandomPolicy', 'OneRandomPolicy'
+    'Resource', 'Interface',  # from core
+    'Port', 'ProxySet',  # from port
+    'PolicyResultSet', 'Policy', 'ParameterizedPolicy',  # from policy
+    'SelectFirstPolicy', 'SelectAllPolicy', 'SelectCountPolicy',
+    'SelectRandomPolicy', 'SelectRoundaboutPolicy',
+    'AsyncPolicy', 'BestEffortPolicy',
+    'ResultFirstPolicy', 'ResultAllPolicy', 'ResultCountPolicy',
+    'ResultRandomPolicy', 'ResultRoundaboutPolicy',
 ]
 
-from b3j0f.rcm.binding.core import Resource, Binding
-from b3j0f.rcm.binding.port import Port, Interface
+from b3j0f.rcm.binding.core import Resource, Interface
+from b3j0f.rcm.binding.port import Port, ProxySet
 from b3j0f.rcm.binding.policy import (
-    Policy, DynamicPolicy, AllPolicy, BestEffortPolicy,
-    OnePolicy, OneRandomPolicy, RoundAboutPolicy,
-    RandomPolicy, CountPolicy
+    PolicyResultSet, Policy, ParameterizedPolicy,
+    SelectFirstPolicy, SelectAllPolicy, SelectCountPolicy,
+    SelectRandomPolicy, SelectRoundaboutPolicy,
+    AsyncPolicy, BestEffortPolicy,
+    ResultFirstPolicy, ResultAllPolicy, ResultCountPolicy,
+    ResultRandomPolicy, ResultRoundaboutPolicy
 )

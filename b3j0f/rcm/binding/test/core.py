@@ -28,8 +28,7 @@
 from unittest import main
 
 from b3j0f.utils.ut import UTCase
-from b3j0f.utils.path import getpath
-from b3j0f.rcm.controller.port import Interface, Port
+from b3j0f.rcm.binding.core import Interface, Resource
 
 
 class InterfaceTest(UTCase):
@@ -47,90 +46,6 @@ class InterfaceTest(UTCase):
         self.interface = None
         self.assertNone(self.interface.value, None)
         self.assertIs(self.interface.pvalue, object)
-
-
-class PortTest(UTCase):
-    """
-    """
-
-    class TestPort(Port):
-
-        def get_resource(self):
-
-            return self
-
-    def setUp(self):
-
-        self.port = PortTest.TestPort()
-
-    def test_interfaces(self):
-        """Test to set and get interfaces.
-        """
-
-        # check no interfaces
-        self.assertEqual(self.port.interfaces, [object])
-
-        # check one interface
-        interfaces = int
-        self.port.interfaces = interfaces
-        self.assertEqual(self.port.interfaces, [interfaces])
-
-        # check one interface name
-        interfaces = getpath(int)
-        self.port.interfaces = interfaces
-        self.assertEqual(self.port.interfaces, [int])
-
-        # check many interfaces
-        interfaces = [int, str]
-        self.port.interfaces = interfaces
-        self.assertEqual(self.port.interfaces, interfaces)
-
-        # check set interfaces
-        interfaces = {int, str}
-        self.port.interfaces = interfaces
-        self.assertEqual(self.port.interfaces, list(interfaces))
-
-        # interfaces is not a class
-        self.assertRaises(TypeError, setattr, self.port, 'interfaces', 3)
-        self.assertRaises(ImportError, setattr, self.port, 'interfaces', "")
-
-    def test_resource(self):
-        """Test port proxy.
-        """
-
-        class Resource(object):
-            def apply(self):
-                return 1
-        resource = Resource()
-
-        resource_name = 'resource'
-
-        # check object resource
-        self.port[resource_name] = resource
-        self.assertEqual(self.port[resource_name], resource)
-        resources = self.port.resources
-        self.assertEqual(resources, {resource_name: resource})
-
-        # check port resource
-        port = Port()
-        self.port[resource_name] = port
-        self.assertEqual(self.port[resource_name], port)
-        resources = self.port.resources
-        self.assertEqual(resources, {resource_name: port})
-
-        # check same port as a second resource
-        second_resource_name = 'resource2'
-        self.port[second_resource_name] = port
-        self.assertEqual(self.port[second_resource_name], port)
-        resources = self.port.resources
-        self.assertEqual(
-            resources, {resource_name: port, second_resource_name: port}
-        )
-
-
-    def test_proxy(self):
-        """Test get proxy.
-        """
 
 
 if __name__ == '__main__':

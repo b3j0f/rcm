@@ -50,7 +50,7 @@ from b3j0f.annotation.check import Target, MaxCount
 from b3j0f.utils.version import basestring
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.controller.core import Controller
-from b3j0f.rcm.port.core import Port
+from b3j0f.rcm.binding.core import Port
 from b3j0f.rcm.controller.annotation import (
     CtrlAnnotation, Ctrl2CAnnotation, C2CtrlAnnotation
 )

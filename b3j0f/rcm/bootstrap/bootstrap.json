@@ -10,22 +10,21 @@
         "references": {
             "reference1": {
                 "interface": "b3j0f.rcm.test.interface",
-                    "bindings": {
-                    }
+                "bindings": {
                 }
             }
-        },
-        "type": "instance",
-        "contents": [
-            {
-                "name": "test1",
-                "intents": ["b3j0f.rcm.test.intent"],
-                "controllers": ["b3j0f.rcm.test.controller"],
-                "impl": "b3j0f.rcm.test.implementation",
-                "service": {
+        }
+    },
+    "type": "instance",
+    "contents": [
+        {
+            "name": "test1",
+            "intents": ["b3j0f.rcm.test.intent"],
+            "controllers": ["b3j0f.rcm.test.controller"],
+            "impl": "b3j0f.rcm.test.implementation",
+            "service": {
 
-                }
             }
-        ]
-    }
+        }
+    ]
 }

@@ -51,6 +51,7 @@ from sys import maxsize
 
 from b3j0f.utils.proxy import get_proxy
 from b3j0f.rcm.binding.core import Resource
+from b3j0f.rcm.binding.policy import PolicyResultSet
 
 
 class Port(Resource):
@@ -65,6 +66,7 @@ class Port(Resource):
         by default.
     - a minimal/maximal number of resources to bind. Used only if multiple is
         True.
+    - proxy selection, execution and result selection in case of not multiple.
 
     While interfaces and proxies are internal to the port, resources and
     bindings are bound to the port because they are seen such as port
@@ -80,22 +82,25 @@ class Port(Resource):
     MULTIPLE = '_multiple'  #: multiple resource proxy attribute name
     INF = 'inf'  #: minimal number of bindable resources attribute name
     SUP = 'sup'  #: maximal number of bindable resources attribute name
-    _PROXY = '_proxy'  # private proxies attribute name
-    _PROXIFIER = '_proxifier'  #: resource proxifier attribute name
+    _PROXY = '_proxy'  #: private proxies attribute name
+    _SELECTPOLICY = '_selectpolicy'  #: proxy selection policy attr name
+    _EXECPOLICY = '_execpolicy'  #: proxy execution policy attribute name
+    _RESULTPOLICY = '_resultpolicy'  #: proxy result selection policy attr name
 
     def __init__(
         self,
-        multiple=True, inf=0, sup=maxsize, dynselect=None, dynexec=None,
+        multiple=True, inf=0, sup=maxsize,
+        selectpolicy=None, execpolicy=None, respolicy=None,
         *args, **kwargs
     ):
         """
         :param bool multiple: multiple proxy cardinality. False by default.
         :param int inf: minimal proxy number to use. Default 0.
         :param int sup: maximal proxy number to use. Default infinity.
-        :param dynselect: in case of not multiple port, a dynselect choose at
-            runtime which proxy method to run. If it is a dict, keys are
-            method names and values are callable dynselect. Every dynselect
-            takes in parameters:
+        :param selectpolicy: in case of not multiple port, a selectpolicy
+            choose at runtime which proxy method to run. If it is a dict, keys
+            are method names and values are callable selectpolicy. Every
+            selectpolicy takes in parameters:
             - port: self port,
             - resources: self resources,
             - proxies: list of proxies to execute,
@@ -103,10 +108,10 @@ class Port(Resource):
             - instance: the proxy instance,
             - args: method args,
             - kwargs: method kwargs.
-        :type dynselect: dict or callable
-        :param dynexec: in case of not multiple port, a dynselect choose at
+        :type selectpolicy: dict or callable
+        :param execpolicy: in case of not multiple port, a execpolicy choose at
             runtime how to execute a proxy method. If it is a dict, keys are
-            method names and values are callable dynselect. Every dynselect
+            method names and values are callable execpolicy. Every execpolicy
             takes in parameters:
             - port: self port,
             - resources: self resources,
@@ -115,7 +120,20 @@ class Port(Resource):
             - instance: the proxy instance,
             - args: method args,
             - kwargs: method kwargs.
-        :type dynselect: dict or callable
+        :type selectpolicy: dict or callable
+        :param respolicy: in case of not multiple port, a respolicy choose at
+            which proxy method result to return. If it is a dict, keys are
+            method names and values are callable respolicy. Every respolicy
+            takes in parameters:
+            - port: self port,
+            - resources: self resources,
+            - proxies: list of proxies to execute,
+            - name: the called method name,
+            - instance: the proxy instance,
+            - args: method args,
+            - kwargs: method kwargs,
+            - results: method results.
+        :type respolicy: dict or callable
         """
 
         super(Port, self).__init__(*args, **kwargs)
@@ -124,8 +142,9 @@ class Port(Resource):
         self._multiple = multiple
         self._inf = inf
         self._sup = sup
-        self._dynselect = dynselect
-        self._dynexec = dynexec
+        self._selectpolicy = selectpolicy
+        self._execpolicy = execpolicy
+        self._resultpolicy = respolicy
         # nonify self _proxy in order to execute self._renew_proxy asap
         self._proxy = None
 
@@ -260,60 +279,82 @@ class Port(Resource):
                         proxies += proxy
                     else:
                         proxies.append(proxy)
+                # embed proxies in a policy result set for future policies
+                proxies = PolicyResultSet(proxies)
                 _dict = {}  # proxy dict to fill with dedicated methods
-                # get dynselect and dynexec
-                dynselect = self._dynselect
-                dynselectisdict = isinstance(dynselect, dict)
-                dynexec = self._dynexec
-                dynexecisdict = isinstance(dynexec, dict)
+                # get selectpolicy and execpolicy
+                selectpolicy = self._selectpolicy
+                selectpolicyisdict = isinstance(selectpolicy, dict)
+                execpolicy = self._execpolicy
+                execpolicyisdict = isinstance(execpolicy, dict)
+                respolicy = self._respolicy
+                respolicyisdict = isinstance(respolicy, dict)
                 # wraps all interface methods
                 for base in bases:
                     # among public members
-                    for name, member in getmembers(
+                    for r_name, routine in getmembers(
                         base,
-                        lambda name, member:
-                            name[0] != '_' and isroutine(member)
+                        lambda member_name, member:
+                            member_name[0] != '_' and isroutine(member)
                     ):
-                        # get the rights dynselect and dynexec
-                        if dynselectisdict:
-                            _dynselect = dynselect.get(name)
+                        # get the rights selectpolicy and execpolicy
+                        if selectpolicyisdict:
+                            _selectpolicy = selectpolicy.get(r_name)
                         else:
-                            _dynselect = dynselect
-                        if dynexecisdict:
-                            _dynexec = dynexec.get(name)
+                            _selectpolicy = selectpolicy
+                        if execpolicyisdict:
+                            _execpolicy = execpolicy.get(r_name)
                         else:
-                            _dynexec = dynexec
+                            _execpolicy = execpolicy
+                        if respolicyisdict:
+                            _respolicy = respolicy.get(r_name)
+                        else:
+                            _respolicy = respolicy
 
                         # wraps the rountine
-                        @wraps(member)
+                        @wraps(routine)
                         def method_proxy(proxy_instance, *args, **kwargs):
                             # check if proxies have to change dynamically
-                            if _dynselect is None:
+                            if _selectpolicy is None:
                                 proxies_to_run = proxies
                             else:
-                                proxies_to_run = dynselect(
-                                    port=self, proxies=proxies, name=name,
+                                proxies_to_run = selectpolicy(
+                                    port=self, proxies=proxies, routine=r_name,
                                     instance=proxy_instance,
                                     args=args, kwargs=kwargs
                                 )
-                            # if dynexec is None, process proxies
-                            if _dynexec is None:
-                                result = []
+                            # if execpolicy is None, process proxies
+                            if _execpolicy is None:
+                                results = []
                                 for proxy_to_run in proxies_to_run:
-                                    method = getattr(proxy_to_run, name)
-                                    method_res = method(*args, **kwargs)
-                                    result.append(method_res)
-                            else:  # if dynexec is asked
-                                result = _dynexec(
-                                    port=self, proxies=proxies, name=name,
-                                    instance=proxy_instance,
+                                    rountine = getattr(proxy_to_run, r_name)
+                                    method_res = rountine(*args, **kwargs)
+                                    results.append(method_res)
+                            else:  # if execpolicy is asked
+                                results = _execpolicy(
+                                    port=self, proxies=proxies_to_run,
+                                    routine=r_name, instance=proxy_instance,
                                     args=args, kwargs=kwargs
                                 )
-
+                            if _respolicy is None:
+                                if (
+                                    isinstance(results, PolicyResultSet)
+                                    and results
+                                ):
+                                    result = [0]
+                                else:
+                                    result = results
+                            else:
+                                result = _respolicy(
+                                    port=self, proxies=proxies,
+                                    routine=r_name, instance=proxy_instance,
+                                    args=args, kwargs=kwargs,
+                                    results=results
+                                )
                             return result
 
                         # update _dict with method proxy
-                        _dict[name] = method_proxy
+                        _dict[r_name] = method_proxy
 
                 # add default constructor
                 _dict['__new__'] = _dict['__init__'] = (
