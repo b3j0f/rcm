@@ -290,7 +290,7 @@ class Ports(CtrlAnnotation):
 
     Port = 'Port'
 
-    __slots__ = (Port, ) + CtrlAnnotation.__slots__
+    #__slots__ = (Port, ) + CtrlAnnotation.__slots__
 
     def __init__(self, port, *args, **kwargs):
         """

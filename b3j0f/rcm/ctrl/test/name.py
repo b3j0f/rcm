@@ -29,11 +29,11 @@ from unittest import main
 
 from b3j0f.utils.ut import UTCase
 from b3j0f.rcm.core import Component
-from b3j0f.rcm.controller.core import Controller
-from b3j0f.rcm.controller.name import (
+from b3j0f.rcm.ctrl.core import Controller
+from b3j0f.rcm.ctrl.name import (
     NameController, GetName, SetName
 )
-from b3j0f.rcm.controller.impl import ImplController
+from b3j0f.rcm.ctrl.impl import ImplController
 
 
 class Business(object):
