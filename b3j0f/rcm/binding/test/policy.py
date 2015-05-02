@@ -31,7 +31,7 @@ from b3j0f.utils.ut import UTCase
 from b3j0f.rcm.binding.policy import (
     PolicyResultSet, Policy, ParameterizedPolicy,
     FirstPolicy, AllPolicy, CountPolicy, RandomPolicy,
-    RoundAboutPolicy,
+    RoundaboutPolicy,
     SelectFirstPolicy, SelectAllPolicy, SelectCountPolicy,
     SelectRandomPolicy, SelectRoundaboutPolicy,
     AsyncPolicy, BestEffortPolicy,
@@ -53,12 +53,9 @@ class TestParameterizedPolicy(TestPolicy):
 
     def setUp(self):
 
-        self.policy_cls = self._get_policy_cls()
-        self.name = self._get_name()
-        self.args, self.kwargs = self._get_args_kwargs()
-        self.policy = self.policy_cls(
-            name=self.name, *self.args, **self.kwargs
-        )
+        self.count = 50  # number of proxies to generate in a PolicyResultSet
+        self.policy_cls = self._get_policy_cls()  # get policy cls
+        self.policy = self._get_policy()  # get policy
 
     def _get_policy_cls(self):
         """
@@ -72,6 +69,18 @@ class TestParameterizedPolicy(TestPolicy):
         """
         return 'test'
 
+    def _get_policy(self):
+        """Instantiate a new policy related to self name and args/kwargs.
+        """
+        self.name = self._get_name()
+        self.args, self.kwargs = self._get_args_kwargs()
+        if self.name is not None:
+            self.kwargs['name'] = self.name
+        result = self.policy_cls(
+            *self.args, **self.kwargs
+        )
+        return result
+
     def _get_args_kwargs(self):
         """
         :return: initialization parameters.
@@ -82,13 +91,23 @@ class TestParameterizedPolicy(TestPolicy):
         """Test to instantiate a parameterized policy without name.
         """
 
-        self.assertRaises(TypeError, self.policy_cls)
+        if self.name is not None:
+            self.assertRaises(TypeError, self.policy_cls)
 
     def test_name(self):
         """Test to instantiate a parameterized policy with a name.
         """
 
-        self.assertEqual(self.name, self.policy.name)
+        if self.name is not None:
+            self.assertEqual(self.name, self.policy.name)
+
+    def _get_params(self, param):
+        """
+        :return: policy invocation params.
+        :rtype: dict
+        """
+
+        return {} if self.name is None else {self.name: param}
 
     def test_none(self):
         """Test when param is None.
@@ -96,7 +115,8 @@ class TestParameterizedPolicy(TestPolicy):
 
         param = None
 
-        result = self.policy(**{self.name: param})
+        params = self._get_params(param)
+        result = self.policy(**params)
 
         self._assert_none(result=result)
 
@@ -114,7 +134,8 @@ class TestParameterizedPolicy(TestPolicy):
 
         param = []
 
-        result = self.policy(**{self.name: param})
+        params = self._get_params(param)
+        result = self.policy(**params)
 
         self._test_not_policy_result(param=param, result=result)
 
@@ -132,7 +153,8 @@ class TestParameterizedPolicy(TestPolicy):
 
         param = PolicyResultSet()
 
-        result = self.policy(**{self.name: param})
+        params = self._get_params(param)
+        result = self.policy(**params)
 
         self._assert_empty_PolicyResultSet(param=param, result=result)
 
@@ -150,9 +172,10 @@ class TestParameterizedPolicy(TestPolicy):
         """Test when param is a policy result set.
         """
 
-        param = PolicyResultSet([i for i in range(50)])
+        param = PolicyResultSet([i for i in range(self.count)])
 
-        result = self.policy(**{self.name: param})
+        params = self._get_params(param)
+        result = self.policy(**params)
 
         self._assert_PolicyResultSet(param=param, result=result)
 
@@ -173,6 +196,408 @@ class TestFirstPolicy(TestParameterizedPolicy):
     def _get_policy_cls(self):
 
         return FirstPolicy
+
+    def _assert_PolicyResultSet(self, param, result):
+
+        self.assertEqual(result, param[0])
+
+    def _assert_empty_PolicyResultSet(self, param, result):
+
+        self.assertIsNone(result)
+
+
+class TestAllPolicy(TestParameterizedPolicy):
+    """Test AllPolicy.
+    """
+    def _get_policy_cls(self):
+
+        return AllPolicy
+
+
+class TestCountPolicy(TestParameterizedPolicy):
+    """Test CountPolicy.
+    """
+    def _get_policy_cls(self):
+
+        return CountPolicy
+
+    def _get_args_kwargs(self):
+
+        self.random = not getattr(self, 'random', True)
+
+        self.inf = 0
+        self.sup = self.count / 2
+
+        return (), {'inf': self.inf, 'sup': self.sup, 'random': self.random}
+
+    def _assert_PolicyResultSet(self, param, result):
+
+        final_result = set(result) & set(param)
+        self.assertEqual(len(final_result), self.sup)
+
+        self.policy = self._get_policy()
+
+        if self.random:  # call one more time the same test with random True
+            self.test_PolicyResultSet()
+
+    def _assert_empty_PolicyResultSet(self, param, result):
+
+        self.assertFalse(result)
+
+    def test_error(self):
+        """Test to raise an error if proxies count is lower than inf limit.
+        """
+
+        policy = self._get_policy()
+        policy.inf = 5
+        param = PolicyResultSet()
+        params = self._get_params(param)
+        self.assertRaises(CountPolicy.CountError, policy, **params)
+
+
+class TestRandomPolicy(TestParameterizedPolicy):
+    """Test RandomPolicy.
+    """
+    def _get_policy_cls(self):
+
+        return RandomPolicy
+
+    def _assert_PolicyResultSet(self, param, result):
+
+        self.assertIn(result, param)
+
+    def _assert_empty_PolicyResultSet(self, param, result):
+
+        self.assertIsNone(result)
+
+
+class TestRoundaboutPolicy(TestParameterizedPolicy):
+    """Test RoundaboutPolicy.
+    """
+    def _get_policy_cls(self):
+
+        return RoundaboutPolicy
+
+    def _assert_empty_PolicyResultSet(self, param, result):
+
+        self.assertIsNone(result)
+
+    def _assert_PolicyResultSet(self, param, result):
+
+        self.assertEqual(result, param[0])
+
+        self.index = getattr(self, 'index', 0)
+
+        for index in range(1, self.count):
+            params = self._get_params(param)
+            result = self.policy(**params)
+            self.assertEqual(result, param[index])
+        else:
+            params = self._get_params(param)
+            result = self.policy(**params)
+            self.assertEqual(result, param[0])
+
+
+class TestSelectFirstPolicy(TestFirstPolicy):
+    """Test SelectFirstPolicy.
+    """
+    def _get_policy_cls(self):
+
+        return SelectFirstPolicy
+
+    def _get_name(self):
+
+        return None
+
+    def _get_params(self, param):
+
+        return {'proxies': param}
+
+
+class TestSelectAllPolicy(TestAllPolicy):
+    """Test SelectAllPolicy.
+    """
+    def _get_policy_cls(self):
+
+        return SelectAllPolicy
+
+    def _get_name(self):
+
+        return None
+
+    def _get_params(self, param):
+
+        return {'proxies': param}
+
+
+class TestSelectCountPolicy(TestCountPolicy):
+    """Test SelectCountPolicy.
+    """
+    def _get_policy_cls(self):
+
+        return SelectCountPolicy
+
+    def _get_name(self):
+
+        return None
+
+    def _get_params(self, param):
+
+        return {'proxies': param}
+
+
+class TestSelectRandomPolicy(TestRandomPolicy):
+    """Test SelectRandomPolicy.
+    """
+    def _get_policy_cls(self):
+
+        return SelectRandomPolicy
+
+    def _get_name(self):
+
+        return None
+
+    def _get_params(self, param):
+
+        return {'proxies': param}
+
+
+class TestSelectRoundaboutPolicy(TestRoundaboutPolicy):
+    """Test SelectRoundaboutPolicy.
+    """
+    def _get_policy_cls(self):
+
+        return SelectRoundaboutPolicy
+
+    def _get_name(self):
+
+        return None
+
+    def _get_params(self, param):
+
+        return {'proxies': param}
+
+
+class TestResultFirstPolicy(TestFirstPolicy):
+    """Test ResultFirstPolicy.
+    """
+    def _get_policy_cls(self):
+
+        return ResultFirstPolicy
+
+    def _get_name(self):
+
+        return None
+
+    def _get_params(self, param):
+
+        return {'results': param}
+
+
+class TestResultAllPolicy(TestAllPolicy):
+    """Test ResultAllPolicy.
+    """
+    def _get_policy_cls(self):
+
+        return ResultAllPolicy
+
+    def _get_name(self):
+
+        return None
+
+    def _get_params(self, param):
+
+        return {'results': param}
+
+
+class TestResultCountPolicy(TestCountPolicy):
+    """Test ResultCountPolicy.
+    """
+    def _get_policy_cls(self):
+
+        return ResultCountPolicy
+
+    def _get_name(self):
+
+        return None
+
+    def _get_params(self, param):
+
+        return {'results': param}
+
+
+class TestResultRandomPolicy(TestRandomPolicy):
+    """Test ResultRandomPolicy.
+    """
+    def _get_policy_cls(self):
+
+        return ResultRandomPolicy
+
+    def _get_name(self):
+
+        return None
+
+    def _get_params(self, param):
+
+        return {'results': param}
+
+
+class TestResultRoundaboutPolicy(TestRoundaboutPolicy):
+    """Test ResultRoundaboutPolicy.
+    """
+    def _get_policy_cls(self):
+
+        return ResultRoundaboutPolicy
+
+    def _get_name(self):
+
+        return None
+
+    def _get_params(self, param):
+
+        return {'results': param}
+
+
+class TestAsyncPolicy(TestParameterizedPolicy):
+    """Test AsyncPolicy.
+    """
+
+    def _get_policy_cls(self):
+
+        return AsyncPolicy
+
+    def _callback(self, *args, **kwargs):
+        """
+        Proxy execution callback.
+        """
+
+        self._callback_params = getattr(self, '_callback_params', [])
+
+        self._callback_params.append((args, kwargs))
+
+    def _get_name(self):
+
+        return None
+
+    def _get_args_kwargs(self):
+
+        return (), {'callback': self._callback}
+
+    def _get_params(self, param):
+
+        return {'proxies': param, 'routine': '__str__'}
+
+    def _test_not_policy_result(self, param, result):
+
+        self.assertIsNone(result)
+
+        self.policy.join()
+
+        result = self._callback_params[0][1]['result']
+
+        self.assertEqual(result, str(param))
+
+    def _assert_empty_PolicyResultSet(self, param, result):
+
+        self.assertIsNone(result)
+
+        self.policy.join()
+
+        self.assertFalse(hasattr(self, 'self._callback_params'))
+
+    def _assert_PolicyResultSet(self, param, result):
+
+        self.assertIsNone(result)
+
+        self.policy.join()
+
+        results = [
+            self._callback_params[i][1]['result'] for i in range(self.count)
+        ]
+
+        self.assertEqual(map(lambda x: str(x), param), results)
+
+    def test_error(self):
+        """Test when the async proxy execution raises and error.
+        """
+
+        def proxy():
+            raise ValueError()
+
+        self.policy(proxies=proxy, routine='__call__')
+
+        self.policy.join()
+
+        result = self._callback_params[0][1]['error']
+
+        self.assertIsInstance(result, ValueError)
+
+
+class TestBestEffortPolicy(TestParameterizedPolicy):
+    """Test BestEffortPolicy.
+    """
+
+    def _get_policy_cls(self):
+
+        return BestEffortPolicy
+
+    def _get_name(self):
+
+        return None
+
+    def _get_args_kwargs(self):
+
+        return (), {}
+
+    def _get_params(self, param):
+
+        return {'proxies': param, 'routine': '__str__'}
+
+    def _test_not_policy_result(self, param, result):
+
+        self.assertEqual(result, str(param))
+
+    def _assert_empty_PolicyResultSet(self, param, result):
+
+        self.assertIsNone(result)
+
+    def _assert_PolicyResultSet(self, param, result):
+
+        self.assertEqual(result, str(param[0]))
+
+        def proxy():
+            raise ValueError()
+
+        # check proxies without errors
+        proxies = [proxy, proxy, proxy]
+        proxies = PolicyResultSet(proxies)
+        result = self.policy(
+            proxies=proxies, routine='__call__'
+        )
+        self.assertEqual(result, None)
+
+        # check proxies with only one which is executable
+        proxies = [proxy, proxy, proxy, lambda: 2]
+        proxies = PolicyResultSet(proxies)
+        result = self.policy(
+            proxies=proxies, routine='__call__'
+        )
+        self.assertEqual(result, 2)
+
+        # check proxies with maxtry less than valid proxy
+        self.policy.maxtry = 2
+        self.assertRaises(
+            BestEffortPolicy.MaxTryError, self.policy,
+            proxies=proxies, routine='__call__'
+        )
+
+        # check proxies with a timeout
+        self.policy.maxtry = 4
+        self.policy.timeout = 1
+        self.assertRaises(
+            BestEffortPolicy.TimeoutError, self.policy,
+            proxies=proxies, routine='__call__'
+        )
 
 
 if __name__ == '__main__':

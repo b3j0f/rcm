@@ -91,7 +91,7 @@ And returns one object or a PolicyResultSet.
 __all__ = [
     'PolicyResultSet', 'Policy', 'ParameterizedPolicy',
     'FirstPolicy', 'AllPolicy', 'CountPolicy', 'RandomPolicy',
-    'RoundAboutPolicy',
+    'RoundaboutPolicy',
     'SelectFirstPolicy', 'SelectAllPolicy', 'SelectCountPolicy',
     'SelectRandomPolicy', 'SelectRoundaboutPolicy',
     'AsyncPolicy', 'BestEffortPolicy',
@@ -99,7 +99,7 @@ __all__ = [
     'ResultRandomPolicy', 'ResultRoundaboutPolicy',
 ]
 
-from random import randint, choice
+from random import shuffle, choice
 
 from sys import maxsize
 
@@ -202,20 +202,16 @@ class CountPolicy(ParameterizedPolicy):
 
             len_proxies = len(result)
 
-            if len_proxies < self.inf or len_proxies > self.sup:
+            if len_proxies < self.inf:
                 raise CountPolicy.CountError(
-                    "param count {0} not in [{1}; {2}]."
-                    .format(result, self.inf, self.sup)
+                    "param count {0} ({1}) must be greater than {1}."
+                    .format(result, len_proxies, self.inf)
                 )
 
             if self.random:  # choose randomly item
                 result = list(result)
-                count_to_remove = len_proxies - min(
-                    self.sup - self.inf, len_proxies
-                )
-                for i in range(count_to_remove):
-                    index = randint(0, len(result))
-                    result.pop(index)
+                shuffle(result)
+                result = result[0: self.sup - self.inf]
             else:  # choose a slice of result
                 result = result[self.inf:self.sup]
 
@@ -233,6 +229,7 @@ class RandomPolicy(ParameterizedPolicy):
     def __call__(self, *args, **kwargs):
         # default value is the parameter
         result = kwargs[self.name]
+
         # do something only if result is a PolicyResultSet
         if isinstance(result, PolicyResultSet):
             if result:
@@ -243,7 +240,7 @@ class RandomPolicy(ParameterizedPolicy):
         return result
 
 
-class RoundAboutPolicy(ParameterizedPolicy):
+class RoundaboutPolicy(ParameterizedPolicy):
     """Choose iteratively Round about proxy resource policy.
 
     Select iteratively resources or None if sources is empty.
@@ -251,18 +248,18 @@ class RoundAboutPolicy(ParameterizedPolicy):
 
     def __init__(self, *args, **kwargs):
 
-        super(RoundAboutPolicy, self).__init__(*args, **kwargs)
+        super(RoundaboutPolicy, self).__init__(*args, **kwargs)
         # initialize index
         self.index = 0
 
     def __call__(self, *args, **kwargs):
         # default result is the parameter
-        result = kwargs[self.name]
+        result = param = kwargs[self.name]
 
-        if isinstance(result, PolicyResultSet):
-            if result:  # increment index
-                self.index = (self.index + 1) % len(result)
-                result = result[self.index]
+        if isinstance(param, PolicyResultSet):
+            if param:  # increment index
+                result = param[self.index]
+                self.index = (self.index + 1) % len(param)
             else:
                 result = None
 
@@ -308,7 +305,7 @@ class SelectRandomPolicy(RandomPolicy):
         )
 
 
-class SelectRoundaboutPolicy(RoundAboutPolicy):
+class SelectRoundaboutPolicy(RoundaboutPolicy):
     """Apply roundabout policy on proxies.
     """
 
@@ -321,20 +318,40 @@ class SelectRoundaboutPolicy(RoundAboutPolicy):
 
 class AsyncPolicy(Policy):
     """Asynchronous dynamic execution policy.
+
+    A callback is used in order to be notified when all proxy are executed.
+    Such callback takes in parameter:
+    - result: proxy execution result.
+    - error: proxy execution error.
+
+    In a multi task concern, the join method permits to wait until all proxy
+    are executed.
     """
+
+    _CALLBACK = '_callback'  #: private callback attribute name
+    _THREAD = '_thread'  #: private thread attribute name
 
     def __init__(self, callback, *args, **kwargs):
         """
         :param callable callback: callable object which will get proxy
             execution results.
         """
+
         super(AsyncPolicy, self).__init__(*args, **kwargs)
 
         # initialize private attributes
         self._thread = None
 
         # set callback
-        self.callback = callback
+        self._callback = callback
+
+    def __call__(self, *args, **kwargs):
+        # create a thread which execute self.execproxies
+        self._thread = Thread(
+            target=self.execproxies, args=args, kwargs=kwargs
+        )
+        # start the thread
+        self._thread.start()
 
     def execproxies(self, proxies, routine, *args, **kwargs):
         """Execute iteratively all proxies and use result in self callback.
@@ -342,21 +359,30 @@ class AsyncPolicy(Policy):
         :param proxies: proxies to execute.
         :param str routine: routine name of proxies to execute.
         """
+
         # ensure proxies is a list of proxies
         if not isinstance(proxies, PolicyResultSet):
             proxies = [] if proxies is None else (proxies,)
 
         for proxy in proxies:  # execute all proxies
-            proxy_result = getattr(proxy, routine)(*args, **kwargs)
-            self.callback(  # and send result to the callback
-                result=proxy_result
-            )
+            proxy_rountine = getattr(proxy, routine)
+            try:
+                proxy_result = proxy_rountine(*args, **kwargs)
+            except Exception as e:
+                self._callback(  # and send the occured error to the callback
+                    error=e
+                )
+            else:
+                self._callback(  # and send result to the callback
+                    result=proxy_result
+                )
 
-    def __call__(self, *args, **kwargs):
-        # create a thread which execute self.execproxies
-        self._thread = Thread(self.execproxies, args=args, kwargs=kwargs)
-        # start the thread
-        self._thread.start()
+    def join(self):
+        """Wait until all proxy are executed.
+        """
+
+        if isinstance(self._thread, Thread):
+            self._thread.join()
 
 
 class BestEffortPolicy(Policy):
@@ -364,7 +390,22 @@ class BestEffortPolicy(Policy):
 
     Select first resources which does not raise an Error, otherwise last error
         or None if no sources.
+    Raises last raised exception.
     """
+
+    class TimeoutError(Exception):
+        """Raised when a timeout occures.
+        """
+        pass
+
+    class MaxTryError(Exception):
+        """Raised when a max try is passed.
+        """
+        pass
+
+        MAXTRY = 'maxtry'  #: maxtry attribute name
+        RANDOM = 'random'  #: random attribute name
+        TIMEOUT = 'timeout'  #: timeout attribute name
 
     def __init__(
         self, maxtry=maxsize, random=False, timeout=None, *args, **kwargs
@@ -390,17 +431,18 @@ class BestEffortPolicy(Policy):
 
         # ensure proxies is an iterable of proxies
         if not isinstance(proxies, PolicyResultSet):
-            proxies = (proxies,)
+            proxies = () if proxies is None else (proxies,)
 
         # initialiaze policy parameters
         maxtry = self.maxtry
 
-        # if random, copy proxies in a list which will be emptyied iteratively
+        # if random, shuffle proxies
         random = self.random
         if random:
-            proxies_to_execute = list(proxies)
-        else:  # else use an iterator
-            proxies_to_execute = iter(proxies)
+            proxies = list(proxies)
+            shuffle(proxies)
+
+        proxies_iterator = iter(proxies)
 
         # if timeout, save last_time with current time
         timeout = self.timeout
@@ -408,29 +450,30 @@ class BestEffortPolicy(Policy):
             tick = time()
 
         # run proxies
-        while (
-            proxies_to_execute  # while proxies to execute exist
-            and maxtry > 0  # maxtry is strictly positive
-            and (timeout is None or timeout > (time() - tick))  # timeout ok
-        ):
-            maxtry -= 1  # decrement maxtry
+        while True:
 
-            if random:  # choose a random proxy
-                index = randint(0, len(proxies_to_execute))
-                proxy = proxies_to_execute.pop(index)
-            else:  # choose next proxy
-                try:
-                    proxy = next(proxies_to_execute)
-                except StopIteration:
-                    break  # stop to execute proxies if no more proxies to run
+            # check for maxtry
+            if maxtry <= 0:
+                raise BestEffortPolicy.MaxTryError()
+            # check for timeout condition
+            if timeout is not None and timeout > (time() - tick):
+                raise BestEffortPolicy.TimeoutError()
 
-            method = getattr(proxy, routine)  # get the right proxy method
+            # choose next proxy
             try:
-                result = method(*args, **kwargs)
-            except Exception:
-                pass  # catch silently errors
+                proxy = next(proxies_iterator)
+            except StopIteration:
+                break  # stop to execute proxies if no more proxies to run
             else:
-                break  # stop as soon as a proxy is executed without error
+                method = getattr(proxy, routine)  # get the right proxy method
+                try:
+                    result = method(*args, **kwargs)
+                except Exception:
+                    pass  # continue iteration on errors
+                else:
+                    break  # stop as soon as a proxy is executed without error
+
+                maxtry -= 1  # decrement maxtry
 
         return result
 
@@ -474,7 +517,7 @@ class ResultRandomPolicy(RandomPolicy):
         )
 
 
-class ResultRoundaboutPolicy(RoundAboutPolicy):
+class ResultRoundaboutPolicy(RoundaboutPolicy):
     """Apply roundabout policy on results.
     """
     def __init__(self, *args, **kwargs):
