@@ -38,8 +38,8 @@ due to a requirement to distinguish heavily those ones from instance ones
 (like in the Fractal Framework), when their behavior is really close to
 instance methods.
 
-For example, it is simple to get Component ports with the method get_ports.
-In a lazier approach, it is possible to use the Component.GET_PORTS class
+For example, it is simple to get Component ports with the method getports.
+In a lazier approach, it is possible to use the Component.GETPORTS class
 method which uses the same logic than the instance method but is specific to
 ports which inherits from the Component type.
 """
@@ -58,7 +58,7 @@ from re import compile as re_compile
 
 
 class Component(dict):
-    """Component which contains named ports and an id.
+    """Component which contains named ports and an uid.
 
     A port is just an object which is bound to the component such as
     a dict value where key is port name.
@@ -70,40 +70,40 @@ class Component(dict):
     which are bound to it.
 
     For example, let A and B two components. If B is both ports b0 and b1,
-    B keeps references to both port names b0 and b1 thanks to B._bound_on dict
+    B keeps references to both port names b0 and b1 thanks to B._boundon dict
     which contains one key A and both values b0 and b1.
     """
 
-    ID = '_id'  #: id field name
-    BOUND_ON = '_bound_on'  #: bound_on field name
+    UID = '_uid'  #: uid field name
+    BOUND_ON = '_boundon'  #: bound_on field name
 
     def __init__(
-        self, _id=None, ports=None, named_ports=None
+        self, uid=None, ports=None, namedports=None
     ):
         """Constructor which register ports with generated name and named
         interfaces.
 
-        :param string _id: component id. Generated if None.
+        :param string _uid: component uid. Generated if None.
         :param list ports: list of ports to bind.
-        :param dict named_ports: set of ports to bind by name.
+        :param dict namedports: set of ports to bind by name.
         """
 
         super(Component, self).__init__()
 
         # initialiaze private attributes
-        self._bound_on = {}
+        self._boundon = {}
 
-        # save _id
-        self._id = uuid() if _id is None else _id
+        # save _uid
+        self._uid = uuid() if uid is None else uid
         # save ports
         if ports is not None:
             for port in ports:
-                self.set_port(port=port)
+                self.setport(port=port)
         # save named ports
-        if named_ports is not None:
-            for name in named_ports:
-                port = named_ports[name]
-                self.set_port(port=port, name=name)
+        if namedports is not None:
+            for name in namedports:
+                port = namedports[name]
+                self.setport(port=port, name=name)
 
     def __hash__(self):
 
@@ -113,13 +113,13 @@ class Component(dict):
         """Get self hash value.
         """
 
-        return hash(self._id)
+        return hash(self._uid)
 
     def __delitem__(self, key):
 
-        self.remove_port(name=key)
+        self.removeport(name=key)
 
-    def remove_port(self, name):
+    def removeport(self, name):
         """Remove a port by name and returns it.
 
         :param str name: port name to remove.
@@ -132,7 +132,7 @@ class Component(dict):
 
         if isinstance(result, Component):
             # unbind it from self
-            result._on_unbind(component=self, name=name)
+            result._onunbind(component=self, name=name)
         # and call super __delitem__
         super(Component, self).__delitem__(name)
 
@@ -140,9 +140,9 @@ class Component(dict):
 
     def __setitem__(self, key, value):
 
-        self.set_port(name=key, port=value)
+        self.setport(name=key, port=value)
 
-    def set_port(self, port, name=None):
+    def setport(self, port, name=None):
         """Set new port with input name. And returns previous port if exists.
 
         :param port: new port to bind.
@@ -166,11 +166,11 @@ class Component(dict):
         if name in self:
             old_port = self[name]
             if isinstance(old_port, Component):
-                old_port._on_unbind(component=self, name=name)
+                old_port._onunbind(component=self, name=name)
         # if port is a component
         if isinstance(port, Component):
             # bind it to self
-            port._on_bind(component=self, name=name)
+            port._onbind(component=self, name=name)
         # and call super __setitem__
         super(Component, self).__setitem__(name, port)
 
@@ -285,7 +285,7 @@ class Component(dict):
 
         return result
 
-    def _on_bind(self, component, name):
+    def _onbind(self, component, name):
         """Callback method before self is bound to a component.
 
         :param Component component: new component from where this one is bound.
@@ -293,9 +293,9 @@ class Component(dict):
         """
 
         # add reference to bound_on
-        self._bound_on.setdefault(component, set()).add(name)
+        self._boundon.setdefault(component, set()).add(name)
 
-    def _on_unbind(self, component, name):
+    def _onunbind(self, component, name):
         """Callback method before self is bound to a component.
 
         :param Component component: component from where this one is unbound.
@@ -303,19 +303,19 @@ class Component(dict):
         """
 
         # remove reference to bound_on
-        bound_on = self._bound_on[component]
+        bound_on = self._boundon[component]
         bound_on.remove(name)
         if not bound_on:
-            del self._bound_on[component]
+            del self._boundon[component]
 
     @property
-    def id(self):
-        """Get self id.
+    def uid(self):
+        """Get self unique id.
         """
 
-        return self._id
+        return self._uid
 
-    def get_ports(self, names=None, types=None, select=lambda *p: True):
+    def getports(self, names=None, types=None, select=lambda *p: True):
         """Get ports related to names and types.
 
         :param names: port (regex) names to search for.
@@ -353,11 +353,11 @@ class Component(dict):
                         result[name] = self[name]
                 else:  # search for regex expressions
                     regex = re_compile(name)
-                    for port_name in self:
-                        port = self[port_name]
-                        if regex.match(port_name):
+                    for portname in self:
+                        port = self[portname]
+                        if regex.match(portname):
                             if isinstance(port, types) and select(name, port):
-                                result[port_name] = port
+                                result[portname] = port
         else:
             # for all ports
             for name in self:
@@ -369,7 +369,7 @@ class Component(dict):
         return result
 
     @classmethod
-    def GET_PORTS(cls, component, names=None, select=lambda *p: True):
+    def GETPORTS(cls, component, names=None, select=lambda *p: True):
         """Get all component ports which inherits from this class.
 
         :param Component component: component from where get ports.
@@ -379,4 +379,4 @@ class Component(dict):
         in parameters. True by default.
         """
 
-        return component.get_ports(names=names, types=cls, select=select)
+        return component.getports(names=names, types=cls, select=select)

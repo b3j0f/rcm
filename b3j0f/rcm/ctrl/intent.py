@@ -27,8 +27,8 @@
 __all__ = ['IntentController', 'Intent']
 
 from b3j0f.aop import weave
-from b3j0f.rcm.controller.core import Controller
-from b3j0f.rcm.controller.annotation import C2CtrlAnnotation
+from b3j0f.rcm.ctrl.core import Controller
+from b3j0f.rcm.ctrl.annotation import C2CtrlAnnotation
 
 from re import compile as re_compile
 

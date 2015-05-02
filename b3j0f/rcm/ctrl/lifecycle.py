@@ -29,12 +29,12 @@ try:
 except ImportError:
     from dummy_threading import Lock, Condition
 
-from b3j0f.rcm.controller.core import Controller
-from b3j0f.rcm.controller.annotation import (
+from b3j0f.rcm.ctrl.core import Controller
+from b3j0f.rcm.ctrl.annotation import (
     CtrlAnnotationInterceptor, C2CtrlAnnotation
 )
-from b3j0f.rcm.controller.port import OutputPort
-from b3j0f.rcm.controller.content import ContentController
+from b3j0f.rcm.ctrl.binding import OutputPort
+from b3j0f.rcm.ctrl.content import ContentController
 from b3j0f.aop import weave, unweave
 
 

@@ -49,13 +49,13 @@ from collections import Iterable
 from b3j0f.annotation.check import Target, MaxCount
 from b3j0f.utils.version import basestring
 from b3j0f.rcm.core import Component
-from b3j0f.rcm.controller.core import Controller
-from b3j0f.rcm.binding.core import Port
-from b3j0f.rcm.controller.annotation import (
+from b3j0f.rcm.binding.port import Port
+from b3j0f.rcm.ctrl.core import Controller
+from b3j0f.rcm.ctrl.annotation import (
     CtrlAnnotation, Ctrl2CAnnotation, C2CtrlAnnotation
 )
-from b3j0f.rcm.controller.impl import ImplController
-from b3j0f.rcm.controller.name import NameController
+from b3j0f.rcm.ctrl.impl import ImplController
+from b3j0f.rcm.ctrl.name import NameController
 
 
 class BindingController(Controller):

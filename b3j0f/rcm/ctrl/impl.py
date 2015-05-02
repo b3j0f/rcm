@@ -40,8 +40,8 @@ from b3j0f.annotation.check import Target, MaxCount
 from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
 from b3j0f.rcm.core import Component
-from b3j0f.rcm.controller.core import Controller
-from b3j0f.rcm.controller.annotation import (
+from b3j0f.rcm.ctrl.core import Controller
+from b3j0f.rcm.ctrl.annotation import (
     CtrlAnnotation, C2CtrlAnnotation
 )
 

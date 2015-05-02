@@ -39,12 +39,12 @@ __all__ = [
     'PropertyController'
 ]
 
-from b3j0f.rcm.controller.core import Controller
-from b3j0f.rcm.controller.impl import ImplController
-from b3j0f.rcm.controller.binding import BindingController
-from b3j0f.rcm.controller.lifecycle import LifecycleController
-from b3j0f.rcm.controller.name import NameController
-from b3j0f.rcm.controller.remote import RemoteController
-from b3j0f.rcm.controller.intent import IntentController
-from b3j0f.rcm.controller.content import ContentController
-from b3j0f.rcm.controller.property import PropertyController
+from b3j0f.rcm.ctrl.core import Controller
+from b3j0f.rcm.ctrl.impl import ImplController
+from b3j0f.rcm.ctrl.binding import BindingController
+from b3j0f.rcm.ctrl.lifecycle import LifecycleController
+from b3j0f.rcm.ctrl.name import NameController
+from b3j0f.rcm.ctrl.remote import RemoteController
+from b3j0f.rcm.ctrl.intent import IntentController
+from b3j0f.rcm.ctrl.content import ContentController
+from b3j0f.rcm.ctrl.property import PropertyController

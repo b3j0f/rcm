@@ -145,7 +145,7 @@ class Port(Resource):
         self._selectpolicy = selectpolicy
         self._execpolicy = execpolicy
         self._resultpolicy = respolicy
-        # nonify self _proxy in order to execute self._renew_proxy asap
+        # nonify self _proxy in order to execute self._renewproxy asap
         self._proxy = None
 
     @property
@@ -167,7 +167,7 @@ class Port(Resource):
         if value != self._multiple:
             self._multiple = not self._multiple
 
-            self._renew_proxy()
+            self._renewproxy()
 
     @property
     def itfs(self):
@@ -179,7 +179,7 @@ class Port(Resource):
 
         super(Port, self).itfs = value
 
-        self._renew_proxy()
+        self._renewproxy()
 
     @property
     def resources(self):
@@ -198,7 +198,7 @@ class Port(Resource):
 
         # renew self _proxy if necessary
         if self._proxy is None:
-            self._renew_proxy()
+            self._renewproxy()
         # return self proxies
         result = self._proxy
 
@@ -207,60 +207,55 @@ class Port(Resource):
     def set_port(self, port, name=None, *args, **kwargs):
 
         # check port
-        if isinstance(port, Resource) and not self.check_res(resource=port):
+        if (
+            isinstance(port, Resource)
+            and not self.checkresource(resource=port)
+        ):
             # and raise related error
             raise Port.PortError(
                 "Resource {0} does not validate requirements {1}."
                 .format(port, self.itfs)
             )
 
-        result = name, old_port = super(Port, self).set_port(
+        name, old_port = super(Port, self).set_port(
             port=port, name=name, *args, **kwargs
         )
+        result = name, old_port
 
-        # boolean flag if resource change
-        change_of_resources = False
-        # remove old resource
-        if isinstance(old_port, Resource):
-            self._remove_resource(name=name, resource=old_port)
-            change_of_resources = True
-        # add new resource
-        if isinstance(port, Resource):
-            self._add_resource(name=name, resource=port)
-            change_of_resources = True
         # if resources have changed
-        if change_of_resources:
+        if isinstance(old_port, Resource) or isinstance(port, Resource):
             # renew self proxies
-            self._renew_proxy()
+            self._renewproxy()
 
         return result
 
-    def check_res(self, resource):
+    def checkresource(self, resource):
         """Check input resource related to self interfaces.
 
         :param Resource resource: resource to check.
         """
-        # result equals True by default
-        result = True
 
-        # check all resource itfs
-        for resource_itf in resource.itfs:
-            for self_itf in self.itfs:
-                result = resource_itf.is_sub_itf(self_itf)
-                if not result:
-                    break
+        # check if maximal number of resources have not been acquired
+        result = len(self.resources) < self.sup
+
+        if result:  # check all resource itfs
+            for resourceitf in resource.itfs:
+                for selfitf in self.itfs:
+                    result = resourceitf.issubitf(selfitf)
+                    if not result:
+                        break
 
         return result
 
-    def _renew_proxy(self):
+    def _renewproxy(self):
         """Renew self proxy and propagate new proxies to all ``bound_on``
         ports.
         """
 
         # get resources
-        resources = self.resources[self.inf:self.sup]
+        resources = self.resources
         # get bases interfaces
-        bases = (itf.py_class for itf in self.ifs)
+        bases = (itf.pycls for itf in self.ifs)
 
         # if multiple, proxies is a ProxySet
         if self.multiple:
@@ -291,7 +286,7 @@ class Port(Resource):
                             member_name[0] != '_' and isroutine(member)
                     ):
                         # get related method proxy
-                        method_proxy = self._method_proxy(
+                        method_proxy = self._methodproxy(
                             rountine=routine, proxies=proxies,
                             r_name=r_name
                         )
@@ -316,7 +311,7 @@ class Port(Resource):
                     # in this way, bound on ports will use new self proxies
                     component[bound_name] = self
 
-    def _method_proxy(self, routine, r_name, proxies):
+    def _methodproxy(self, routine, r_name, proxies):
         """Generate a routine proxy related to input routine, routine name and
         a list of proxies.
 
@@ -342,27 +337,27 @@ class Port(Resource):
 
         # wraps the rountine
         @wraps(routine)
-        def method_proxy(proxy_instance, *args, **kwargs):
+        def method_proxy(proxyinstance, *args, **kwargs):
             # check if proxies have to change dynamically
             if selectpolicy is None:
-                proxies_to_run = proxies
+                proxiestorun = proxies
             else:
-                proxies_to_run = selectpolicy(
+                proxiestorun = selectpolicy(
                     port=self, proxies=proxies, routine=r_name,
-                    instance=proxy_instance,
+                    instance=proxyinstance,
                     args=args, kwargs=kwargs
                 )
             # if execpolicy is None, process proxies
             if execpolicy is None:
                 results = []
-                for proxy_to_run in proxies_to_run:
+                for proxy_to_run in proxiestorun:
                     rountine = getattr(proxy_to_run, r_name)
                     method_res = rountine(*args, **kwargs)
                     results.append(method_res)
             else:  # if execpolicy is asked
                 results = execpolicy(
-                    port=self, proxies=proxies_to_run,
-                    routine=r_name, instance=proxy_instance,
+                    port=self, proxies=proxiestorun,
+                    routine=r_name, instance=proxyinstance,
                     args=args, kwargs=kwargs
                 )
             if respolicy is None:
@@ -376,7 +371,7 @@ class Port(Resource):
             else:
                 result = respolicy(
                     port=self, proxies=proxies,
-                    routine=r_name, instance=proxy_instance,
+                    routine=r_name, instance=proxyinstance,
                     args=args, kwargs=kwargs,
                     results=results
                 )
@@ -415,7 +410,7 @@ class ProxySet(tuple):
 
         for name in resources:
             resource = resources[name]
-            proxy = resource[name]
+            proxy = resource.proxy
             # ensure proxy is an Iterable
             if not isinstance(proxy, ProxySet):
                 proxy = (proxy,)

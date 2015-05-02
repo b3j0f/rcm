@@ -44,7 +44,11 @@ class TestPolicy(UTCase):
     """Test policy object.
     """
 
-    pass
+    def _get_policy_cls(self):
+        """
+        :return: parameterized policy class.
+        """
+        return Policy
 
 
 class TestParameterizedPolicy(TestPolicy):
