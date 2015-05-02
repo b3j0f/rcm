@@ -28,10 +28,37 @@
 from unittest import main
 
 from b3j0f.utils.ut import UTCase
+from b3j0f.rcm.core import Component
 from b3j0f.rcm.binding.core import Interface, Resource
 
 
-class InterfaceTest(UTCase):
+class TestResource(UTCase):
+    """Test Resource.
+    """
+
+    def test_noitfs(self):
+        """Test itfs consistency with default initialization parameter.
+        """
+        resource = Resource()
+
+        self.assertFalse(resource.itfs)
+
+    def test_itfs(self):
+        """Test itfs consistency with initialization parameter.
+        """
+        itfs = (1)
+        resource = Resource(itfs=itfs)
+        self.assertEqual(resource.itfs, itfs)
+
+    def test_proxy(self):
+        """Test resource proxy getter.
+        """
+
+        resource = Resource()
+        self.assertRaises(NotImplementedError, getattr, resource, 'proxy')
+
+
+class TestInterface(UTCase):
     """Test Interface.
     """
 
@@ -43,10 +70,33 @@ class InterfaceTest(UTCase):
         """Test to set a None value.
         """
 
-        self.interface = None
-        self.assertNone(self.interface.value, None)
-        self.assertIs(self.interface.pvalue, object)
+        self.interface = Interface()
+        self.assertIsNone(self.interface.value, None)
+        self.assertIs(self.interface.pycls, object)
 
+    def test_inconsistent_value(self):
+        """Test to instantiate an interface with an inconsistent value.
+        """
+
+        self.assertRaises(NotImplementedError, Interface, "")
+
+    def test_is_sub_itf(self):
+        """Test is_sub_itf method.
+        """
+
+        baseitf = Interface(value=object)
+        subitf = Interface(value=Component)
+        subsubitf = Interface(value=Resource)
+
+        self.assertFalse(baseitf.issubitf(subitf))
+        self.assertFalse(baseitf.issubitf(subsubitf))
+
+        self.assertFalse(subitf.issubitf(subsubitf))
+
+        self.assertTrue(subsubitf.issubitf(baseitf))
+        self.assertTrue(subsubitf.issubitf(subitf))
+
+        self.assertTrue(subitf.issubitf(baseitf))
 
 if __name__ == '__main__':
     main()

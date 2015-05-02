@@ -45,8 +45,6 @@ __all__ = [
 
 from inspect import isclass
 
-from b3j0f.utils.version import basestring
-from b3j0f.utils.path import lookup
 from b3j0f.rcm.core import Component
 
 
@@ -101,7 +99,7 @@ class Interface(object):
         pass
 
     VALUE = '_value'  #: value attribute name
-    PY_CLASS = '_py_class'  #: python class value attribute name
+    PYCLS = '_pycls'  #: python class value attribute name
 
     def __init__(self, value=None):
         """
@@ -131,29 +129,30 @@ class Interface(object):
 
         # set private value attribute
         self._value = value
-        # get _py_class
-        if value is None:
+        # get _pycls
+        if value is None:  # if value is None, use object
             value = object
-        elif isinstance(value, basestring):
-            value = self._renew_py_value()
+        elif not isclass(value):  # if not class, use py_class generator
+            value = self._getpycls()
+
         # check type of value
         if isclass(value):  # update attribute only if value is a class
-            self._py_class = value
+            self._pycls = value
         else:  # otherwise, raise an error
             raise Interface.ValueError(
                 "Wrong interface value {0}".format(value)
             )
 
     @property
-    def py_class(self):
+    def pycls(self):
         """Get python interface.
 
         :return: python interface.
         """
 
-        return self._py_class
+        return self._pycls
 
-    def _renew_py_value(self):
+    def _getpycls(self):
         """Protected method to override in order to get py_class from input
         value.
 
@@ -161,14 +160,9 @@ class Interface(object):
         :rtype: type
         """
 
-        try:
-            result = lookup(self.value)
-        except ImportError as ie:
-            raise Interface.ValueError(ie)
+        raise NotImplementedError()
 
-        return result
-
-    def is_sub_itf(self, itf):
+    def issubitf(self, itf):
         """Check if self is a sub interface of itf.
 
         :param Interface itf: interface to check.
@@ -176,4 +170,4 @@ class Interface(object):
         :rtype: bool
         """
 
-        return issubclass(self.py_class, itf.py_class)
+        return issubclass(self.pycls, itf.pycls)
