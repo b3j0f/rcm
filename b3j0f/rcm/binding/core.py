@@ -40,16 +40,11 @@ which are used by Port objects.
 """
 
 __all__ = [
-    'Resource', 'Port', 'Interface'
+    'Resource', 'Interface'
 ]
 
-from inspect import isclass, getmembers, isroutine
+from inspect import isclass
 
-from functools import wraps
-
-from sys import maxsize
-
-from b3j0f.utils.proxy import get_proxy
 from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
 from b3j0f.rcm.core import Component
@@ -61,6 +56,8 @@ class Resource(Component):
 
     It uses Interfaces in order to describe itself.
     """
+
+    ITFS = '_itfs'  #: interfaces attribute name
 
     def __init__(self, itfs=(), *args, **kwargs):
         """
@@ -91,7 +88,8 @@ class Resource(Component):
 
 
 class Interface(object):
-    """Port interface which is used to check and to generate proxy resource.
+    """Resource interface which is used to check and to generate proxy
+    resource.
 
     Provides a ``py_class`` which is the python interface corresponding to the
     value.
@@ -130,6 +128,7 @@ class Interface(object):
 
         :param str value: new value interface.
         """
+
         # set private value attribute
         self._value = value
         # get _py_class

@@ -172,7 +172,7 @@ class Port(Resource):
     @property
     def itfs(self):
 
-        return self._itfs
+        return super(Port, self).itfs
 
     @itfs.setter
     def itfs(self, value):
@@ -264,12 +264,12 @@ class Port(Resource):
 
         # if multiple, proxies is a ProxySet
         if self.multiple:
-            self._proxies = ProxySet(
+            self._proxy = ProxySet(
                 port=self, resources=resources, bases=bases
             )
         else:  # use one object which propagates methods to resource proxies
             if not resources:  # do nothing if resources is empty
-                self._proxies = None
+                self._proxy = None
             else:
                 proxies = []  # get a list of proxies
                 for resource_name in resources:
@@ -282,13 +282,6 @@ class Port(Resource):
                 # embed proxies in a policy result set for future policies
                 proxies = PolicyResultSet(proxies)
                 _dict = {}  # proxy dict to fill with dedicated methods
-                # get selectpolicy and execpolicy
-                selectpolicy = self._selectpolicy
-                selectpolicyisdict = isinstance(selectpolicy, dict)
-                execpolicy = self._execpolicy
-                execpolicyisdict = isinstance(execpolicy, dict)
-                respolicy = self._respolicy
-                respolicyisdict = isinstance(respolicy, dict)
                 # wraps all interface methods
                 for base in bases:
                     # among public members
@@ -297,62 +290,11 @@ class Port(Resource):
                         lambda member_name, member:
                             member_name[0] != '_' and isroutine(member)
                     ):
-                        # get the rights selectpolicy and execpolicy
-                        if selectpolicyisdict:
-                            _selectpolicy = selectpolicy.get(r_name)
-                        else:
-                            _selectpolicy = selectpolicy
-                        if execpolicyisdict:
-                            _execpolicy = execpolicy.get(r_name)
-                        else:
-                            _execpolicy = execpolicy
-                        if respolicyisdict:
-                            _respolicy = respolicy.get(r_name)
-                        else:
-                            _respolicy = respolicy
-
-                        # wraps the rountine
-                        @wraps(routine)
-                        def method_proxy(proxy_instance, *args, **kwargs):
-                            # check if proxies have to change dynamically
-                            if _selectpolicy is None:
-                                proxies_to_run = proxies
-                            else:
-                                proxies_to_run = selectpolicy(
-                                    port=self, proxies=proxies, routine=r_name,
-                                    instance=proxy_instance,
-                                    args=args, kwargs=kwargs
-                                )
-                            # if execpolicy is None, process proxies
-                            if _execpolicy is None:
-                                results = []
-                                for proxy_to_run in proxies_to_run:
-                                    rountine = getattr(proxy_to_run, r_name)
-                                    method_res = rountine(*args, **kwargs)
-                                    results.append(method_res)
-                            else:  # if execpolicy is asked
-                                results = _execpolicy(
-                                    port=self, proxies=proxies_to_run,
-                                    routine=r_name, instance=proxy_instance,
-                                    args=args, kwargs=kwargs
-                                )
-                            if _respolicy is None:
-                                if (
-                                    isinstance(results, PolicyResultSet)
-                                    and results
-                                ):
-                                    result = [0]
-                                else:
-                                    result = results
-                            else:
-                                result = _respolicy(
-                                    port=self, proxies=proxies,
-                                    routine=r_name, instance=proxy_instance,
-                                    args=args, kwargs=kwargs,
-                                    results=results
-                                )
-                            return result
-
+                        # get related method proxy
+                        method_proxy = self._method_proxy(
+                            rountine=routine, proxies=proxies,
+                            r_name=r_name
+                        )
                         # update _dict with method proxy
                         _dict[r_name] = method_proxy
 
@@ -361,9 +303,10 @@ class Port(Resource):
                     lambda *args, **kwargs: None
                 )
                 # get proxy elt
-                elt = type('Proxy', bases, _dict)()
+                proxycls = type('Proxy', bases, _dict)
+                proxy = proxycls()
                 # generate a dedicated proxy which respects method signatures
-                self._proxy = get_proxy(elt=elt, bases=bases, _dict=_dict)
+                self._proxy = get_proxy(elt=proxy, bases=bases, _dict=_dict)
 
         # and propagate changes to "bound on" ports
         for component in self._bound_on:
@@ -372,6 +315,74 @@ class Port(Resource):
                 for bound_name in bound_names:
                     # in this way, bound on ports will use new self proxies
                     component[bound_name] = self
+
+    def _method_proxy(self, routine, r_name, proxies):
+        """Generate a routine proxy related to input routine, routine name and
+        a list of proxies.
+
+        :param routine: routine to proxify.
+        :param str r_name: routine name.
+        :param PolicyResultSet proxies: proxies to proxify.
+        :return: routine proxy.
+        """
+
+        # get the rights selectpolicy and execpolicy
+        if isinstance(self._selectpolicy, dict):
+            selectpolicy = self._selectpolicy.get(r_name)
+        else:
+            selectpolicy = self._selectpolicy
+        if isinstance(self._execpolicy, dict):
+            execpolicy = self._execpolicy.get(r_name)
+        else:
+            execpolicy = self._execpolicy
+        if isinstance(self._respolicy, dict):
+            respolicy = self._respolicy.get(r_name)
+        else:
+            respolicy = self._respolicy
+
+        # wraps the rountine
+        @wraps(routine)
+        def method_proxy(proxy_instance, *args, **kwargs):
+            # check if proxies have to change dynamically
+            if selectpolicy is None:
+                proxies_to_run = proxies
+            else:
+                proxies_to_run = selectpolicy(
+                    port=self, proxies=proxies, routine=r_name,
+                    instance=proxy_instance,
+                    args=args, kwargs=kwargs
+                )
+            # if execpolicy is None, process proxies
+            if execpolicy is None:
+                results = []
+                for proxy_to_run in proxies_to_run:
+                    rountine = getattr(proxy_to_run, r_name)
+                    method_res = rountine(*args, **kwargs)
+                    results.append(method_res)
+            else:  # if execpolicy is asked
+                results = execpolicy(
+                    port=self, proxies=proxies_to_run,
+                    routine=r_name, instance=proxy_instance,
+                    args=args, kwargs=kwargs
+                )
+            if respolicy is None:
+                if (
+                    isinstance(results, PolicyResultSet)
+                    and results
+                ):
+                    result = [0]
+                else:
+                    result = results
+            else:
+                result = respolicy(
+                    port=self, proxies=proxies,
+                    routine=r_name, instance=proxy_instance,
+                    args=args, kwargs=kwargs,
+                    results=results
+                )
+            return result
+
+        return method_proxy
 
 
 class ProxySet(tuple):
