@@ -55,7 +55,7 @@ class TestResource(UTCase):
         """
 
         resource = Resource()
-        self.assertRaises(NotImplementedError, getattr, resource, 'proxy')
+        self.assertRaises(NotImplementedError, resource.getproxy)
 
 
 class TestInterface(UTCase):

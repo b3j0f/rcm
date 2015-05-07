@@ -34,7 +34,7 @@ __all__ = [
     'C2Ctrl2CAnnotation', 'CtrlAnnotationInterceptor',
     'Controllers',  # Controller annotation
     'Port', 'SetPort', 'RemPort',  # impl controller annotations
-    'gettername', 'settername'
+    'getter_name', 'setter_name'
 ]
 
 from inspect import getmembers, isroutine, getargspec
@@ -177,7 +177,7 @@ class Ctrl2CAnnotation(CtrlAnnotation):
         """Handle Ctrl2CAnnotation errors.
         """
 
-    def getresult(self, component, impl, member, result):
+    def get_result(self, component, impl, member, result):
         """Callback method after calling the annotated implementation routine.
 
         :param Component component: implementation component.
@@ -189,7 +189,7 @@ class Ctrl2CAnnotation(CtrlAnnotation):
         raise NotImplementedError()
 
     @classmethod
-    def callgetters(cls, component, impl):
+    def call_getters(cls, component, impl):
         """Call impl getters of type cls.
 
         :param Component component: implementation component.
@@ -205,12 +205,12 @@ class Ctrl2CAnnotation(CtrlAnnotation):
                 getattr(m, '__name__', None) not in ['__init__', '__new__']
         ):
             # for each one, try to call setter annotations
-            cls.callgetter(
+            cls.call_getter(
                 component=component, impl=impl, getter=member
             )
 
     @classmethod
-    def callgetter(
+    def call_getter(
         cls, component, impl, getter, args=None, kwargs=None, force=False
     ):
         """Call getter if it is annotated by cls.
@@ -237,7 +237,7 @@ class Ctrl2CAnnotation(CtrlAnnotation):
             # call the getter and save the result
             result = getter(*args, **kwargs)
             for b2ca in b2cas:  # update args and kwargs with sias
-                b2ca.getresult(
+                b2ca.get_result(
                     component=component,
                     impl=impl,
                     getter=getter,
@@ -301,15 +301,15 @@ class C2CtrlAnnotation(CtrlAnnotation):
         self.update = update
 
     @classmethod
-    def callsetters(cls, component, impl, callgetters=False):
+    def call_setters(cls, component, impl, call_getters=False):
         """Call impl setters of type cls.
 
         :param Component component: implementation component.
         :param impl: implementation instance.
-        :param bool callgetters: call getters at the end of processing.
+        :param bool call_getters: call getters at the end of processing.
         """
 
-        if callgetters:
+        if call_getters:
             values_by_members = {}
 
         # get members to parse (routines and not constructors)
@@ -324,13 +324,13 @@ class C2CtrlAnnotation(CtrlAnnotation):
         # parse members
         for name, member in members:
             # for each one, try to call setter annotations
-            value = cls.callsetter(
+            value = cls.call_setter(
                 component=component, impl=impl, setter=member
             )
-            if callgetters and value is not None:
+            if call_getters and value is not None:
                 values_by_members[member] = value
 
-        if callgetters:
+        if call_getters:
             # parse members
             for name, member in members:
                 if member in values_by_members:  # if value already exists
@@ -338,17 +338,17 @@ class C2CtrlAnnotation(CtrlAnnotation):
                     # update value in all Ctrl2CAnnotations
                     b2cas = Ctrl2CAnnotation.get_annotations(member, ctx=impl)
                     for b2ca in b2cas:
-                        b2ca.getresult(
+                        b2ca.get_result(
                             component=component, impl=impl, member=member,
                             result=value
                         )
                 else:  # execute the member with all Ctrl2CAnnotations
-                    Ctrl2CAnnotation.callgetter(
+                    Ctrl2CAnnotation.call_getter(
                         component=component, impl=impl, getter=member
                     )
 
     @classmethod
-    def callsetter(
+    def call_setter(
         cls, component, impl, setter=None, args=None, kwargs=None, force=False
     ):
         """Call setter if it is annotated by cls.
@@ -410,13 +410,13 @@ class C2CtrlAnnotation(CtrlAnnotation):
         param = self.param
 
         if param is None:  # append default value to args
-            value = self.getvalue(
+            value = self.get_value(
                 component=component, impl=impl, member=member, _upctx={},
                 **ks
             )
             args.append(value)
         elif isinstance(param, basestring):  # if param is a str
-            value = self.getvalue(
+            value = self.get_value(
                 component=component, impl=impl, member=member,
                 pname=param if self.ispname else None, _upctx={},
                 **ks
@@ -437,7 +437,7 @@ class C2CtrlAnnotation(CtrlAnnotation):
                 # do nothing if update and param already in kwargs
                 if update or kwarg not in kwargs:
                     pname = param[kwarg]
-                    value = self.getvalue(
+                    value = self.get_value(
                         component=component, impl=impl, member=member,
                         pname=pname,
                         _upctx=ctx,
@@ -449,7 +449,7 @@ class C2CtrlAnnotation(CtrlAnnotation):
             # initialize a new ctx related to self setter
             ctx = {}
             for index, pname in enumerate(param):
-                value = self.getvalue(
+                value = self.get_value(
                     component=component,
                     impl=impl,
                     member=member,
@@ -467,7 +467,7 @@ class C2CtrlAnnotation(CtrlAnnotation):
                     if update or name not in kwargs:
                         kwargs[name] = value
 
-    def getvalue(
+    def get_value(
         self, component, impl, _upctx, member=None, pname=None, **ks
     ):
         """Get value parameter.
@@ -475,7 +475,7 @@ class C2CtrlAnnotation(CtrlAnnotation):
         :param Component component: implementation component.
         :param impl: implementation instance.
         :param dict _upctx: dictionary dedicated to manage shared values among
-            several call of self.getvalue in the same execution of
+            several call of self.get_value in the same execution of
             self._update_params.
         :param member: implementation member.
         :param str pname: parameter name. If None, result is component. Else,
@@ -490,7 +490,7 @@ class C2CtrlAnnotation(CtrlAnnotation):
             result = component.get(pname)
         elif isinstance(pname, Iterable):  # if iterable, return all get_values
             result = [
-                self.getvalue(
+                self.get_value(
                     component=component,
                     impl=impl,
                     member=member,
@@ -598,7 +598,7 @@ class CtrlAnnotationInterceptor(CtrlAnnotation):
 
         # get args
         args = [
-            self._getparam(
+            self._get_param(
                 name=name,
                 component=component,
                 impl=impl,
@@ -614,7 +614,7 @@ class CtrlAnnotationInterceptor(CtrlAnnotation):
         kwargs = {}
         for intercepted_param in self.kparams:
             interception_param = self.kparams[intercepted_param]
-            kwargs[interception_param] = self._getparam(
+            kwargs[interception_param] = self._get_param(
                 name=intercepted_param,
                 component=component,
                 impl=impl,
@@ -627,7 +627,7 @@ class CtrlAnnotationInterceptor(CtrlAnnotation):
 
         return args, kwargs
 
-    def _getparam(
+    def _get_param(
         self, name, component, impl, member, joinpoint, when, result, argspec
     ):
         """Get specific param value related to input parameters.
@@ -670,7 +670,7 @@ class CtrlAnnotationInterceptor(CtrlAnnotation):
 
         return result
 
-    def _getadvice(self, component, impl, member):
+    def _get_advice(self, component, impl, member):
         """Get an advice able to proceed impl member.
         """
 
@@ -713,7 +713,7 @@ class CtrlAnnotationInterceptor(CtrlAnnotation):
 
         return advice
 
-    def gettargetctx(self, *args, **kwargs):
+    def get_target_ctx(self, *args, **kwargs):
         """Get target and ctx related to apply/unapply calls.
 
         :return: target and ctx.
@@ -724,11 +724,11 @@ class CtrlAnnotationInterceptor(CtrlAnnotation):
 
     def apply(self, component, impl, member, *args, **kwargs):
 
-        target, ctx = self.gettargetctx(
+        target, ctx = self.get_target_ctx(
             component=component, impl=impl, member=member, *args, **kwargs
         )
 
-        advice = self._getadvice(
+        advice = self._get_advice(
             component=component, impl=impl, member=member
         )
 
@@ -738,31 +738,31 @@ class CtrlAnnotationInterceptor(CtrlAnnotation):
 class SetPort(CtrlAnnotationInterceptor):
     """Called when a port is bound to component.
 
-    Specific parameters are Component.setport parameters:
+    Specific parameters are Component.set_port parameters:
 
     - name: new port name.
     - port: new port.
     """
 
-    def gettargetctx(self, component, *args, **kwargs):
+    def get_target_ctx(self, component, *args, **kwargs):
 
-        return component.setport, component
+        return component.set_port, component
 
 
 class RemPort(CtrlAnnotationInterceptor):
     """Called when a port is unbound from component.
 
-    Specific parameters are Component.removeport parameters:
+    Specific parameters are Component.remove_port parameters:
 
     - name: port name to remove.
     """
 
-    def gettargetctx(self, component, *args, **kwargs):
+    def get_target_ctx(self, component, *args, **kwargs):
 
-        return component.removeport, component
+        return component.remove_port, component
 
 
-def _accessorname(accessor, prefix):
+def _accessor_name(accessor, prefix):
     """Get accessor name which could contain prefix.
     """
 
@@ -779,15 +779,15 @@ def _accessorname(accessor, prefix):
     return result
 
 
-def gettername(getter):
+def getter_name(getter):
     """Get getter name.
     """
 
-    return _accessorname(getter, 'get')
+    return _accessor_name(getter, 'get')
 
 
-def settername(setter):
+def setter_name(setter):
     """Get setter name.
     """
 
-    return _accessorname(setter, 'set')
+    return _accessor_name(setter, 'set')

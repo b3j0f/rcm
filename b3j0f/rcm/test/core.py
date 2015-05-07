@@ -41,17 +41,17 @@ class ComponentTest(UTCase):
 
             self.componentest = componentest
 
-        def _onbind(self, component, name, *args, **kwargs):
+        def _on_bind(self, component, name, *args, **kwargs):
 
-            super(ComponentTest.TestPort, self)._onbind(
+            super(ComponentTest.TestPort, self)._on_bind(
                 component=component, name=name, *args, **kwargs
             )
 
             self.componentest.bindcount -= 1
 
-        def _onunbind(self, component, name, *args, **kwargs):
+        def _on_unbind(self, component, name, *args, **kwargs):
 
-            super(ComponentTest.TestPort, self)._onunbind(
+            super(ComponentTest.TestPort, self)._on_unbind(
                 component=component, name=name, *args, **kwargs
             )
 
@@ -213,7 +213,7 @@ class ComponentTest(UTCase):
 
         for name in self.namedports:
             port = self.namedports[name]
-            self.component.setport(port=port, name=name)
+            self.component.set_port(port=port, name=name)
         self._testexistingports()
 
     def test_unbind_port(self):
@@ -237,75 +237,75 @@ class ComponentTest(UTCase):
 
         for name in self.namedports:
             self.assertTrue(self.component.contains(name))
-            self.component.removeport(name)
+            self.component.remove_port(name)
             self.assertFalse(self.component.contains(name))
 
         self.assertEqual(len(self.component), 0)
 
     def test_get_ports_default(self):
-        """Test getports method without parameters.
+        """Test get_ports method without parameters.
         """
 
         self._initcomponentwithports()
 
-        ports = self.component.getports()
+        ports = self.component.get_ports()
 
         self.assertEqual(ports, self.namedports)
 
     def test_get_ports_name(self):
-        """Test getports method with name.
+        """Test get_ports method with name.
         """
 
         self._initcomponentwithports()
 
         for name in self.namedports:
-            ports = self.component.getports(names=name)
+            ports = self.component.get_ports(names=name)
             self.assertEqual(len(ports), 1)
             self.assertIn(name, ports)
 
     def test_get_ports_names(self):
-        """Test getports method with names.
+        """Test get_ports method with names.
         """
 
         self._initcomponentwithports()
         names = list(self.namedports.keys())[1:]
-        ports = self.component.getports(names=names)
+        ports = self.component.get_ports(names=names)
 
         self.assertEqual(len(ports), len(self.namedports) - 1)
         for name in names:
             self.assertIn(name, ports)
 
     def test_get_ports_regex(self):
-        """Test getports method with names such as regex.
+        """Test get_ports method with names such as regex.
         """
 
         self._initcomponentwithports()
         names = ".*"
-        ports = self.component.getports(names=names)
+        ports = self.component.get_ports(names=names)
 
         self.assertEqual(len(ports), len(self.namedports))
 
     def test_get_ports_list_regex(self):
-        """Test getports method with names such as list of regex.
+        """Test get_ports method with names such as list of regex.
         """
 
         self._initcomponentwithports()
         full_names = [name for name in list(self.namedports)[:2]]
         names = ["^{0}.*".format(name[:2]) for name in full_names]
-        ports = self.component.getports(names=names)
+        ports = self.component.get_ports(names=names)
 
         self.assertEqual(len(ports), 2)
         for name in full_names:
             self.assertIn(name, ports)
 
     def test_get_ports_type(self):
-        """Test getports method with type.
+        """Test get_ports method with type.
         """
 
         self._initcomponentwithports()
 
         _type = ComponentTest.TestPort
-        ports = self.component.getports(types=_type)
+        ports = self.component.get_ports(types=_type)
 
         self.assertEqual(len(ports), self.numberoftestport)
         for name in ports:
@@ -313,7 +313,7 @@ class ComponentTest(UTCase):
             self.assertTrue(isinstance(port, _type))
 
     def test_get_ports_types(self):
-        """Test getports method with types.
+        """Test get_ports method with types.
         """
 
         self._initcomponentwithports()
@@ -326,7 +326,7 @@ class ComponentTest(UTCase):
                 types.append(port.__class__)
 
         self.assertTrue(types)
-        ports = self.component.getports(types=types)
+        ports = self.component.get_ports(types=types)
 
         self.assertEqual(len(ports), len(types))
 
@@ -335,7 +335,7 @@ class ComponentTest(UTCase):
             self.assertFalse(isinstance(port, Component))
 
     def test_get_ports_select(self):
-        """Test getports method with a combination of names and types.
+        """Test get_ports method with a combination of names and types.
         """
 
         self._initcomponentwithports()
@@ -347,7 +347,7 @@ class ComponentTest(UTCase):
             ]
         )
 
-        ports = self.component.getports(
+        ports = self.component.get_ports(
             select=lambda name, port: isinstance(port, Component)
         )
 
@@ -433,7 +433,7 @@ class ComponentTest(UTCase):
 
         self._initcomponentwithports()
 
-        ports = Component.GETPORTS(self.component)
+        ports = Component.GET_PORTS(self.component)
 
         component_ports = {}
         for name in self.namedports:
@@ -452,7 +452,7 @@ class ComponentTest(UTCase):
         for name in self.namedports:
             port = self.namedports[name]
             if isinstance(port, Component):
-                ports = Component.GETPORTS(self.component, names=name)
+                ports = Component.GET_PORTS(self.component, names=name)
                 self.assertEqual(len(ports), 1)
                 self.assertIn(name, ports)
 
@@ -465,7 +465,7 @@ class ComponentTest(UTCase):
             name for name in self.namedports
             if isinstance(self.namedports[name], Component)
         ]
-        ports = Component.GETPORTS(self.component, names=names)
+        ports = Component.GET_PORTS(self.component, names=names)
 
         self.assertEqual(len(ports), len(names))
         for name in names:
@@ -477,7 +477,7 @@ class ComponentTest(UTCase):
 
         self._initcomponentwithports()
 
-        ports = ComponentTest.TestPort.GETPORTS(self.component)
+        ports = ComponentTest.TestPort.GET_PORTS(self.component)
 
         self.assertEqual(len(ports), self.numberoftestport)
         for name in ports:
@@ -497,7 +497,7 @@ class ComponentTest(UTCase):
             ]
         )
 
-        ports = Component.GETPORTS(
+        ports = Component.GET_PORTS(
             self.component,
             select=lambda name, port: isinstance(port, Component)
         )
@@ -510,7 +510,7 @@ class ComponentTest(UTCase):
 
         port = 'test'
 
-        generated_name, _ = self.component.setport(port=port)
+        generated_name, _ = self.component.set_port(port=port)
 
         self.assertIs(self.component[generated_name], port)
 

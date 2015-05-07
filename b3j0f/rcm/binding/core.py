@@ -48,43 +48,6 @@ from inspect import isclass
 from b3j0f.rcm.core import Component
 
 
-class Resource(Component):
-    """Resource element which implements the proxy design pattern in order
-    to separate resource realization from its usage.
-
-    It uses Interfaces in order to describe itself.
-    """
-
-    ITFS = '_itfs'  #: interfaces attribute name
-
-    def __init__(self, itfs=(), *args, **kwargs):
-        """
-        :param Iterable itfs: list of Interface which describe this resource.
-        """
-        super(Resource, self).__init__(*args, **kwargs)
-
-        self._itfs = itfs
-
-    @property
-    def itfs(self):
-
-        return self._itfs
-
-    @itfs.setter
-    def itfs(self, value):
-
-        self._itfs = value
-
-    @property
-    def proxy(self):
-        """Get resource proxy.
-
-        :return: self proxy.
-        """
-
-        raise NotImplementedError()
-
-
 class Interface(object):
     """Resource interface which is used to check and to generate proxy
     resource.
@@ -109,6 +72,14 @@ class Interface(object):
         super(Interface, self).__init__()
 
         self.value = value
+
+    def __repr__(self):
+
+        result = "Interface(id={0}, value={1}, pycls={2})".format(
+            id(self), self.value, self.pycls
+        )
+
+        return result
 
     @property
     def value(self):
@@ -171,3 +142,47 @@ class Interface(object):
         """
 
         return issubclass(self.pycls, itf.pycls)
+
+
+class Resource(Component):
+    """Resource element which implements the proxy design pattern in order
+    to separate resource realization from its usage.
+
+    It uses Interfaces in order to describe itself.
+    """
+
+    ITFS = '_itfs'  #: interfaces attribute name
+
+    def __init__(self, itfs=(Interface(),), *args, **kwargs):
+        """
+        :param Iterable itfs: list of Interface which describe this resource.
+        """
+        super(Resource, self).__init__(*args, **kwargs)
+
+        self._itfs = itfs
+
+    @property
+    def itfs(self):
+
+        return self._itfs
+
+    @itfs.setter
+    def itfs(self, value):
+
+        self._setitfs(itfs=value)
+
+    def _setitfs(self, itfs):
+        """Change of itfs.
+
+        :param list itfs: list of interfaces to use.
+        """
+
+        self._itfs = itfs
+
+    def getproxy(self):
+        """Get resource proxy.
+
+        :return: self proxy.
+        """
+
+        raise NotImplementedError()

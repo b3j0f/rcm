@@ -29,6 +29,98 @@ from unittest import main
 
 from b3j0f.utils.ut import UTCase
 from b3j0f.rcm.binding.port import ProxySet, Port
+from b3j0f.rcm.binding.core import Interface
+
+
+class PortTest(UTCase):
+    """Test Port.
+    """
+
+    def test_sup(self):
+        """Test to put more resources than granted.
+        """
+
+        port = Port(sup=2)
+
+        port.setport(port)
+        port.setport(port)
+        self.assertRaises(Port.PortError, port.setport, port)
+
+        resources = port.getresources()
+        self.assertEqual(len(resources), 2)
+
+    def test_inf(self):
+        """Test to put less resources than granted.
+        """
+
+        port = Port(inf=2)
+
+        self.assertRaises(Port.PortError, port.setport, port)
+        port.setport(port)
+
+        resources = port.getresources()
+        self.assertEqual(len(resources), 2)
+
+    def test_checkresource(self):
+        """Test the checkresource method.
+        """
+
+        port = Port()
+
+        port2 = Port()
+
+        # check with default interfaces
+        checked = port.checkresource(port2)
+        self.assertTrue(checked)
+
+        # uncheck with int interface
+        port.itfs = (Interface(value=int),)
+        checked = port.checkresource(port2)
+        self.assertFalse(checked)
+
+        # check back with int interface
+        port2.itfs = (Interface(value=int),)
+        checked = port.checkresource(port2)
+        self.assertTrue(checked)
+
+        # check back with object interface
+        port.itfs = (Interface(),)
+        checked = port.checkresource(port2)
+        self.assertTrue(checked)
+
+    def test_multiple(self):
+        """Test multiple port.
+        """
+
+        port = Port(multiple=True)
+
+        proxy = port.getproxy()
+        self.assertIsInstance(proxy, ProxySet)
+        self.assertFalse(proxy)
+
+        port2 = Port()
+        port.setport(port2)
+        proxy = port.getproxy()
+        self.assertIsInstance(proxy, ProxySet)
+        self.assertTrue(proxy)
+
+    def test_notmultiple(self):
+        """Test not multiple port.
+        """
+
+        port = Port(multiple=False)
+
+        proxy = port.getproxy()
+        self.assertIsNone(proxy)
+
+    def test_renewproxy(self):
+        """Test _renewproxy method.
+        """
+
+        port = Port()
+        port2 = Port()
+
+        port.setport(port2)
 
 
 class TestProxySet(UTCase):
@@ -38,19 +130,6 @@ class TestProxySet(UTCase):
     def setUp(self):
 
         self.proxyset = ProxySet()
-
-
-class PortTest(UTCase):
-    """Test Port.
-    """
-
-    class TestPort(Port):
-
-        pass
-
-    def setUp(self):
-
-        self.port = PortTest.TestPort()
 
 
 if __name__ == '__main__':

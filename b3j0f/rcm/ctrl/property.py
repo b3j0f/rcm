@@ -35,7 +35,7 @@ __all__ = [
 from b3j0f.aop import weave, unweave
 from b3j0f.rcm.ctrl.core import Controller
 from b3j0f.rcm.ctrl.annotation import (
-    CtrlAnnotation, gettername, settername, C2CtrlAnnotation
+    CtrlAnnotation, getter_name, setter_name, C2CtrlAnnotation
 )
 from b3j0f.rcm.ctrl.impl import ImplController
 

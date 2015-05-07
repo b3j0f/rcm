@@ -35,7 +35,7 @@ from b3j0f.rcm.ctrl.annotation import (
     C2Ctrl2CAnnotation,
     CtrlAnnotationInterceptor,
     SetPort, RemPort, Port,
-    gettername, settername
+    getter_name, setter_name
 )
 
 
@@ -44,7 +44,7 @@ class BaseControllerTest(UTCase):
     def setUp(self):
 
         self.component = Component()
-        Controller.bindto(self.component)
+        Controller.bind_to(self.component)
 
 
 class TestCtrlAnnotation(BaseControllerTest):
@@ -156,21 +156,21 @@ class TestCtrl2CAnnotation(BaseControllerTest):
 
     class Ann(Ctrl2CAnnotation):
 
-        def getresult(self, result, **kwargs):
+        def get_result(self, result, **kwargs):
 
             result.count += 1
 
     def test_get_result(self):
-        """Test getresult method.
+        """Test get_result method.
         """
 
         annotation = TestCtrl2CAnnotation.Ann()
 
-        annotation.getresult(result=self)
+        annotation.get_result(result=self)
         self.assertEqual(self.count, 1)
 
     def test_call_getter(self):
-        """Test callgetter method.
+        """Test call_getter method.
         """
 
         class Test(object):
@@ -184,13 +184,13 @@ class TestCtrl2CAnnotation(BaseControllerTest):
                 return self.tb2ca
 
         test = Test()
-        Ctrl2CAnnotation.callgetter(
+        Ctrl2CAnnotation.call_getter(
             component=None, impl=test, getter=test.test
         )
         self.assertEqual(self.count, 1)
 
     def test_call_getters(self):
-        """Test callgetters method.
+        """Test call_getters method.
         """
 
         class Test(object):
@@ -204,7 +204,7 @@ class TestCtrl2CAnnotation(BaseControllerTest):
                 return self.tb2ca
 
         test = Test()
-        Ctrl2CAnnotation.callgetters(
+        Ctrl2CAnnotation.call_getters(
             component=None, impl=test
         )
         self.assertEqual(self.count, 1)
@@ -245,7 +245,7 @@ class TestC2CtrlAnnotation(BaseControllerTest):
 
         self.assertRaises(
             C2CtrlAnnotation.C2CtrlError,
-            C2CtrlAnnotation.callsetter,
+            C2CtrlAnnotation.call_setter,
             component=None,
             impl=Test
         )
@@ -261,7 +261,7 @@ class TestC2CtrlAnnotation(BaseControllerTest):
 
                 self.test = test
 
-        impl = C2CtrlAnnotation.callsetter(component=None, impl=Test)
+        impl = C2CtrlAnnotation.call_setter(component=None, impl=Test)
 
         self.assertIs(impl.test, 1)
 
@@ -276,7 +276,7 @@ class TestC2CtrlAnnotation(BaseControllerTest):
 
                 self.test = test
 
-        impl = C2CtrlAnnotation.callsetter(component=None, impl=Test)
+        impl = C2CtrlAnnotation.call_setter(component=None, impl=Test)
 
         self.assertIs(impl.test, 1)
 
@@ -294,7 +294,7 @@ class TestC2CtrlAnnotation(BaseControllerTest):
 
         self.assertRaises(
             C2CtrlAnnotation.C2CtrlError,
-            C2CtrlAnnotation.callsetter,
+            C2CtrlAnnotation.call_setter,
             component=None,
             impl=test,
             setter=test.test
@@ -312,7 +312,7 @@ class TestC2CtrlAnnotation(BaseControllerTest):
 
         test = Test()
 
-        C2CtrlAnnotation.callsetter(
+        C2CtrlAnnotation.call_setter(
             component=None, impl=test, setter=test.test
         )
         self.assertIs(test.test, 1)
@@ -332,7 +332,7 @@ class TestC2CtrlAnnotation(BaseControllerTest):
 
         test = Test()
 
-        C2CtrlAnnotation.callsetter(
+        C2CtrlAnnotation.call_setter(
             component=None, impl=test, setter=test.test
         )
         self.assertIs(test.a, 0)
@@ -340,7 +340,7 @@ class TestC2CtrlAnnotation(BaseControllerTest):
         self.assertIs(test.test, 1)
 
     def test_call_setters(self):
-        """Test callsetters method.
+        """Test call_setters method.
         """
 
         class Ann(C2CtrlAnnotation):
@@ -375,7 +375,7 @@ class TestC2CtrlAnnotation(BaseControllerTest):
 
         test = Test()
 
-        C2CtrlAnnotation.callsetters(component=None, impl=test)
+        C2CtrlAnnotation.call_setters(component=None, impl=test)
 
         self.assertEqual(test.count, 1111)
 
@@ -409,7 +409,7 @@ class TestC2CtrlAnnotation(BaseControllerTest):
                     self.c = c
                     self.d = d
 
-            test = C2CtrlAnnotation.callsetter(component=None, impl=Test)
+            test = C2CtrlAnnotation.call_setter(component=None, impl=Test)
 
             self.assertIs(a, test.a)
             self.assertIs(b, test.b)
@@ -465,12 +465,12 @@ class TestC2CtrlAnnotation(BaseControllerTest):
         return Test, annotation
 
     def test_force(self):
-        """Test callsetter with in forcing.
+        """Test call_setter with in forcing.
         """
 
         Test = self._get_parameterized_class()
 
-        impl = C2CtrlAnnotation.callsetter(
+        impl = C2CtrlAnnotation.call_setter(
             component=None, impl=Test, force=True
         )
 
@@ -503,12 +503,12 @@ class TestC2CtrlAnnotation(BaseControllerTest):
         return args, kwargs
 
     def test_not_force(self):
-        """Test callsetter with not force.
+        """Test call_setter with not force.
         """
 
         Test = self._get_parameterized_class()
 
-        impl = C2CtrlAnnotation.callsetter(component=None, impl=Test)
+        impl = C2CtrlAnnotation.call_setter(component=None, impl=Test)
 
         self.assertIsNone(impl)
 
@@ -643,7 +643,7 @@ class TestC2Ctrl2CAnnotation(BaseControllerTest):
 
             return self.tcbc
 
-        def getresult(self, result, *args, **kwargs):
+        def get_result(self, result, *args, **kwargs):
 
             result.count_result += 1
 
@@ -665,8 +665,8 @@ class TestC2Ctrl2CAnnotation(BaseControllerTest):
 
         test = Test()
 
-        C2CtrlAnnotation.callsetters(
-            component=None, impl=test, callgetters=True
+        C2CtrlAnnotation.call_setters(
+            component=None, impl=test, call_getters=True
         )
         self.assertEqual(self.count_value, 1)
         self.assertEqual(self.count_result, 1)
@@ -700,7 +700,7 @@ class TestPort(UTCase):
                 self.noparam = noparam
                 self.param = param
 
-        result = C2CtrlAnnotation.callsetter(
+        result = C2CtrlAnnotation.call_setter(
             component=self.component, impl=Test
         )
 
@@ -744,7 +744,7 @@ class TestPort(UTCase):
 
 
 class TestGetterName(UTCase):
-    """Test gettername function.
+    """Test getter_name function.
     """
 
     def test_default(self):
@@ -754,36 +754,36 @@ class TestGetterName(UTCase):
         def test():
             pass
 
-        name = gettername(test)
+        name = getter_name(test)
 
         self.assertEqual(name, 'test')
 
     def test_prefix(self):
-        """Test to get a getter name from a function with gettername prefix.
+        """Test to get a getter name from a function with getter_name prefix.
         """
 
         def gettest():
             pass
 
-        name = gettername(gettest)
+        name = getter_name(gettest)
 
         self.assertEqual(name, 'test')
 
     def test_prefix_(self):
-        """Test to get a getter name from a function with gettername prefix
+        """Test to get a getter name from a function with getter_name prefix
         and _.
         """
 
         def get_test():
             pass
 
-        name = gettername(get_test)
+        name = getter_name(get_test)
 
         self.assertEqual(name, 'test')
 
 
 class TestSetterName(UTCase):
-    """Test settername function.
+    """Test setter_name function.
     """
 
     def test_default(self):
@@ -793,30 +793,30 @@ class TestSetterName(UTCase):
         def test():
             pass
 
-        name = settername(test)
+        name = setter_name(test)
 
         self.assertEqual(name, 'test')
 
     def test_prefix(self):
-        """Test to get a setter name from a function with gettername prefix.
+        """Test to get a setter name from a function with getter_name prefix.
         """
 
         def settest():
             pass
 
-        name = settername(settest)
+        name = setter_name(settest)
 
         self.assertEqual(name, 'test')
 
     def test_prefix_(self):
-        """Test to get a setter name from a function with gettername prefix
+        """Test to get a setter name from a function with getter_name prefix
         and _.
         """
 
         def set_test():
             pass
 
-        name = settername(set_test)
+        name = setter_name(set_test)
 
         self.assertEqual(name, 'test')
 
@@ -829,7 +829,7 @@ class TestC2CtrlAnnotationInterceptor(UTCase):
         """CtrlAnnotationInterceptor test class.
         """
 
-        def gettargetctx(self, component, *args, **kwargs):
+        def get_target_ctx(self, component, *args, **kwargs):
             """Intercept component contains method.
             """
 
@@ -840,7 +840,7 @@ class TestC2CtrlAnnotationInterceptor(UTCase):
         super(TestC2CtrlAnnotationInterceptor, self).setUp(*args, **kwargs)
 
         self.component = Component()
-        self.controller = Controller.bindto(self.component)
+        self.controller = Controller.bind_to(self.component)
 
         class ImplTest(Controller):
             """Implementation test class.
@@ -981,7 +981,7 @@ class TestC2CtrlAnnotationInterceptor(UTCase):
 
         self.component['test'] = True
 
-        self.controller = ImplTest.bindto(self.component, self)
+        self.controller = ImplTest.bind_to(self.component, self)
 
     def test(self):
 
@@ -1197,14 +1197,14 @@ class TestSetPort(UTCase):
 
         self.component['test'] = True
 
-        self.controller = ImplTest.bindto(self.component, self)
+        self.controller = ImplTest.bind_to(self.component, self)
 
     def test(self):
 
         self.assertEqual(self.before, 0)
         self.assertEqual(self.after, 0)
 
-        self.component.setport(name='name', port='port')
+        self.component.set_port(name='name', port='port')
 
         self.assertEqual(self.before, 11)
         self.assertEqual(self.after, 11)
@@ -1406,7 +1406,7 @@ class TestRemPort(UTCase):
 
         self.component['test'] = True
 
-        self.controller = ImplTest.bindto(self.component, self)
+        self.controller = ImplTest.bind_to(self.component, self)
 
     def test(self):
 

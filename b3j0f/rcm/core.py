@@ -38,8 +38,8 @@ due to a requirement to distinguish heavily those ones from instance ones
 (like in the Fractal Framework), when their behavior is really close to
 instance methods.
 
-For example, it is simple to get Component ports with the method getports.
-In a lazier approach, it is possible to use the Component.GETPORTS class
+For example, it is simple to get Component ports with the method get_ports.
+In a lazier approach, it is possible to use the Component.GET_PORTS class
 method which uses the same logic than the instance method but is specific to
 ports which inherits from the Component type.
 """
@@ -70,12 +70,12 @@ class Component(dict):
     which are bound to it.
 
     For example, let A and B two components. If B is both ports b0 and b1,
-    B keeps references to both port names b0 and b1 thanks to B._boundon dict
+    B keeps references to both port names b0 and b1 thanks to B._bound_on dict
     which contains one key A and both values b0 and b1.
     """
 
     UID = '_uid'  #: uid field name
-    BOUND_ON = '_boundon'  #: bound_on field name
+    BOUND_ON = '_bound_on'  #: bound_on field name
 
     def __init__(
         self, uid=None, ports=None, namedports=None
@@ -91,19 +91,19 @@ class Component(dict):
         super(Component, self).__init__()
 
         # initialiaze private attributes
-        self._boundon = {}
+        self._bound_on = {}
 
         # save _uid
         self._uid = uuid() if uid is None else uid
         # save ports
         if ports is not None:
             for port in ports:
-                self.setport(port=port)
+                self.set_port(port=port)
         # save named ports
         if namedports is not None:
             for name in namedports:
                 port = namedports[name]
-                self.setport(port=port, name=name)
+                self.set_port(port=port, name=name)
 
     def __hash__(self):
 
@@ -117,9 +117,9 @@ class Component(dict):
 
     def __delitem__(self, key):
 
-        self.removeport(name=key)
+        self.remove_port(name=key)
 
-    def removeport(self, name):
+    def remove_port(self, name):
         """Remove a port by name and returns it.
 
         :param str name: port name to remove.
@@ -132,7 +132,7 @@ class Component(dict):
 
         if isinstance(result, Component):
             # unbind it from self
-            result._onunbind(component=self, name=name)
+            result._on_unbind(component=self, name=name)
         # and call super __delitem__
         super(Component, self).__delitem__(name)
 
@@ -140,9 +140,9 @@ class Component(dict):
 
     def __setitem__(self, key, value):
 
-        self.setport(name=key, port=value)
+        self.set_port(name=key, port=value)
 
-    def setport(self, port, name=None):
+    def set_port(self, port, name=None):
         """Set new port with input name. And returns previous port if exists.
 
         :param port: new port to bind.
@@ -166,11 +166,11 @@ class Component(dict):
         if name in self:
             old_port = self[name]
             if isinstance(old_port, Component):
-                old_port._onunbind(component=self, name=name)
+                old_port._on_unbind(component=self, name=name)
         # if port is a component
         if isinstance(port, Component):
             # bind it to self
-            port._onbind(component=self, name=name)
+            port._on_bind(component=self, name=name)
         # and call super __setitem__
         super(Component, self).__setitem__(name, port)
 
@@ -285,7 +285,7 @@ class Component(dict):
 
         return result
 
-    def _onbind(self, component, name):
+    def _on_bind(self, component, name):
         """Callback method before self is bound to a component.
 
         :param Component component: new component from where this one is bound.
@@ -293,9 +293,9 @@ class Component(dict):
         """
 
         # add reference to bound_on
-        self._boundon.setdefault(component, set()).add(name)
+        self._bound_on.setdefault(component, set()).add(name)
 
-    def _onunbind(self, component, name):
+    def _on_unbind(self, component, name):
         """Callback method before self is bound to a component.
 
         :param Component component: component from where this one is unbound.
@@ -303,10 +303,10 @@ class Component(dict):
         """
 
         # remove reference to bound_on
-        bound_on = self._boundon[component]
+        bound_on = self._bound_on[component]
         bound_on.remove(name)
         if not bound_on:
-            del self._boundon[component]
+            del self._bound_on[component]
 
     @property
     def uid(self):
@@ -315,7 +315,7 @@ class Component(dict):
 
         return self._uid
 
-    def getports(self, names=None, types=None, select=lambda *p: True):
+    def get_ports(self, names=None, types=None, select=lambda *p: True):
         """Get ports related to names and types.
 
         :param names: port (regex) names to search for.
@@ -369,7 +369,7 @@ class Component(dict):
         return result
 
     @classmethod
-    def GETPORTS(cls, component, names=None, select=lambda *p: True):
+    def GET_PORTS(cls, component, names=None, select=lambda *p: True):
         """Get all component ports which inherits from this class.
 
         :param Component component: component from where get ports.
@@ -379,4 +379,4 @@ class Component(dict):
         in parameters. True by default.
         """
 
-        return component.getports(names=names, types=cls, select=select)
+        return component.get_ports(names=names, types=cls, select=select)

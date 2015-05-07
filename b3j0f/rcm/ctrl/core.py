@@ -39,23 +39,23 @@ class Controller(Component):
 
         super(Controller, self).delete(*args, **kwargs)
         # unbind from self components
-        for component in self._boundon.keys():
-            Controller.unbindall(component, self)
+        for component in self._bound_on.keys():
+            Controller.unbind_all(component, self)
 
-    def _onbind(self, component, *args, **kwargs):
+    def _on_bind(self, component, *args, **kwargs):
 
-        super(Controller, self)._onbind(component=component, *args, **kwargs)
+        super(Controller, self)._on_bind(component=component, *args, **kwargs)
 
         # notify all controllers
-        controllers = Controller.GETPORTS(component=component)
+        controllers = Controller.GET_PORTS(component=component)
         for portname in controllers:
             controller = controllers[portname]
-            controller._onbindctrl(self, component=component)
+            controller._on_bind_ctrl(self, component=component)
 
         # apply all Controller annotations
         CtrlAnnotation.apply_on(component=component, impl=self)
 
-    def _onbindctrl(self, controller, component):
+    def _on_bind_ctrl(self, controller, component):
         """Callback when a component is bound to the component.
 
         :param Controller controller: newly bound controller.
@@ -64,17 +64,17 @@ class Controller(Component):
 
         pass
 
-    def _onunbind(self, component, *args, **kwargs):
+    def _on_unbind(self, component, *args, **kwargs):
 
-        super(Controller, self)._onunbind(
+        super(Controller, self)._on_unbind(
             component=component, *args, **kwargs
         )
 
         # notify all controllers
-        controllers = Controller.GETPORTS(component=component)
+        controllers = Controller.GET_PORTS(component=component)
         for portname in controllers:
             controller = controllers[portname]
-            controller._onunbindctrl(self, component=component)
+            controller._on_unbind_ctrl(self, component=component)
 
         # unapply all Controller Annotation
         CtrlAnnotation.unapply_from(
@@ -82,7 +82,7 @@ class Controller(Component):
             impl=self
         )
 
-    def _onunbindctrl(self, controller, component):
+    def _on_unbind_ctrl(self, controller, component):
         """Callback when a component is unbound from the component.
 
         :param Controller controller: newly bound controller.
@@ -91,7 +91,7 @@ class Controller(Component):
 
         pass
 
-    def _unaryprocess(self, _method, *args, **kwargs):
+    def _unary_process(self, _method, *args, **kwargs):
         """Process a controller method such as the controller is bound to one
         component.
 
@@ -103,7 +103,7 @@ class Controller(Component):
         """
 
         component = None
-        for component in self._boundon:
+        for component in self._bound_on:
             break
 
         result = _method(components=component, *args, **kwargs)
@@ -111,7 +111,7 @@ class Controller(Component):
         return result
 
     @staticmethod
-    def bindall(component, *controllers):
+    def bind_all(component, *controllers):
         """Bind all controllers to input component.
 
         :param Component component: component where bind ipnut controllers.
@@ -119,22 +119,22 @@ class Controller(Component):
         """
 
         for controller in controllers:
-            ctrlname = controller.ctrlname()
-            component[ctrlname] = controller
+            ctrl_name = controller.ctrl_name()
+            component[ctrl_name] = controller
 
     @staticmethod
-    def unbindall(component, *controllers):
+    def unbind_all(component, *controllers):
         """Unbind all controllers from input component.
 
         :param Component component: component where unbind input controllers.
         """
 
         for controller in controllers:
-            ctrlname = controller.ctrlname()
-            component.pop(ctrlname, None)
+            ctrl_name = controller.ctrl_name()
+            component.pop(ctrl_name, None)
 
     @classmethod
-    def ctrlname(cls):
+    def ctrl_name(cls):
         """Get controller unique name.
 
         :return: cls python path.
@@ -148,7 +148,7 @@ class Controller(Component):
         return result
 
     @classmethod
-    def bindto(cls, components, *args, **kwargs):
+    def bind_to(cls, components, *args, **kwargs):
         """Bind a controller of type cls to component(s).
 
         :param components: component(s) to bind to a controller.
@@ -166,12 +166,12 @@ class Controller(Component):
             components = [components]
         # bind the controller in all components
         for component in components:
-            component[controller.ctrlname()] = controller
+            component[controller.ctrl_name()] = controller
 
         return controller
 
     @classmethod
-    def unbindfrom(cls, *components):
+    def unbind_from(cls, *components):
         """Unbind a controller of type cls from component(s).
 
         :param components: component(s) from where unbind controllers of type
@@ -185,13 +185,13 @@ class Controller(Component):
 
         # unbind all controllers registered by cls.crtl_name()
         for index, component in enumerate(components):
-            controller = component.pop(cls.ctrlname(), None)
+            controller = component.pop(cls.ctrl_name(), None)
             result[index] = controller
 
         return result
 
     @classmethod
-    def getctrl(cls, component):
+    def get_ctrl(cls, component):
         """Get controller from input component.
 
         :param component: component from where get cls controller.
@@ -199,7 +199,7 @@ class Controller(Component):
         :rtype: Controller
         """
 
-        controller_name = cls.ctrlname()
+        controller_name = cls.ctrl_name()
         result = component.get(controller_name)
 
         return result
@@ -226,7 +226,7 @@ class Controller(Component):
         # get all cls controllers of _components
         controllers = set()
         for component in _components:
-            controller = cls.getctrl(component)
+            controller = cls.get_ctrl(component)
             if controller is not None:
                 controllers.add(controller)
         # update result
@@ -254,7 +254,7 @@ class Controller(Component):
 
         # get all cls controllers of _components
         for component in _components:
-            controller = cls.getctrl(component)
+            controller = cls.get_ctrl(component)
             if controller is not None:
                 controllers.add(controller)
 
