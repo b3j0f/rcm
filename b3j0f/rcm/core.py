@@ -58,24 +58,25 @@ from re import compile as re_compile
 
 
 class Component(dict):
-    """Component which contains named ports and an uid.
+    """Respect the component design pattenr with ports and an unique id.
 
-    A port is just an object which is bound to the component such as
-    a dict value where key is port name.
+    A port is a couple of (id, resource) where the id is unique among
+    Component resources, and a resource is an object which enriches Component
+    behavior. In such way, Component are dictionaries where ports are values
+    and names are keys.
 
-    For example, let a Component C and an object o. C['o'] = o is similar to
-    o is the port of C named 'o'.
+    For example, let a Component ``C`` and an object ``O``. C['O'] = O is
+    similar to O is the port of C with id equals named 'o'.
 
     A Component also contains in memory a dictionary of port names by Component
-    which are bound to it.
+    which are bound to it. Its name is _rports like reverse ports.
 
-    For example, let A and B two components. If B is both ports b0 and b1,
-    B keeps references to both port names b0 and b1 thanks to B._bound_on dict
-    which contains one key A and both values b0 and b1.
+    For example, let A and B two components. If A['B'] = B, then B._rports[A]
+    equals ['B'].
     """
 
     UID = '_uid'  #: uid field name
-    BOUND_ON = '_bound_on'  #: bound_on field name
+    RPORTS = '_rports'  #: rports field name
 
     def __init__(
         self, uid=None, ports=None, namedports=None
@@ -91,7 +92,7 @@ class Component(dict):
         super(Component, self).__init__()
 
         # initialiaze private attributes
-        self._bound_on = {}
+        self._rports = {}
 
         # save _uid
         self._uid = uuid() if uid is None else uid
@@ -292,8 +293,8 @@ class Component(dict):
         :param str name: port name from where self is bound to component.
         """
 
-        # add reference to bound_on
-        self._bound_on.setdefault(component, set()).add(name)
+        # add reference to rports
+        self._rports.setdefault(component, set()).add(name)
 
     def _on_unbind(self, component, name):
         """Callback method before self is bound to a component.
@@ -302,11 +303,11 @@ class Component(dict):
         :param str name: port name from where self is unbound.
         """
 
-        # remove reference to bound_on
-        bound_on = self._bound_on[component]
-        bound_on.remove(name)
-        if not bound_on:
-            del self._bound_on[component]
+        # remove reference to rports
+        rports = self._rports[component]
+        rports.remove(name)
+        if not rports:
+            del self._rports[component]
 
     @property
     def uid(self):

@@ -29,7 +29,7 @@ from unittest import main
 
 from b3j0f.utils.ut import UTCase
 from b3j0f.rcm.binding.port import ProxySet, Port
-from b3j0f.rcm.binding.core import Interface
+from b3j0f.rcm.binding.core import Interface, Resource
 
 
 class PortTest(UTCase):
@@ -42,11 +42,11 @@ class PortTest(UTCase):
 
         port = Port(sup=2)
 
-        port.setport(port)
-        port.setport(port)
-        self.assertRaises(Port.PortError, port.setport, port)
+        port.set_port(port)
+        port.set_port(port)
+        self.assertRaises(Port.PortError, port.set_port, port)
 
-        resources = port.getresources()
+        resources = port.get_resources()
         self.assertEqual(len(resources), 2)
 
     def test_inf(self):
@@ -55,14 +55,14 @@ class PortTest(UTCase):
 
         port = Port(inf=2)
 
-        self.assertRaises(Port.PortError, port.setport, port)
-        port.setport(port)
+        self.assertRaises(Port.PortError, port.set_port, port)
+        port.set_port(port)
 
-        resources = port.getresources()
+        resources = port.get_resources()
         self.assertEqual(len(resources), 2)
 
-    def test_checkresource(self):
-        """Test the checkresource method.
+    def test_check_resource(self):
+        """Test the check_resource method.
         """
 
         port = Port()
@@ -70,22 +70,22 @@ class PortTest(UTCase):
         port2 = Port()
 
         # check with default interfaces
-        checked = port.checkresource(port2)
+        checked = port.check_resource(port2)
         self.assertTrue(checked)
 
         # uncheck with int interface
         port.itfs = (Interface(value=int),)
-        checked = port.checkresource(port2)
+        checked = port.check_resource(port2)
         self.assertFalse(checked)
 
         # check back with int interface
         port2.itfs = (Interface(value=int),)
-        checked = port.checkresource(port2)
+        checked = port.check_resource(port2)
         self.assertTrue(checked)
 
         # check back with object interface
         port.itfs = (Interface(),)
-        checked = port.checkresource(port2)
+        checked = port.check_resource(port2)
         self.assertTrue(checked)
 
     def test_multiple(self):
@@ -94,15 +94,40 @@ class PortTest(UTCase):
 
         port = Port(multiple=True)
 
-        proxy = port.getproxy()
+        proxy = port.proxy
         self.assertIsInstance(proxy, ProxySet)
         self.assertFalse(proxy)
 
         port2 = Port()
-        port.setport(port2)
-        proxy = port.getproxy()
+        port.set_port(port2)
+        proxy = port.proxy
         self.assertIsInstance(proxy, ProxySet)
-        self.assertTrue(proxy)
+        self.assertFalse(proxy, proxy)
+
+        resource = Resource(proxy=object)
+        port.set_port(resource)
+        proxy = port.proxy
+        self.assertIsInstance(proxy, ProxySet)
+        self.assertTrue(proxy, proxy)
+        self.assertEquals(len(proxy), 1)
+
+        port2.set_port(resource)
+        proxy = port.proxy
+        self.assertIsInstance(proxy, ProxySet)
+        self.assertTrue(proxy, proxy)
+        self.assertEquals(len(proxy), 2)
+
+        port2['test'] = resource
+        proxy = port.proxy
+        self.assertIsInstance(proxy, ProxySet)
+        self.assertTrue(proxy, proxy)
+        self.assertEquals(len(proxy), 3)
+
+        port2['test'] = resource
+        proxy = port.proxy
+        self.assertIsInstance(proxy, ProxySet)
+        self.assertTrue(proxy, proxy)
+        self.assertEquals(len(proxy), 3)
 
     def test_notmultiple(self):
         """Test not multiple port.
@@ -110,7 +135,7 @@ class PortTest(UTCase):
 
         port = Port(multiple=False)
 
-        proxy = port.getproxy()
+        proxy = port.proxy
         self.assertIsNone(proxy)
 
     def test_renewproxy(self):
@@ -120,7 +145,7 @@ class PortTest(UTCase):
         port = Port()
         port2 = Port()
 
-        port.setport(port2)
+        port.set_port(port2)
 
 
 class TestProxySet(UTCase):

@@ -207,7 +207,7 @@ class ControllerTest(UTCase):
 
         for controller in self.controllers:
             controller.delete()
-            self.assertFalse(controller._bound_on)
+            self.assertFalse(controller._rports)
 
         self.assertEqual(
             self.bindcount, len(self.components) * len(self.controllers)

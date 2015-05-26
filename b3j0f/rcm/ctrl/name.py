@@ -47,7 +47,6 @@ class NameController(Controller):
         """
         Raised for error in processing a NameController.
         """
-
         pass
 
     def __init__(self, cmpts_by_name=None, *args, **kwargs):
@@ -68,6 +67,7 @@ class NameController(Controller):
         """
 
         result = self.simple_process(self.get_names)
+
         return result
 
     @name.setter
@@ -184,7 +184,7 @@ class NameController(Controller):
         """
 
         if isinstance(names, basestring):
-            names = {names}
+            names = set([names])
 
         result = component.get_ports(
             select=lambda name, port: NameController.GET_NAME(port) in names

@@ -39,7 +39,7 @@ class Controller(Component):
 
         super(Controller, self).delete(*args, **kwargs)
         # unbind from self components
-        for component in self._bound_on.keys():
+        for component in self._rports.keys():
             Controller.unbind_all(component, self)
 
     def _on_bind(self, component, *args, **kwargs):
@@ -103,7 +103,7 @@ class Controller(Component):
         """
 
         component = None
-        for component in self._bound_on:
+        for component in self._rports:
             break
 
         result = _method(components=component, *args, **kwargs)

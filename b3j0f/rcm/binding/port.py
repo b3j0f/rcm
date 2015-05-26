@@ -39,9 +39,7 @@ order to describe bound resources. The ``how`` is ensured with Binding objects
 which are used by Port objects.
 """
 
-__all__ = [
-    'Port', 'ProxySet'
-]
+__all__ = ['Port', 'ProxySet']
 
 from inspect import getmembers, isroutine
 
@@ -170,9 +168,9 @@ class Port(Resource):
 
             self._renewproxy()
 
-    def _setitfs(self, itfs):
+    def _set_itfs(self, itfs):
 
-        super(Port, self)._setitfs(itfs)
+        super(Port, self)._set_itfs(itfs)
 
         self._renewproxy()
 
@@ -200,18 +198,18 @@ class Port(Resource):
 
         self._renewproxy()
 
-    def getresources(self):
+    def get_resources(self):
         """Get resources by name.
 
         :return: self resources.
         :rtype: dict
         """
 
-        result = self.getports(types=Resource)
+        result = self.get_ports(types=Resource)
 
         return result
 
-    def getproxy(self):
+    def _get_proxy(self, *args, **kwargs):
 
         # renew self _proxy if necessary
         if self._proxy is None:
@@ -221,12 +219,12 @@ class Port(Resource):
 
         return result
 
-    def setport(self, port, name=None, *args, **kwargs):
+    def set_port(self, port, name=None, *args, **kwargs):
 
         # check port before binding it to self ports
         if (
             isinstance(port, Resource)
-            and not self.checkresource(resource=port)
+            and not self.check_resource(resource=port)
         ):
             # and raise related error
             raise Port.PortError(
@@ -234,7 +232,7 @@ class Port(Resource):
                 .format(port, self.itfs)
             )
         # bind the port to self
-        name, oldport = super(Port, self).setport(
+        name, oldport = super(Port, self).set_port(
             port=port, name=name, *args, **kwargs
         )
         result = name, oldport
@@ -246,19 +244,19 @@ class Port(Resource):
 
         return result
 
-    def checkresource(self, resource):
+    def check_resource(self, resource):
         """Check input resource related to self interfaces.
 
         :param Resource resource: resource to check.
         """
 
         # check if maximal number of resources have not been acquired
-        result = len(self.getresources()) < self.sup
+        result = len(self.get_resources()) < self.sup
 
         if result:  # check all resource itfs
             for selfitf in self.itfs:
                 for resourceitf in resource.itfs:
-                    result = resourceitf.issubitf(selfitf)
+                    result = resourceitf.is_sub_itf(selfitf)
                     if not result:
                         break
 
@@ -275,7 +273,7 @@ class Port(Resource):
         self._proxy = None
 
         # get resources
-        resources = self.getresources()
+        resources = self.get_resources()
 
         # check number of resources
         if len(resources) < self.inf or self.sup < len(resources):
@@ -299,7 +297,7 @@ class Port(Resource):
                 proxies = []  # get a list of proxies
                 for resource_name in resources:
                     resource = resources[resource_name]
-                    proxy = resource.getproxy()
+                    proxy = resource.proxy
                     if isinstance(proxy, ProxySet):
                         proxies += proxy
                     else:
@@ -333,10 +331,10 @@ class Port(Resource):
                 # generate a dedicated proxy which respects method signatures
                 self._proxy = get_proxy(elt=proxy, bases=bases, _dict=_dict)
 
-        # and propagate changes to "bound on" ports
-        for component in list(self._boundon):
+        # and propagate changes to reversed ports
+        for component in list(self._rports):
             if component is not self and isinstance(component, Port):
-                bound_names = self._boundon[component]
+                bound_names = self._rports[component]
                 for bound_name in list(bound_names):
                     # in this way, bound on ports will use new self proxies
                     try:
@@ -414,13 +412,13 @@ class Port(Resource):
 
 
 class ProxySet(tuple):
-    """Used to associate a port proxy list with related resource names in order
-    to easily choose proxies depending on resource names.
+    """Associate a port proxy list with related resource names in order to
+    easily choose proxies depending on resource names.
 
     It uses a port, port resources by name and a list of proxies.
     The get_resource_name(proxy) permits to find back proxy resource name.
 
-    It inherits from a list in order to avoir to usages to not modify it.
+    It inherits from a tuple in order avoid modification.
     """
 
     PORT = 'port'  #: port attribute name
@@ -443,7 +441,7 @@ class ProxySet(tuple):
             resource = resources[name]
             # do something only if resource != port
             if resource != port:
-                proxy = resource.getproxy()
+                proxy = resource.proxy
                 # ensure proxy is an Iterable
                 if not isinstance(proxy, ProxySet):
                     proxy = (proxy,)

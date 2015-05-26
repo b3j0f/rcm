@@ -346,14 +346,14 @@ class AsyncPolicy(Policy):
         self._callback = callback
 
     def __call__(self, *args, **kwargs):
-        # create a thread which execute self.execproxies
+        # create a thread which execute self.exec_proxies
         self._thread = Thread(
-            target=self.execproxies, args=args, kwargs=kwargs
+            target=self.exec_proxies, args=args, kwargs=kwargs
         )
         # start the thread
         self._thread.start()
 
-    def execproxies(self, proxies, routine, *args, **kwargs):
+    def exec_proxies(self, proxies, routine, *args, **kwargs):
         """Execute iteratively all proxies and use result in self callback.
 
         :param proxies: proxies to execute.

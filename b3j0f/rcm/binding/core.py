@@ -39,9 +39,7 @@ order to describe bound resources. The ``how`` is ensured with Binding objects
 which are used by Port objects.
 """
 
-__all__ = [
-    'Resource', 'Interface'
-]
+__all__ = ['Resource', 'Interface']
 
 from inspect import isclass
 
@@ -104,7 +102,7 @@ class Interface(object):
         if value is None:  # if value is None, use object
             value = object
         elif not isclass(value):  # if not class, use py_class generator
-            value = self._getpycls()
+            value = self._get_pycls()
 
         # check type of value
         if isclass(value):  # update attribute only if value is a class
@@ -123,7 +121,7 @@ class Interface(object):
 
         return self._pycls
 
-    def _getpycls(self):
+    def _get_pycls(self):
         """Protected method to override in order to get py_class from input
         value.
 
@@ -133,7 +131,7 @@ class Interface(object):
 
         raise NotImplementedError()
 
-    def issubitf(self, itf):
+    def is_sub_itf(self, itf):
         """Check if self is a sub interface of itf.
 
         :param Interface itf: interface to check.
@@ -153,13 +151,16 @@ class Resource(Component):
 
     ITFS = '_itfs'  #: interfaces attribute name
 
-    def __init__(self, itfs=(Interface(),), *args, **kwargs):
+    def __init__(self, itfs=(Interface(),), proxy=None, *args, **kwargs):
         """
         :param Iterable itfs: list of Interface which describe this resource.
+        :param proxy: default resource proxy.
         """
+
         super(Resource, self).__init__(*args, **kwargs)
 
         self._itfs = itfs
+        self._proxy = proxy
 
     @property
     def itfs(self):
@@ -169,9 +170,9 @@ class Resource(Component):
     @itfs.setter
     def itfs(self, value):
 
-        self._setitfs(itfs=value)
+        self._set_itfs(itfs=value)
 
-    def _setitfs(self, itfs):
+    def _set_itfs(self, itfs):
         """Change of itfs.
 
         :param list itfs: list of interfaces to use.
@@ -179,10 +180,22 @@ class Resource(Component):
 
         self._itfs = itfs
 
-    def getproxy(self):
+    @property
+    def proxy(self):
         """Get resource proxy.
 
         :return: self proxy.
         """
 
-        raise NotImplementedError()
+        # result is private self _get_proxy result
+        result = self._get_proxy()
+
+        return result
+
+    def _get_proxy(self):
+        """Get resource proxy.
+
+        :return: self proxy.
+        """
+
+        return self._proxy

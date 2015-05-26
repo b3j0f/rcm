@@ -41,7 +41,8 @@ class TestResource(UTCase):
         """
         resource = Resource()
 
-        self.assertFalse(resource.itfs)
+        self.assertEquals(len(resource.itfs), 1)
+        self.assertIs(resource.itfs[0].pycls, object)
 
     def test_itfs(self):
         """Test itfs consistency with initialization parameter.
@@ -55,7 +56,7 @@ class TestResource(UTCase):
         """
 
         resource = Resource()
-        self.assertRaises(NotImplementedError, resource.getproxy)
+        self.assertIsNone(resource.proxy, resource.proxy)
 
 
 class TestInterface(UTCase):
@@ -88,15 +89,15 @@ class TestInterface(UTCase):
         subitf = Interface(value=Component)
         subsubitf = Interface(value=Resource)
 
-        self.assertFalse(baseitf.issubitf(subitf))
-        self.assertFalse(baseitf.issubitf(subsubitf))
+        self.assertFalse(baseitf.is_sub_itf(subitf))
+        self.assertFalse(baseitf.is_sub_itf(subsubitf))
 
-        self.assertFalse(subitf.issubitf(subsubitf))
+        self.assertFalse(subitf.is_sub_itf(subsubitf))
 
-        self.assertTrue(subsubitf.issubitf(baseitf))
-        self.assertTrue(subsubitf.issubitf(subitf))
+        self.assertTrue(subsubitf.is_sub_itf(baseitf))
+        self.assertTrue(subsubitf.is_sub_itf(subitf))
 
-        self.assertTrue(subitf.issubitf(baseitf))
+        self.assertTrue(subitf.is_sub_itf(baseitf))
 
 if __name__ == '__main__':
     main()
