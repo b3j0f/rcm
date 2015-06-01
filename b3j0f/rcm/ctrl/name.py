@@ -209,8 +209,12 @@ class NameController(Controller):
                 # update port with first encountered port
                 for name in ports:
                     port = ports[name]
-            else:  # otherwise, stop to search
-                break
+            else:  # otherwise, raise a NameControllerError
+                raise NameController.NameControllerError(
+                    'No component ports of {0} exist with name {1}'.format(
+                        port, name
+                    )
+                )
         else:  # if all names have been searched, result is port
             result = port
 

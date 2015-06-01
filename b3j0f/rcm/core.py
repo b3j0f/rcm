@@ -124,8 +124,8 @@ class Component(dict):
         """Get a sub-port where hierarchy order respects the input name order.
 
         :param list names: port names hierarchy.
-        :return: sub-port where port names respect input name order. None if
-            port names do not correspond with name.
+        :return: sub-port where port names respect input name order.
+        :raises: KeyError if port hierarchy does not correspond with names.
         """
         # default result is None
         result = None
@@ -133,10 +133,8 @@ class Component(dict):
         port = self
         # iterate on names
         for name in names:
-            if name in port:  # update port only if name is in port
-                port = port[name]
-            else:  # if name not in port, break the loop
-                break
+            # udpate port with port[name]
+            port = port[name]
         else:  # if all names have been founded, result equals port
             result = port
 

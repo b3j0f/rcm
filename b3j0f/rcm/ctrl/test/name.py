@@ -36,12 +36,25 @@ from b3j0f.rcm.ctrl.name import (
 
 class Business(object):
 
+    @SetNameCtrl()
+    def set_name_ctrl(self, namectrl):
+        """Set NameController.
+        """
+
+        self.namectrl = namectrl
+
     @GetName()
     def get_name(self):
+        """Get controller name.
+        """
+
         return self.name if hasattr(self, 'name') else type(self).__name__
 
     @SetName()
     def set_name(self, name):
+        """Change of controller name.
+        """
+
         self.name = name
 
 

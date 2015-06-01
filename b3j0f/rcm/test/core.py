@@ -518,8 +518,7 @@ class ComponentTest(UTCase):
         """Test get_port method.
         """
 
-        port = self.component.get_port('test')
-        self.assertIsNone(port)
+        self.assertRaises(KeyError, self.component.get_port, 'test')
 
         count = 5
         names = [str(i) for i in range(count)]
