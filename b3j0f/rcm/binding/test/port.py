@@ -28,6 +28,7 @@
 from unittest import main
 
 from b3j0f.utils.ut import UTCase
+from b3j0f.utils.version import OrderedDict
 from b3j0f.rcm.binding.port import ProxySet, Port
 from b3j0f.rcm.binding.core import Interface, Resource
 
@@ -152,10 +153,43 @@ class TestProxySet(UTCase):
     """Test ProxySet.
     """
 
-    def setUp(self):
+    def test_empty(self):
+        """Test to instantiate a proxy set without resources.
+        """
 
-        self.proxyset = ProxySet()
+        port = Port()
+        proxyset = ProxySet(port=port, resources={}, bases=(object,))
+        self.assertFalse(proxyset)
+        self.assertIs(proxyset.port, port)
 
+    def test_get_resource_name(self):
+        """Test get_resource_name function.
+        """
+
+        port = Port()
+        first = second = Resource(proxy=object())
+        third = Resource(
+            proxy=ProxySet(
+                port=port,
+                resources={
+                    0: Resource(proxy=object()),
+                    1: Resource(proxy=object())
+                },
+                bases=(object,)
+            )
+        )
+        resources = OrderedDict()
+        resources['first'] = first
+        resources['second'] = second
+        resources['third'] = third
+        proxyset = ProxySet(port=port, resources=resources, bases=(object,))
+
+        self.assertEqual(len(proxyset), 4)
+        self.assertEqual(proxyset.get_resource_name(proxyset[0]), 'first')
+        self.assertEqual(proxyset.get_resource_name(proxyset[1]), 'second')
+        self.assertEqual(proxyset.get_resource_name(proxyset[2]), 'third')
+        self.assertEqual(proxyset.get_resource_name(proxyset[3]), 'third')
+        self.assertRaises(Exception, proxyset.get_resource_name, proxyset)
 
 if __name__ == '__main__':
     main()

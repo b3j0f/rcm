@@ -440,14 +440,19 @@ class ProxySet(tuple):
         for name in resources:
             resource = resources[name]
             # do something only if resource != port
-            if resource != port:
+            if resource is not port:
                 proxy = resource.proxy
                 # ensure proxy is an Iterable
                 if not isinstance(proxy, ProxySet):
                     proxy = (proxy,)
+                # generate a proxy for all resource proxy
                 for p in proxy:
                     new_proxy = get_proxy(elt=proxy, bases=bases)
-                    _resource_names_by_proxy[new_proxy] = name
+                    # and save names in _resource_names_by_proxy
+                    try:
+                        _resource_names_by_proxy[new_proxy] = name
+                    except TypeError:
+                        _resource_names_by_proxy[id(new_proxy)] = name
 
         result = super(ProxySet, cls).__new__(
             cls, _resource_names_by_proxy.keys()
