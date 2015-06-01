@@ -134,25 +134,26 @@ class NameController(Controller):
 
     @staticmethod
     def GET_NAME(component):
-        """Get name of components.
+        """Get name of component.
 
-        :return: component name.
+        :return: component controller name.
         :rtype: str
         """
 
-        return NameController._PROCESS(
-            _component=component, _method='get_name'
+        return NameController._GET(
+            _component=component, _attr='name'
         )
 
     @staticmethod
     def SET_NAME(component, name):
-        """Change name of components.
+        """Change name of component.
 
+        :param Component component: component where change controller name.
         :param str name: new name of components.
         """
 
         NameController._SET(
-            _component=component, _attr='set_name', _value=name
+            _component=component, _attr='name', _value=name
         )
 
     @staticmethod

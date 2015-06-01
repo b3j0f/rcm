@@ -236,6 +236,28 @@ class Controller(Component):
         :return: method result by controller.
         :rtype: dict
         """
+
+        result = {}
+
+        _gets_result = cls._GETS(_components=_components, _attr=_method)
+
+        for controller in _gets_result:
+            method = _gets_result[controller]
+            method_result = method(*args, **kwargs)
+            result[controller] = method_result
+
+        return result
+
+    @classmethod
+    def _GETS(cls, _components, _attr):
+        """Get attribute value to cls controllers which are used by
+        _components.
+
+        :param _components: Component(s) which use cls controller.
+        :type _components: Component or Iterable
+        :param str _attr: attribute name to get.
+        """
+
         # initialize result
         result = {}
 
@@ -252,7 +274,7 @@ class Controller(Component):
 
         # update result
         for controller in controllers:
-            partial_result = getattr(controller, _method)(*args, **kwargs)
+            partial_result = getattr(controller, _attr)
             result[controller] = partial_result
 
         return result
@@ -267,6 +289,7 @@ class Controller(Component):
         :param str _attr: attribute name to set.
         :param _value: attribute value to set.
         """
+
         # ensure _components is a list of components
         if isinstance(_components, Component):
             _components = [_components]
@@ -302,6 +325,26 @@ class Controller(Component):
         if process_result:
             for controller in process_result:
                 result = process_result[controller]
+                break
+
+        return result
+
+    @classmethod
+    def _GET(cls, _component, _attr):
+        """Get an attribute value to cls controller which is used by
+        _component.
+
+        :param Component _components: Component which use cls controller.
+        :param str _attr: attribute name to get.
+        """
+
+        result = None
+
+        gets_result = cls._GETS(_components=_component, _attr=_attr)
+
+        if gets_result:
+            for controller in gets_result:
+                result = gets_result[controller]
                 break
 
         return result

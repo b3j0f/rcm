@@ -71,10 +71,14 @@ class NameControllerTest(UTCase):
         self.assertEquals(self.controller.name, self.name)
         self.assertEquals(NameController.GET_NAME(self.component), self.name)
 
-        self.name += self.name
+        name = '{0}{0}'.format(self.name)
 
-        self.controller.name = self.name
+        self.controller.name = name
 
+        self.assertEquals(self.controller.name, name)
+        self.assertEquals(NameController.GET_NAME(self.component), name)
+        print 'ok', self.name
+        NameController.SET_NAME(name=self.name, component=self.component)
         self.assertEquals(self.controller.name, self.name)
         self.assertEquals(NameController.GET_NAME(self.component), self.name)
 
