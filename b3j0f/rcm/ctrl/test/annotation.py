@@ -44,7 +44,7 @@ class BaseControllerTest(UTCase):
     def setUp(self):
 
         self.component = Component()
-        Controller.bind_to(self.component)
+        Controller.APPLY(self.component)
 
 
 class TestCtrlAnnotation(BaseControllerTest):
@@ -840,7 +840,7 @@ class TestC2CtrlAnnotationInterceptor(UTCase):
         super(TestC2CtrlAnnotationInterceptor, self).setUp(*args, **kwargs)
 
         self.component = Component()
-        self.controller = Controller.bind_to(self.component)
+        self.controller = Controller.APPLY(self.component)
 
         class ImplTest(Controller):
             """Implementation test class.
@@ -981,7 +981,7 @@ class TestC2CtrlAnnotationInterceptor(UTCase):
 
         self.component['test'] = True
 
-        self.controller = ImplTest.bind_to(self.component, self)
+        self.controller = ImplTest.APPLY(self.component, self)
 
     def test(self):
 
@@ -1197,7 +1197,7 @@ class TestSetPort(UTCase):
 
         self.component['test'] = True
 
-        self.controller = ImplTest.bind_to(self.component, self)
+        self.controller = ImplTest.APPLY(self.component, self)
 
     def test(self):
 
@@ -1406,7 +1406,7 @@ class TestRemPort(UTCase):
 
         self.component['test'] = True
 
-        self.controller = ImplTest.bind_to(self.component, self)
+        self.controller = ImplTest.APPLY(self.component, self)
 
     def test(self):
 

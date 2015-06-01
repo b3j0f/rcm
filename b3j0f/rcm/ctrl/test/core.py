@@ -90,7 +90,7 @@ class ControllerTest(UTCase):
 
         # bind controllers to components
         for component in self.components:
-            Controller.bind_all(component, *self.controllers)
+            Controller.APPLY_ALL(component, *self.controllers)
 
         for controller in self.controllers:
             for component in self.components:
@@ -107,13 +107,16 @@ class ControllerTest(UTCase):
                 )
                 self.assertIsNone(_controller)
 
-    def test_bind_to_component(self):
-        """Test bind_to class method on one component at a time.
+    def test_apply_component(self):
+        """Test apply method on one component at a time.
         """
 
+        controller = ControllerTest.TestController(self)
+        controllerSlots = ControllerTest.TestSlotsController(self)
+
         for component in self.components:
-            ControllerTest.TestController.bind_to(component, self)
-            ControllerTest.TestSlotsController.bind_to(component, self)
+            controller.apply(component)
+            controllerSlots.apply(component)
             controllers = Controller.GET_PORTS(component)
             self.assertEqual(len(controllers), len(self.controllers))
 
@@ -122,46 +125,110 @@ class ControllerTest(UTCase):
         )
         self.assertEqual(self.unbindcount, 0)
 
-    def test_bind_to_components(self):
-        """Test bind_to class method on components.
+    def test_APPLY_component(self):
+        """Test APPLY class method on one component at a time.
         """
 
-        ControllerTest.TestController.bind_to(self.components, self)
-        ControllerTest.TestSlotsController.bind_to(self.components, self)
+        for component in self.components:
+            ControllerTest.TestController.APPLY(component, self)
+            ControllerTest.TestSlotsController.APPLY(component, self)
+            controllers = Controller.GET_PORTS(component)
+            self.assertEqual(len(controllers), len(self.controllers))
 
         self.assertEqual(
             self.bindcount, 2 * len(self.components)
         )
         self.assertEqual(self.unbindcount, 0)
 
-    def test_unbind_from_component(self):
-        """Test unbind_from class method on one component at a time.
+    def test_apply_components(self):
+        """Test apply method on components.
+        """
+
+        controller = ControllerTest.TestController(self)
+        controllerSlots = ControllerTest.TestSlotsController(self)
+        controller.apply(*self.components)
+        controllerSlots.apply(*self.components)
+
+        self.assertEqual(
+            self.bindcount, 2 * len(self.components)
+        )
+        self.assertEqual(self.unbindcount, 0)
+
+    def test_APPLY_components(self):
+        """Test APPLY class method on components.
+        """
+
+        ControllerTest.TestController.APPLY(self.components, self)
+        ControllerTest.TestSlotsController.APPLY(self.components, self)
+
+        self.assertEqual(
+            self.bindcount, 2 * len(self.components)
+        )
+        self.assertEqual(self.unbindcount, 0)
+
+    def test_unapply_component(self):
+        """Test unapply method on one component at a time.
         """
 
         # bind controllers
-        self.test_bind_to_components()
+        self.test_apply_components()
+
+        controller = ControllerTest.TestController(self)
+        controllerSlots = ControllerTest.TestSlotsController(self)
 
         for component in self.components:
-            ControllerTest.TestController.unbind_from(component)
-            ControllerTest.TestSlotsController.unbind_from(component)
+            controller.unapply(component)
+            controllerSlots.unapply(component)
             controllers = Controller.GET_PORTS(component)
             self.assertEqual(len(controllers), 0)
 
         self.assertEqual(self.unbindcount, 2 * len(self.components))
 
-    def test_unbind_from_components(self):
-        """Test unbind_from class method on components.
+    def test_UNAPPLY_component(self):
+        """Test UNAPPLY class method on one component at a time.
         """
 
         # bind controllers
-        self.test_bind_to_components()
+        self.test_APPLY_components()
 
-        ControllerTest.TestController.unbind_from(*self.components)
-        ControllerTest.TestSlotsController.unbind_from(*self.components)
+        for component in self.components:
+            ControllerTest.TestController.UNAPPLY(component)
+            ControllerTest.TestSlotsController.UNAPPLY(component)
+            controllers = Controller.GET_PORTS(component)
+            self.assertEqual(len(controllers), 0)
 
         self.assertEqual(self.unbindcount, 2 * len(self.components))
 
-    def test_bind_all(self):
+    def test_unapply_components(self):
+        """Test unapply method on components.
+        """
+
+        # bind controllers
+        self.test_apply_components()
+
+        controller = ControllerTest.TestController.get_ctrl(self.components[0])
+        controllerSlots = ControllerTest.TestSlotsController.get_ctrl(
+            self.components[0]
+        )
+
+        controller.unapply(*self.components)
+        controllerSlots.unapply(*self.components)
+
+        self.assertEqual(self.unbindcount, 2 * len(self.components))
+
+    def test_UNAPPLY_components(self):
+        """Test UNAPPLY class method on components.
+        """
+
+        # bind controllers
+        self.test_APPLY_components()
+
+        ControllerTest.TestController.UNAPPLY(*self.components)
+        ControllerTest.TestSlotsController.UNAPPLY(*self.components)
+
+        self.assertEqual(self.unbindcount, 2 * len(self.components))
+
+    def test_APPLY_ALL(self):
         """Test bind to static method.
         """
 
@@ -169,7 +236,7 @@ class ControllerTest(UTCase):
         for component in self.components:
             controllers = Controller.GET_PORTS(component)
             self.assertFalse(controllers)
-            Controller.bind_all(component, *self.controllers)
+            Controller.APPLY_ALL(component, *self.controllers)
             controllers = Controller.GET_PORTS(component)
             self.assertEqual(len(controllers), len(self.controllers))
 
@@ -177,16 +244,16 @@ class ControllerTest(UTCase):
             self.bindcount, len(self.controllers) * len(self.components)
         )
 
-    def test_unbind_all(self):
+    def test_UNAPPLY_ALL(self):
         """Test unbind from static method.
         """
 
         # unbind controllers from components
         for component in self.components:
-            Controller.bind_all(component, *self.controllers)
+            Controller.APPLY_ALL(component, *self.controllers)
             controllers = Controller.GET_PORTS(component)
             self.assertEqual(len(controllers), len(self.controllers))
-            Controller.unbind_all(component, *self.controllers)
+            Controller.UNAPPLY_ALL(component, *self.controllers)
             controllers = Controller.GET_PORTS(component)
             self.assertFalse(controllers)
 
@@ -203,7 +270,7 @@ class ControllerTest(UTCase):
         """
 
         for component in self.components:
-            Controller.bind_all(component, *self.controllers)
+            Controller.APPLY_ALL(component, *self.controllers)
 
         for controller in self.controllers:
             controller.delete()

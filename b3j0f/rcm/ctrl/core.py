@@ -40,7 +40,7 @@ class Controller(Component):
         super(Controller, self).delete(*args, **kwargs)
         # unbind from self components
         for component in self._rports.keys():
-            Controller.unbind_all(component, self)
+            Controller.UNAPPLY_ALL(component, self)
 
     def _on_bind(self, component, *args, **kwargs):
 
@@ -111,8 +111,8 @@ class Controller(Component):
         return result
 
     @staticmethod
-    def bind_all(component, *controllers):
-        """Bind all controllers to input component.
+    def APPLY_ALL(component, *controllers):
+        """Apply all controllers to input component.
 
         :param Component component: component where bind ipnut controllers.
         :param list controllers: controllers to bind to input component.
@@ -123,8 +123,8 @@ class Controller(Component):
             component[ctrl_name] = controller
 
     @staticmethod
-    def unbind_all(component, *controllers):
-        """Unbind all controllers from input component.
+    def UNAPPLY_ALL(component, *controllers):
+        """Unapply all controllers from input component.
 
         :param Component component: component where unbind input controllers.
         """
@@ -147,15 +147,26 @@ class Controller(Component):
 
         return result
 
+    def apply(self, *components):
+        """Apply a controller on input components.
+
+        :param list components: component(s) where apply self controller.
+        """
+
+        ctrl_name = self.ctrl_name()
+
+        for component in components:
+            component[ctrl_name] = self
+
     @classmethod
-    def bind_to(cls, components, *args, **kwargs):
-        """Bind a controller of type cls to component(s).
+    def APPLY(cls, components, *args, **kwargs):
+        """Apply a controller of type cls to input component(s).
 
         :param components: component(s) to bind to a controller.
         :type components: list or Component
         :param list args: controller varargs initialization.
         :param dict kwargs: controller kwargs initialization.
-        :return: bound controller.
+        :return: applyed controller.
         :rtype: cls
         """
 
@@ -164,15 +175,24 @@ class Controller(Component):
         # ensure components is a list of components
         if isinstance(components, Component):
             components = [components]
-        # bind the controller in all components
-        for component in components:
-            component[controller.ctrl_name()] = controller
+        # apply the controller on all components
+        controller.apply(*components)
 
         return controller
 
+    def unapply(self, *components):
+        """Unapply self from input components.
+
+        :param list components: component(s) from where unapply self.
+        """
+
+        ctrl_name = self.ctrl_name()
+        for component in components:
+            component.pop(ctrl_name, None)
+
     @classmethod
-    def unbind_from(cls, *components):
-        """Unbind a controller of type cls from component(s).
+    def UNAPPLY(cls, *components):
+        """Unapply a controller of type cls from component(s).
 
         :param components: component(s) from where unbind controllers of type
             cls.
@@ -182,10 +202,10 @@ class Controller(Component):
         """
 
         result = [None] * len(components)
-
-        # unbind all controllers registered by cls.crtl_name()
+        ctrl_name = cls.ctrl_name()
+        # unapply all controllers registered by cls.crtl_name()
         for index, component in enumerate(components):
-            controller = component.pop(cls.ctrl_name(), None)
+            controller = component.pop(ctrl_name, None)
             result[index] = controller
 
         return result
@@ -229,6 +249,7 @@ class Controller(Component):
             controller = cls.get_ctrl(component)
             if controller is not None:
                 controllers.add(controller)
+
         # update result
         for controller in controllers:
             partial_result = getattr(controller, _method)(*args, **kwargs)

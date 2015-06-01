@@ -41,8 +41,8 @@ class NameController(Controller):
     NAME = '_name'  #: components by name attribute name
 
     class NameControllerError(Exception):
-        """
-        Raised for error in processing a NameController.
+        """Raised in case of two brother components use the same controller
+        name.
         """
         pass
 
@@ -89,15 +89,16 @@ class NameController(Controller):
 
         :param str name: new name of components.
         """
+
         # do something only if name is not input name
         if name != self.name:
             # check among components if another component has not the same name
-            for component in self.components:
+            for component in self._rports:
                 # check among _bound_on components
-                for bound_on in component._bound_on:
+                for rport in component._rports:
                     # check among all ports of _bound_on components
-                    for port_name in bound_on:
-                        port = bound_on[port_name]
+                    for port_name in rport:
+                        port = rport[port_name]
                         # compare with controller name
                         component_name = NameController.GET_NAME(port)
                         # if a matching is checked
@@ -105,12 +106,31 @@ class NameController(Controller):
                             # raise an exception
                             raise NameController.NameControllerError(
                                 'Name {0} already used by {0} in {2}.'.format(
-                                    name, port, bound_on
+                                    name, port, rport
                                 )
                             )
 
             # if no exception has been raised, update the name
             self._name = name
+
+    def _on_bind(self, component, *args, **kwargs):
+
+        # check if component has no
+        # - brother component with the same name
+        # - same controller
+        self_name = self.name
+        for rport in component._rports:
+            port = NameController.GET_PORT(component=rport, name=self_name)
+            if port is not component:
+                raise NameController.NameControllerError(
+                    'Port name {0} is already used by {1} in {2}'.format(
+                        self_name, port, rport)
+                )
+
+        else:
+            super(NameController, self)._on_bind(
+                component=component, *args, **kwargs
+            )
 
     @staticmethod
     def GET_NAME(component):
@@ -161,7 +181,7 @@ class NameController(Controller):
         """
 
         name = NameController.GET_NAME(component=component)
-        result = "{0}-{1}".format(name, component.id)
+        result = "{0}-{1}".format(name, component.uid)
         return result
 
     @staticmethod
@@ -169,16 +189,32 @@ class NameController(Controller):
         """Do a depth search among all sub-ports where controller name matches
         with input names in the same order of depthering.
 
+        :param Component component: component to parse with controller names.
+        :param list names: list of controller names to search on.
         :return: sub-port which is designated by list of input names hierarchy.
+            None if hierarchy does not match with input names.
         """
 
-        _component = component
-
+        result = None
+        # start from the input component
+        port = component
+        # iterate on all input names
         for name in names:
+            # get port by controller name
             ports = NameController.GET_PORTS_BY_NAME(
-                component=_component, names=name
+                component=port, names=name
             )
+            # if ports is not empty
+            if ports:
+                # update port with first encountered port
+                for name in ports:
+                    port = ports[name]
+            else:  # otherwise, stop to search
+                break
+        else:  # if all names have been searched, result is port
+            result = port
 
+        return result
 
 
 class SetNameCtrl(C2CtrlAnnotation):

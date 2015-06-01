@@ -29,9 +29,8 @@ from unittest import main
 
 from b3j0f.utils.ut import UTCase
 from b3j0f.rcm.core import Component
-from b3j0f.rcm.ctrl.core import Controller
 from b3j0f.rcm.ctrl.name import (
-    NameController, GetName, SetName
+    NameController, GetName, SetName, SetNameCtrl
 )
 
 
@@ -46,15 +45,14 @@ class Business(object):
         self.name = name
 
 
-class NameTest(UTCase):
+class NameControllerTest(UTCase):
 
     def setUp(self):
         self.name = 'NameTest'
         self.component = Component()
         self.controller = NameController(name=self.name)
-        Controller.bind_to(
-            self.component, self.controller, self.component
-        )
+        self.component.set_port(self.controller)
+        print NameController.get_ctrl(self.component)
 
     def testNameController(self):
 
@@ -68,19 +66,15 @@ class NameTest(UTCase):
         self.assertEquals(self.controller.name, self.name)
         self.assertEquals(NameController.get_name(self.component), self.name)
 
-    def testContextName(self):
 
-        self.assertEquals(self.name, self.controller.name)
+class GetUname(NameControllerTest):
 
-        ImplController.update_impl(self.component, Business)
-        self.assertEquals(Business.__name__, self.controller.name)
+    def test(self):
 
-        self.controller.set_name(self.name)
-        self.assertEquals(self.name, self.controller.name)
-        self.assertEquals(
-            self.component.get_implementation().name,
-            self.controller.name
-        )
+        uname = "{0}-{1}".format(self.controller.name, self.component.uid)
+        UNAME = NameController.GET_UNAME(component=self.component)
+        self.assertEqual(uname, UNAME)
+
 
 if __name__ == '__main__':
     main()
