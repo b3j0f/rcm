@@ -514,6 +514,26 @@ class ComponentTest(UTCase):
 
         self.assertIs(self.component[generated_name], port)
 
+    def test_get_port(self):
+        """Test get_port method.
+        """
+
+        port = self.component.get_port('test')
+        self.assertIsNone(port)
+
+        count = 5
+        names = [str(i) for i in range(count)]
+        for i in names:
+            self.component[i] = self.component
+        port = self.component.get_port(*names)
+        self.assertIs(port, self.component)
+
+        components = [Component() for i in range(count)]
+        for index, component in enumerate(components):
+            if index < (count - 1):
+                component[names[index]] = components[index + 1]
+        port = components[0].get_port(*names[:-1])
+        self.assertIs(port, components[-1])
 
 if __name__ == '__main__':
     main()

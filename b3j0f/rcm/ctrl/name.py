@@ -29,10 +29,7 @@
 
 __all__ = ['NameController', 'SetNameCtrl', 'SetName', 'GetName']
 
-from collections import Iterable
-
 from b3j0f.utils.version import basestring
-from b3j0f.rcm.core import Component
 from b3j0f.rcm.ctrl.core import Controller
 from b3j0f.rcm.ctrl.annotation import C2CtrlAnnotation, CtrlAnnotation
 
@@ -41,7 +38,7 @@ class NameController(Controller):
     """Controller dedicated to manage components names.
     """
 
-    CMPTS_BY_NAME = '_cmpts_by_name'  #: components by name attribute name
+    NAME = '_name'  #: components by name attribute name
 
     class NameControllerError(Exception):
         """
@@ -49,100 +46,78 @@ class NameController(Controller):
         """
         pass
 
-    def __init__(self, cmpts_by_name=None, *args, **kwargs):
+    def __init__(self, name=None, *args, **kwargs):
         """
-        :param dict cmpts_by_name: component names by components.
+        :param str name: name of components.
         """
 
         super(NameController, self).__init__(*args, **kwargs)
 
-        self._cmpts_by_name = cmpts_by_name
+        self._name = name
 
     @property
     def name(self):
-        """Get first component name.
+        """Get name of components.
 
-        :return: first component name.
+        :return: name of components.
         :rtype: str
         """
 
-        result = self.simple_process(self.get_names)
+        return self.get_name()
 
-        return result
+    def get_name(self):
+        """Get name of components.
+
+        :return: component name.
+        :rtype: str
+        """
+
+        return self._name
 
     @name.setter
     def name(self, value):
-        """Set first component name.
+        """Change name of components.
 
-        :param str value: new name of the first component.
+        :param str value: new name of components.
         """
 
-        component = self.component[0]
-        cmpts_by_name = {value: component}
-        self.set_names(cmpts_by_name=cmpts_by_name)
+        self.set_name(value)
 
-    def get_names(self, components=None):
-        """Get component name(s).
+    def set_name(self, name):
+        """Change name of components in checking than no other brother
+        components has the same controller name.
 
-        :param components: component(s) from where get names. Must be bound to
-            this controller. If None, get all component names. If Component,
-            get related name.
-        :type components: Component or Iterable
-        :return: components by name or name if components is a Component..
-        :rtype: dict or str
+        :param str name: new name of components.
         """
+        # do something only if name is not input name
+        if name != self.name:
+            # check among components if another component has not the same name
+            for component in self.components:
+                # check among _bound_on components
+                for bound_on in component._bound_on:
+                    # check among all ports of _bound_on components
+                    for port_name in bound_on:
+                        port = bound_on[port_name]
+                        # compare with controller name
+                        component_name = NameController.GET_NAME(port)
+                        # if a matching is checked
+                        if component_name == name:
+                            # raise an exception
+                            raise NameController.NameControllerError(
+                                'Name {0} already used by {0} in {2}.'.format(
+                                    name, port, bound_on
+                                )
+                            )
 
-        result = self._cmpts_by_name
-
-        if components is None:
-            result = self._cmpts_by_name.copy()
-
-        elif isinstance(components, Component):
-            result = None
-            for name in self._names:
-                component = self._cmpts_by_name[name]
-                if component is components:
-                    result = name
-                    break
-        elif isinstance(components, Iterable):
-            result = {}
-            for name in self._cmpts_by_name:
-                component = self._cmpts_by_name[name]
-                if component in components:
-                    result[name] = component
-        else:
-            raise TypeError(
-                "Wrong components type {0}".format(type(components))
-            )
-
-        return result
-
-    def set_names(self, cmpts_by_name):
-        """Change of component name(s) only if there are not other components
-        at the same level which have the same name.
-
-        :param dict cmpts_by_name: set of components by name.
-        :raise: NameControllerError if two components have the same name.
-        """
-
-        for name in cmpts_by_name:
-            component = cmpts_by_name[name]
-            if component in self._bound_to:
-                if name in self._cmpts_by_name:
-                    named_component = self._cmpts_by_name[name]
-                    if named_component != component:
-                        self._cmpts_by_name[name] = component
-                    else:
-                        raise NameController.NameControllerError(
-                            "Name conflict by {0} with {1}"
-                            .format(component, named_component)
-                        )
-
-        return cmpts_by_name
+            # if no exception has been raised, update the name
+            self._name = name
 
     @staticmethod
     def GET_NAME(component):
-        """Get component name.
+        """Get name of components.
+
+        :return: component name.
+        :rtype: str
         """
 
         return NameController._PROCESS(
@@ -150,15 +125,10 @@ class NameController(Controller):
         )
 
     @staticmethod
-    def GET_NAMES(components):
-
-        return NameController._PROCESSS(
-            _components=components, _method='get_names'
-        )
-
-    @staticmethod
     def SET_NAME(component, name):
-        """Change component name.
+        """Change name of components.
+
+        :param str name: new name of components.
         """
 
         NameController._SET(
@@ -166,17 +136,7 @@ class NameController(Controller):
         )
 
     @staticmethod
-    def SET_NAMES(components, cmpts_by_name):
-        """Change component names.
-        """
-
-        NameController._PROCESSS(
-            _component=components, _method='set_names',
-            cmpts_by_name=cmpts_by_name
-        )
-
-    @staticmethod
-    def GET_PORTS(component, names):
+    def GET_PORTS_BY_NAME(component, names):
         """Get ports by NameController.name.
 
         :param names: port name(s) to find.
@@ -184,7 +144,7 @@ class NameController(Controller):
         """
 
         if isinstance(names, basestring):
-            names = set([names])
+            names = [names]
 
         result = component.get_ports(
             select=lambda name, port: NameController.GET_NAME(port) in names
@@ -196,13 +156,29 @@ class NameController(Controller):
     def GET_UNAME(component):
         """Get unique component name.
 
-        :return: concatenation of component name and id.
+        :return: str of form {name}-{component.id}.
         :rtype: str
         """
 
         name = NameController.GET_NAME(component=component)
         result = "{0}-{1}".format(name, component.id)
         return result
+
+    @staticmethod
+    def GET_PORT(component, *names):
+        """Do a depth search among all sub-ports where controller name matches
+        with input names in the same order of depthering.
+
+        :return: sub-port which is designated by list of input names hierarchy.
+        """
+
+        _component = component
+
+        for name in names:
+            ports = NameController.GET_PORTS_BY_NAME(
+                component=_component, names=name
+            )
+
 
 
 class SetNameCtrl(C2CtrlAnnotation):

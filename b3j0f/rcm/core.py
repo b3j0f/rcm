@@ -369,6 +369,28 @@ class Component(dict):
 
         return result
 
+    def get_port(self, *names):
+        """Get a sub-port where hierarchy order respects the input name order.
+
+        :param list names: port names hierarchy.
+        :return: sub-port where port names respect input name order. None if
+            port names do not correspond with name.
+        """
+        # default result is None
+        result = None
+        # use the variable port in order to parse port hierarchy
+        port = self
+        # iterate on names
+        for name in names:
+            if name in port:  # update port only if name is in port
+                port = port[name]
+            else:  # if name not in port, break the loop
+                break
+        else:  # if all names have been founded, result equals port
+            result = port
+
+        return result
+
     @classmethod
     def GET_PORTS(cls, component, names=None, select=lambda *p: True):
         """Get all component ports which inherits from this class.

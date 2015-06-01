@@ -33,7 +33,6 @@ from b3j0f.rcm.ctrl.core import Controller
 from b3j0f.rcm.ctrl.name import (
     NameController, GetName, SetName
 )
-from b3j0f.rcm.ctrl.impl import ImplController
 
 
 class Business(object):
@@ -53,9 +52,8 @@ class NameTest(UTCase):
         self.name = 'NameTest'
         self.component = Component()
         self.controller = NameController(name=self.name)
-        self.implController = ImplController()
         Controller.bind_to(
-            self.component, self.controller, self.implController
+            self.component, self.controller, self.component
         )
 
     def testNameController(self):
