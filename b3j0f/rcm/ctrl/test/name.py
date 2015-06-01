@@ -51,20 +51,19 @@ class NameControllerTest(UTCase):
         self.name = 'NameTest'
         self.component = Component()
         self.controller = NameController(name=self.name)
-        self.component.set_port(self.controller)
-        print NameController.get_ctrl(self.component)
+        self.controller.apply(self.component)
 
     def testNameController(self):
 
         self.assertEquals(self.controller.name, self.name)
-        self.assertEquals(NameController.get_name(self.component), self.name)
+        self.assertEquals(NameController.GET_NAME(self.component), self.name)
 
         self.name += self.name
 
         self.controller.name = self.name
 
         self.assertEquals(self.controller.name, self.name)
-        self.assertEquals(NameController.get_name(self.component), self.name)
+        self.assertEquals(NameController.GET_NAME(self.component), self.name)
 
 
 class GetUname(NameControllerTest):
