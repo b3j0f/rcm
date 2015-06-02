@@ -28,11 +28,12 @@
 """
 
 __all__ = [
-    'PropertyController',  # property controller
+    'PropertyController',  'Property',  # property controller and component
     'SetPropertyCtrl', 'GetProperty', 'SetProperty',  # property annotations
 ]
 
 from b3j0f.aop import weave, unweave
+from b3j0f.rcm.core import Component
 from b3j0f.rcm.ctrl.core import Controller
 from b3j0f.rcm.ctrl.annotation import (
     CtrlAnnotation, getter_name, setter_name, C2CtrlAnnotation
@@ -44,12 +45,12 @@ class PropertyController(Controller):
     """Dedicated to manage component parameters.
     """
 
-    PROPERTIES = 'properties'  #: properties field name
+    @property
+    def properties(self):
+        """Get properties.
+        """
 
-    def __init__(self, properties=None, *args, **kwargs):
-
-        super(PropertyController, self).__init__(*args, **kwargs)
-        self.properties = {} if properties is None else properties
+        return Property.GET_PORTS(component=self)
 
     def enrich_instantiation_params(self, jp, *args, **kwargs):
         """Enrich instantiation params with self properties.
@@ -63,14 +64,14 @@ class PropertyController(Controller):
         for name in self.properties:
             if name not in params:
                 prop = self.properties[name]
-                params[name] = prop
+                params[name] = prop.value
 
         # enrich with GetProperty annotations from cls
         gps = GetProperty.get_annotations(ic.cls)
         for gp in gps:
-                param = gp.name if gp.param is None else gp.param
-                if param not in params:
-                    params[param] = gps.params[gp.name]
+            param = gp.name if gp.param is None else gp.param
+            if param not in params:
+                params[param] = gps.params[gp.name]
         # and from the constructor
         try:
             constructor = getattr(
@@ -78,12 +79,10 @@ class PropertyController(Controller):
                     self._cls, '__new__'
                 )
             )
-        except AttributeError:
+        except AttributeError:  # do nothing if constructor does not exist
             pass
         else:
-            gps = GetProperty.get_annotations(
-                constructor
-            )
+            gps = GetProperty.get_annotations(constructor)
             for gp in gps:
                 param = gp.name if gp.param is None else gp.param
                 if param not in params:
@@ -98,6 +97,12 @@ class PropertyController(Controller):
         super(PropertyController, self)._on_bind(
             component=component, *args, **kwargs
         )
+
+        # update values from component properties
+        properties = Property.GET_PORTS(component=component)
+        for name in properties:
+            prop = properties[name]
+            self.properties[name] = prop.value
 
         # weave enrich_instantiation_params on IC instantiate method
         ic = ImplController.get_controller(component=component)
@@ -180,3 +185,172 @@ class GetProperty(_PropertyAnnotation):
             name = getter_name(attr) if self.name is None else self.name
             # udate property controller
             pc.properties[name] = value
+
+
+class Property(Component):
+    """Manage property distribution among components.
+
+    A Property uses Property ports in order to get value from the component
+    model.
+
+    It uses :
+
+        - a ``value`` attribute in order to keep in memory a local value.
+        - a property type (``ptype``) in order to specify kind of value.
+        - a boolean ``update`` attribute in order to automatically update value
+            after bound to a new property.
+    """
+
+    class PropertyError(Exception):
+        """Handle Property errors.
+        """
+        pass
+
+    VALUE = '_value'
+    PTYPE = '_ptype'
+
+    def __init__(self, value=None, ptype=None, update=True, *args, **kwargs):
+        """
+        :param value: property value.
+        :param type ptype: property type.
+        :param bool update: if True (default), auto-update value as bound
+            properties change.
+        """
+        super(Property, self).__init__(*args, **kwargs)
+
+        self.update = update
+        self.ptype = ptype
+        self.value = value
+
+    @property
+    def value(self):
+        """Get self value.
+        """
+
+        return self._get_value()
+
+    def _get_value(self):
+
+        result = None
+
+        ptype = self.ptype
+
+        if result is None:  # if result is None, search among self properties
+            properties = Property.GET_PORTS(self)
+            for name in properties:
+                prop = properties[name]
+                value = prop.value
+                if (
+                    value is not None and (
+                        ptype is None or isinstance(value, ptype)
+                    )
+                ):
+                    # stop search when value is compatible with ptype
+                    result = value
+                    break
+
+        return result
+
+    @value.setter
+    def value(self, value):
+        """Change of value.
+
+        :param value: new value to use.
+        :raises: PropertyError if ptype is not None and value does not inherit
+            from ptype.
+        """
+
+        self._set_value(value)
+
+    def _set_value(self, value):
+        """Change of value.
+
+        :param value: new value to use.
+        :raises: PropertyError if ptype is not None and value does not inherit
+            from ptype.
+        """
+
+        # nonify value if value is None or ptype is None
+        if value is None or self.ptype is None:
+            self._value = value
+        elif isinstance(value, self.ptype):  # check type
+                self._value = value
+        else:  # otherwise, raise an error
+            raise Property.PropertyError(
+                'Wrong property type {0} with {1}'.format(
+                    self.ptype, value
+                )
+            )
+        # try to update reversed properties
+        self.propagate_value(error=False)
+
+    @property
+    def ptype(self):
+        """Get ptype.
+
+        :return: ptype.
+        :rtype: type
+        """
+
+        return self._ptype
+
+    @ptype.setter
+    def ptype(self, value):
+        """Change of ptype.
+
+        :param type value: new ptype to use.
+        """
+
+        self._set_ptype(ptype=value)
+
+    def _set_ptype(self, ptype):
+        """Change of ptype.
+
+        :param type value: new ptype to use.
+        """
+
+        value = self.value
+        # change of value if value is None, or ptype is None or
+        # value is an instance of ptype
+        if value is None or ptype is None or isinstance(value, ptype):
+            self._ptype = ptype
+        else:  # otherwise, raise an error
+            raise Property.PropertyError(
+                'Wrong ptype {0} with existing value {1}'.format(ptype, value)
+            )
+
+    def _on_bind(self, component, *args, **kwargs):
+
+        super(Property, self)._on_bind(component=component, *args, **kwargs)
+
+        # propagate value if component is a newly bound Property
+        if isinstance(component, Property):
+            self.propagate_value(prop=component, force=False, error=False)
+
+    def propagate_value(self, prop=None, force=False, error=True):
+        """Propagate value on all bound properties.
+
+        :param Property prop: property to update. If None, update all
+            reverted properties.
+        :param bool force: force to update reverted properties whatever value
+            of update.
+        :raises: Property.PropertyError if self and prop types do not match
+            and error (False by default).
+        """
+
+        value = self.value
+        # if prop is None, propagate on all reverted properties
+        if prop is None:
+            for rport in self._rports:
+                if isinstance(rport, Property) and (force or rport.update):
+                    try:
+                        rport.value = value  # try to change of value
+                    except Property.PropertyError:
+                        if error:  # raise the exception if error
+                            raise
+        elif force or prop.update:
+            try:
+                prop.value = value  # try to change of value
+            except Property.PropertyError:
+                if error:  # raise the exception if error
+                    raise
