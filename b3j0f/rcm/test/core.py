@@ -534,5 +534,54 @@ class ComponentTest(UTCase):
         port = components[0].get_port(*names[:-1])
         self.assertIs(port, components[-1])
 
+    def test_GET_BY_ID(self):
+        """Test GET_BY_ID static method.
+        """
+
+        # check when component uid is uid
+        cmpt = Component.GET_BY_ID(
+            component=self.component, uid=self.component.uid
+        )
+        self.assertIs(cmpt, self.component)
+
+    def _get_chain(self):
+        """Construct a chain of components after self.component and returns it.
+
+        :return: chain of components by ports, from self.component.
+        :rtype: list
+        """
+
+        # check when a hierarchy of components is given
+        result = [Component() for i in range(5)]
+        self.component.set_port(port=result[0])
+        for index, cmpt in enumerate(result[:-1]):
+            cmpt.set_port(port=result[index + 1])
+
+        return result
+
+    def test_GET_BY_ID_ports(self):
+        """Test GET_BY_ID by ports.
+        """
+
+        cmpts = self._get_chain()
+        cmpt = Component.GET_BY_ID(component=self.component, uid=cmpts[-1].uid)
+        self.assertIs(cmpt, cmpts[-1])
+
+    def test_GET_BY_ID_rports(self):
+        """Test GET_BY_ID by rports.
+        """
+
+        cmpts = self._get_chain()
+        cmpt = Component.GET_BY_ID(component=cmpts[-1], uid=self.component.uid)
+        self.assertIs(cmpt, self.component)
+
+    def test_GET_BY_ID_notfound(self):
+        """Test GET_BY_ID where uid not in model.
+        """
+
+        self._get_chain()
+        cmpt = Component.GET_BY_ID(component=self.component, uid='')
+        self.assertIsNone(cmpt)
+
 if __name__ == '__main__':
     main()

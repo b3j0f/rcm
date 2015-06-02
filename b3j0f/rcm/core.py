@@ -401,3 +401,68 @@ class Component(dict):
         """
 
         return component.get_ports(names=names, types=cls, select=select)
+
+    @staticmethod
+    def GET_BY_ID(component, uid):
+        """Get a component from a component model where uid equals to a
+        component uid.
+
+        :param Component component: component.
+        :param UUID uid: component uid to find in the component model.
+        :return: component where uid is input uid among input component model.
+            None if related component does not exist.
+        """
+
+        if component.uid == uid:  # check component uid
+            result = component
+        else:  # parse the component model
+            result = None  # default result is None
+            visited_uids = set()  # visited uids is a set of uids
+            components_to_visit = [component]  # components to visit
+
+            def visit_components(
+                components, _components_to_visit=components_to_visit
+            ):
+                """Try to find a component among input components where uid
+                equals parent function uid parameter.
+
+                If not, add components to components_to_visit where uids are
+                not in visited_uids.
+
+                :param list components: components to visit.
+                :param list _components_to_visit: global components to visit.
+                :return: component where uid equals uid, otherwise, None.
+                :rtype: Component
+                """
+
+                result = None
+
+                # filter components where uids are not in visited_uids
+                components = [
+                    component for component in components
+                    if component.uid not in visited_uids
+                ]
+                # parse components in case of one uid equals super function uid
+                for component in components:
+                    component_uid = component.uid
+                    if component_uid == uid:
+                        result = component
+                        break
+                    else:
+                        visited_uids.add(component_uid)
+                else:  # add components in components_to_visit
+                    _components_to_visit += components
+
+                return result
+
+            # while there are components to parse
+            while components_to_visit and result is None:
+                # remove first component to visit
+                component = components_to_visit.pop()
+                ports = component.values()
+                result = visit_components(ports)
+                if result is None:
+                    rports = component._rports
+                    result = visit_components(rports)
+
+        return result
