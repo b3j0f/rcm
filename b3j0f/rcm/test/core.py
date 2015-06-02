@@ -534,15 +534,17 @@ class ComponentTest(UTCase):
         port = components[0].get_port(*names[:-1])
         self.assertIs(port, components[-1])
 
-    def test_GET_BY_ID(self):
-        """Test GET_BY_ID static method.
+    def test_SELECT(self):
+        """Test SELECT static method.
         """
 
         # check when component uid is uid
-        cmpt = Component.GET_BY_ID(
-            component=self.component, uid=self.component.uid
+        selection = Component.SELECT(
+            component=self.component,
+            select=lambda c: c.uid == self.component.uid
         )
-        self.assertIs(cmpt, self.component)
+        self.assertEqual(len(selection), 1)
+        self.assertIs(selection[0], self.component)
 
     def _get_chain(self):
         """Construct a chain of components after self.component and returns it.
@@ -559,29 +561,104 @@ class ComponentTest(UTCase):
 
         return result
 
-    def test_GET_BY_ID_ports(self):
-        """Test GET_BY_ID by ports.
+    def test_SELECT_ports(self):
+        """Test SELECT by ports.
         """
 
         cmpts = self._get_chain()
-        cmpt = Component.GET_BY_ID(component=self.component, uid=cmpts[-1].uid)
-        self.assertIs(cmpt, cmpts[-1])
+        selection = Component.SELECT(
+            component=self.component,
+            select=lambda c: c.uid == cmpts[-1].uid,
+            ports=True
+        )
+        self.assertEqual(len(selection), 1)
+        self.assertIs(selection[0], cmpts[-1])
 
-    def test_GET_BY_ID_rports(self):
-        """Test GET_BY_ID by rports.
+    def test_SELECT_rports(self):
+        """Test SELECT by rports.
         """
 
         cmpts = self._get_chain()
-        cmpt = Component.GET_BY_ID(component=cmpts[-1], uid=self.component.uid)
-        self.assertIs(cmpt, self.component)
+        selection = Component.SELECT(
+            component=cmpts[-1],
+            select=lambda c: c.uid == self.component.uid,
+            rports=True
+        )
+        self.assertEqual(len(selection), 1)
+        self.assertIs(selection[0], self.component)
 
-    def test_GET_BY_ID_notfound(self):
-        """Test GET_BY_ID where uid not in model.
+    def test_SELECT_notfound(self):
+        """Test SELECT where uid not in model.
         """
 
         self._get_chain()
-        cmpt = Component.GET_BY_ID(component=self.component, uid='')
-        self.assertIsNone(cmpt)
+        selection = Component.SELECT(
+            component=self.component,
+            select=lambda c: c.uid == ''
+        )
+        self.assertFalse(selection)
+
+    def test_SELECT_0(self):
+        """Test SELECT with limit = 0.
+        """
+
+        self._get_chain()
+        selection = Component.SELECT(
+            component=self.component,
+            select=lambda c: True,
+            limit=0
+        )
+        self.assertFalse(selection)
+
+    def test_SELECT_2(self):
+        """Test SELECT with limit = 2.
+        """
+
+        self._get_chain()
+        selection = Component.SELECT(
+            component=self.component, select=lambda c: True,
+            limit=2
+        )
+        self.assertEqual(len(selection), 2)
+
+    def test_SELECT_not_ports(self):
+        """Test SELECT where corresponding component is among ports but
+        ports condition is False.
+        """
+
+        cmpts = self._get_chain()
+        selection = Component.SELECT(
+            component=self.component,
+            select=lambda c: c.uid == cmpts[-1].uid,
+            ports=False
+        )
+        self.assertFalse(selection)
+
+    def test_SELECT_not_rports(self):
+        """Test SELECT where corresponding component is among ports but
+        rports condition is False.
+        """
+
+        cmpts = self._get_chain()
+        selection = Component.SELECT(
+            component=cmpts[-1],
+            select=lambda c: c.uid == self.component.uid,
+            rports=False
+        )
+        self.assertFalse(selection)
+
+    def test_SELECT_depth_1(self):
+        """Test SELECT where corresponding component is among ports but
+        depth condition is 1.
+        """
+
+        cmpts = self._get_chain()
+        selection = Component.SELECT(
+            component=cmpts[-1],
+            select=lambda c: c.uid == self.component.uid,
+            depth=1
+        )
+        self.assertFalse(selection)
 
 if __name__ == '__main__':
     main()

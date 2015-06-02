@@ -56,6 +56,8 @@ from inspect import isroutine, getmembers
 
 from re import compile as re_compile
 
+from sys import maxsize
+
 
 class Component(dict):
     """Respect the component design pattenr with ports and an unique id.
@@ -403,30 +405,40 @@ class Component(dict):
         return component.get_ports(names=names, types=cls, select=select)
 
     @staticmethod
-    def GET_BY_ID(component, uid):
-        """Get a component from a component model where uid equals to a
-        component uid.
+    def SELECT(
+        component, select,
+        depth=maxsize, ports=True, rports=True, limit=maxsize
+    ):
+        """Get component(s) from a component model where select(component) is
+        True. Otherwise, return None.
 
-        :param Component component: component.
-        :param UUID uid: component uid to find in the component model.
-        :return: component where uid is input uid among input component model.
-            None if related component does not exist.
+        :param Component component: component model entry.
+        :param function select: function which takes in parameter a component
+            and return True if related component match condition.
+        :param int depth: max depth search.
+        :param bool ports: if True (default) parse ports.
+        :param bool rports: if True (default) parse rports.
+        :param bool limit: maximum number of components to select.
+        :return: component where select(cmpt) is True. None if related
+            component does not exist.
+        :rtype: list
         """
 
-        if component.uid == uid:  # check component uid
-            result = component
+        if limit <= 0:  # if limit less than 0, do not parse the model
+            result = []
+
         else:  # parse the component model
-            result = None  # default result is None
+            result = [component] if select(component) else []
             visited_uids = set()  # visited uids is a set of uids
             components_to_visit = [component]  # components to visit
 
             def visit_components(
                 components, _components_to_visit=components_to_visit
             ):
-                """Try to find a component among input components where uid
-                equals parent function uid parameter.
+                """Try to find component(s) among input components where the
+                selection filter matches input components.
 
-                If not, add components to components_to_visit where uids are
+                Otherwise, add components to components_to_visit where uids are
                 not in visited_uids.
 
                 :param list components: components to visit.
@@ -435,8 +447,6 @@ class Component(dict):
                 :rtype: Component
                 """
 
-                result = None
-
                 # filter components where uids are not in visited_uids
                 components = [
                     component for component in components
@@ -444,25 +454,27 @@ class Component(dict):
                 ]
                 # parse components in case of one uid equals super function uid
                 for component in components:
-                    component_uid = component.uid
-                    if component_uid == uid:
-                        result = component
-                        break
+                    if select(component):
+                        result.append(component)
+                        if limit <= len(result):  # stop if limit <= len(found)
+                            break
                     else:
-                        visited_uids.add(component_uid)
-                else:  # add components in components_to_visit
-                    _components_to_visit += components
+                        # add component uid in visited_uids
+                        visited_uids.add(component.uid)
+                        # and component in _components_to_visit
+                        _components_to_visit.append(component)
 
-                return result
-
-            # while there are components to parse
-            while components_to_visit and result is None:
+            # while there are components to visit and limit > len(result)
+            # and depth >= 0
+            while components_to_visit and limit > len(result) and depth > 0:
+                depth -= 1  # decrement depth
                 # remove first component to visit
                 component = components_to_visit.pop()
-                ports = component.values()
-                result = visit_components(ports)
-                if result is None:
-                    rports = component._rports
-                    result = visit_components(rports)
+                if ports:
+                    _ports = component.values()
+                    visit_components(_ports)
+                if limit >= len(result) and rports:
+                    _rports = component._rports
+                    visit_components(_rports)
 
         return result
