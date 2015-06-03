@@ -24,12 +24,6 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-"""
-Contains Component definition.
-"""
-
-__version__ = '0.1.0'  #: library version
-
-__all__ = ['Component']
-
-from b3j0f.rcm.core import Component
+# extend b3j0f.rcm package with the rcm project
+from pkgutil import extend_path
+__path__ = extend_path(__path__, __name__)

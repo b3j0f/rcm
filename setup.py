@@ -36,9 +36,14 @@ _path = dirname(abspath(__file__))
 with open(join(_path, 'README.rst')) as f:
     desc = f.read()
 
-dependencies = ['b3j0f.utils', 'b3j0f.aop', 'b3j0f.annotation']
+dependencies = [
+    'b3j0f.rcm-core', 'b3j0f.rcm-io', 'b3j0f.rcm-nf', 'b3j0f.rcm-conf'
+]
 
-keywords = ['reflective', 'component', 'model', 'non-functional', 'business']
+keywords = [
+    'reflective', 'component', 'model', 'non-functional', 'business', 'CBSE',
+    'Component based software engineering'
+]
 
 setup(
     name='b3j0f.rcm',
@@ -47,7 +52,7 @@ setup(
     packages=find_packages(exclude=['test.*', '*.test.*']),
     author="b3j0f",
     author_email="jlabejof@yahoo.fr",
-    description="Python Aspect Oriented Programming",
+    description="Reflective Component Model for Python",
     long_description=desc,
     url='https://github.com/b3j0f/rcm/',
     license='MIT License',

@@ -72,19 +72,13 @@ All loaded components are included in the bootstrap components and becomes one o
 
 A component inherits from a dictionary in order to access to component ports through __delitem__, __setitem__ and __getitem__ methods, and is hashable.
 
-Here is a description of packages:
+Here is a description of provided packages:
 
-* rcm: default package, contains modules core and packages binding, controller, decorator, factory and parser.
-
-* pyrcm.core: contains definition of Component (base class for every object in this library), Interface, Binding and get_config() and get_bootstrap_component() method which allows to get the bootstrap component and starts to load components.
-
-* pyrcm.binding: contains binding types such as python (default), REST, etc.
-
-* pyrcm.decorator: contains all decorators useful to complete component configuration.
-
-* pyrcm.factory: contains all types of component factories.
-
-* pyrcm.parser: contains components with component configuration rules (files of kind sca, json, xml, etc.).
+* b3j0f.rcm.core: default package which contains the definition of a Component.
+* b3j0f.rcm.io: Input/Output Component management.
+* b3j0f.rcm.nf: non-functional properties of components.
+* b3j0f.rcm.factory: component factory definition.
+* b3j0f.rcm.conf: component configuration.
 
 Examples
 --------
@@ -96,9 +90,6 @@ Perspectives
 ------------
 
 - Cython implementation.
-
-ChangeLogs
-----------
 
 Donation
 --------
