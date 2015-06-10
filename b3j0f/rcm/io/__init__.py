@@ -24,6 +24,29 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-# extend b3j0f.rcm package with all rcm sub-projects
-from pkgutil import extend_path
-__path__ = extend_path(__path__, __name__)
+"""Contains definition of main binding concepts for final user.
+"""
+
+__all__ = [
+    'Resource', 'Interface',  # from core
+    'Port', 'ProxySet',  # from port
+    'PolicyResultSet', 'Policy', 'ParameterizedPolicy',  # from policy
+    'SelectFirstPolicy', 'SelectAllPolicy', 'SelectCountPolicy',
+    'SelectRandomPolicy', 'SelectRoundaboutPolicy',
+    'AsyncPolicy', 'BestEffortPolicy',
+    'ResultFirstPolicy', 'ResultAllPolicy', 'ResultCountPolicy',
+    'ResultRandomPolicy', 'ResultRoundaboutPolicy',
+]
+
+__version__ = '0.1.1'  #: project version
+
+from b3j0f.rcm.io.core import Resource, Interface
+from b3j0f.rcm.io.port import Port, ProxySet
+from b3j0f.rcm.io.policy import (
+    PolicyResultSet, Policy, ParameterizedPolicy,
+    SelectFirstPolicy, SelectAllPolicy, SelectCountPolicy,
+    SelectRandomPolicy, SelectRoundaboutPolicy,
+    AsyncPolicy, BestEffortPolicy,
+    ResultFirstPolicy, ResultAllPolicy, ResultCountPolicy,
+    ResultRandomPolicy, ResultRoundaboutPolicy
+)

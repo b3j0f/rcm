@@ -51,40 +51,39 @@ pip install b3j0f.rcm
 Features
 --------
 
-A reflective component model eases the separation of concerns in any development project at run/compile-time in adding leazy coupling between objects and in separating business and non-functional code, whatever used languages and technologies.
+The Reflective Component Model, ``RCM``, makes easier the development of softwares in focusing in separation of concerns (SoC_) thanks to a lazy and dynamic coupling between business and non-functional code. This SoC provides several powerful paradigms such as Dependency Injection (DI_), Inversion of Control (IoC_), and so on... whatever used programming languages and technologies.
 
-In this implementation, python is used such as a pivotal language between programming languages and technologies.
+In this project, python is used such as a pivotal language between programming languages and technologies.
 
-This library is mainly inspirated from the projects `Fractal`_ and `FraSCAti`_ in adding more possibilities in usage with management of multiple cardinality in most layers and more lazy coupling without more complexity.
+Therefore, RCM provides:
 
-Therefore, reflective components provide:
-
-- a business part which is a set of sub-components or Python code.
-- a membrane which contains all non-functional components.
+- a model where everything is a reflective component (component, controller, port, component factory, etc.) with the same reflective API.
+- component (re-)configuration tools in order to ease distributed development, deployment and execution.
 - binding specialization which distinguish what and how the business is provided/consumed.
-- sharing of components allowing one component to be sub-component of several components like itself.
-- a model where everything is a component (factories, bindings, membrane, etc.) in order to use the same logic everywhere in the component level, whatever functional or non-functional requirements.
+- sharing of components allowing one component to be embedded by several components.
 
-A good way to play with rcm is to use a bootstrap component such as the entry point of component running.
-
-A bootstrap component contains a component loader which manages component instantiation from code or configuration files.
-All loaded components are included in the bootstrap components and becomes one of its children component.
-
-A component inherits from a dictionary in order to access to component ports through __delitem__, __setitem__ and __getitem__ methods, and is hashable.
+This model has a specific definition about component behavior. Components are a set of resources which contribute in its behavior. In such point of view, level of contribution is defined by the type of resources. By default, component resources might be seen suuch as embedded into the component. Once you accept this definition, you can use a port, which is a specific type of components which is bound to other ports in order improve a lazy coupling between components. Such ports are parts of the component non-functional properties, therefore, they are not impacted by component business state.
 
 Here is a description of provided packages:
 
 * b3j0f.rcm.core: default package which contains the definition of a Component.
 * b3j0f.rcm.io: Input/Output Component management.
 * b3j0f.rcm.nf: non-functional properties of components.
-* b3j0f.rcm.factory: component factory definition.
-* b3j0f.rcm.conf: component configuration.
+* b3j0f.rcm.conf: component configuration and factory definition.
+
+It is possible to install any of previous package independently from others in using the command:
+
+``pip install b3j0f.rcm-X``
+
+where ``X`` is among {``core``; ``io``; ``nf``; ``conf``}
 
 Examples
 --------
 
 State of the art
 ----------------
+
+This library is mainly inspirated from the projects `Fractal`_ and `FraSCAti`_ in adding more possibilities in usage with management of multiple cardinality in most layers and more lazy coupling without more complexity.
 
 Perspectives
 ------------
@@ -103,3 +102,6 @@ Donation
 .. _PyPI: https://pypi.python.org/pypi/b3j0f.rcm/
 .. _Fractal: http://fractal.ow2.org/
 .. _FraSCAti: http://wiki.ow2.org/frascati/Wiki.jsp?page=FraSCAti
+.. _IoC: http://en.wikipedia.org/wiki/Inversion_of_control
+.. _DI: http://en.wikipedia.org/wiki/Dependency_injection
+.. _SoC: http://en.wikipedia.org/wiki/Separation_of_concerns

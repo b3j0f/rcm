@@ -1,0 +1,362 @@
+# -*- coding: utf-8 -*-
+
+# --------------------------------------------------------------------
+# The MIT License (MIT)
+#
+# Copyright (c) 2015 Jonathan Labéjof <jonathan.labejof@gmail.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+# --------------------------------------------------------------------
+
+__all__ = ['Controller']
+
+from b3j0f.rcm.core import Component
+from b3j0f.rcm.nf.annotation import CtrlAnnotation
+
+
+class Controller(Component):
+    """Non-functional component which enriches component non-functional
+    behaviour in beeing bound to them.
+    """
+
+    def delete(self, *args, **kwargs):
+
+        super(Controller, self).delete(*args, **kwargs)
+        # unbind from self components
+        for component in self._rports.keys():
+            Controller.UNAPPLY_ALL(component, self)
+
+    def _on_bind(self, component, *args, **kwargs):
+
+        super(Controller, self)._on_bind(component=component, *args, **kwargs)
+
+        # notify all controllers
+        controllers = Controller.GET_PORTS(component=component)
+        for portname in controllers:
+            controller = controllers[portname]
+            controller._on_bind_nf(self, component=component)
+
+        # apply all Controller annotations
+        CtrlAnnotation.apply_on(component=component, impl=self)
+
+    def _on_bind_nf(self, controller, component):
+        """Callback when a component is bound to the component.
+
+        :param Controller controller: newly bound controller.
+        :param Component component: component using the controller.
+        """
+
+        pass
+
+    def _on_unbind(self, component, *args, **kwargs):
+
+        super(Controller, self)._on_unbind(
+            component=component, *args, **kwargs
+        )
+
+        # notify all controllers
+        controllers = Controller.GET_PORTS(component=component)
+        for portname in controllers:
+            controller = controllers[portname]
+            controller._on_unbind_nf(self, component=component)
+
+        # unapply all Controller Annotation
+        CtrlAnnotation.unapply_from(
+            component=component,
+            impl=self
+        )
+
+    def _on_unbind_nf(self, controller, component):
+        """Callback when a component is unbound from the component.
+
+        :param Controller controller: newly bound controller.
+        :param Component component: component using the controller.
+        """
+
+        pass
+
+    def _unary_process(self, _method, *args, **kwargs):
+        """Process a controller method such as the controller is bound to one
+        component.
+
+        :param MethodType _method: controller method.
+        :param list args: _method args.
+        :param dict kwargs: _method kwargs.
+        :return: _method(components=self.components[0], *args, **kwargs)
+            result.
+        """
+
+        component = None
+        for component in self._rports:
+            break
+
+        result = _method(components=component, *args, **kwargs)
+
+        return result
+
+    def apply(self, *components):
+        """Apply a controller on input components.
+
+        :param list components: component(s) where apply self controller.
+        """
+
+        nf_name = self.nf_name()
+
+        for component in components:
+            component[nf_name] = self
+
+    def unapply(self, *components):
+        """Unapply self from input components.
+
+        :param list components: component(s) from where unapply self.
+        """
+
+        nf_name = self.nf_name()
+        for component in components:
+            component.pop(nf_name, None)
+
+    @classmethod
+    def APPLY(cls, components, *args, **kwargs):
+        """Apply a controller of type cls to input component(s).
+
+        :param components: component(s) to bind to a controller.
+        :type components: list or Component
+        :param list args: controller varargs initialization.
+        :param dict kwargs: controller kwargs initialization.
+        :return: applyed controller.
+        :rtype: cls
+        """
+
+        # instantiate a controller
+        controller = cls(*args, **kwargs)
+        # ensure components is a list of components
+        if isinstance(components, Component):
+            components = [components]
+        # apply the controller on all components
+        controller.apply(*components)
+
+        return controller
+
+    @classmethod
+    def UNAPPLY(cls, *components):
+        """Unapply a controller of type cls from component(s).
+
+        :param components: component(s) from where unbind controllers of type
+            cls.
+        :type components: list or Component
+        :return: unbound controllers.
+        :rtype: list
+        """
+
+        result = [None] * len(components)
+        nf_name = cls.nf_name()
+        # unapply all controllers registered by cls.crtl_name()
+        for index, component in enumerate(components):
+            controller = component.pop(nf_name, None)
+            result[index] = controller
+
+        return result
+
+    @staticmethod
+    def APPLY_ALL(component, *controllers):
+        """Apply all controllers to input component.
+
+        :param Component component: component where bind ipnut controllers.
+        :param list controllers: controllers to bind to input component.
+        """
+
+        for controller in controllers:
+            nf_name = controller.nf_name()
+            component[nf_name] = controller
+
+    @staticmethod
+    def UNAPPLY_ALL(component, *controllers):
+        """Unapply all controllers from input component.
+
+        :param Component component: component where unbind input controllers.
+        """
+
+        for controller in controllers:
+            nf_name = controller.nf_name()
+            component.pop(nf_name, None)
+
+    @classmethod
+    def nf_name(cls):
+        """Get controller unique name.
+
+        :return: cls python path.
+        :rtype: str
+        """
+
+        cls_name = cls.__name__
+
+        result = "/{0}".format(cls_name)
+
+        return result
+
+    @classmethod
+    def get_nf(cls, component):
+        """Get controller from input component.
+
+        :param component: component from where get cls controller.
+        :return: controller or None if controller does not exist.
+        :rtype: Controller
+        """
+
+        controller_name = cls.nf_name()
+        result = component.get(controller_name)
+
+        return result
+
+    @classmethod
+    def _PROCESSS(cls, _components, _method, *args, **kwargs):
+        """Execute a controller class method bound to components.
+
+        :param _components: Component(s) from where find controllers.
+        :type _components: Component or Iterable
+        :param str _method: controller method name.
+        :param list args: controller method args.
+        :param dict kwargs: controller method kwargs.
+        :return: method result by controller.
+        :rtype: dict
+        """
+
+        result = {}
+
+        _gets_result = cls._GETS(_components=_components, _attr=_method)
+
+        for controller in _gets_result:
+            method = _gets_result[controller]
+            method_result = method(*args, **kwargs)
+            result[controller] = method_result
+
+        return result
+
+    @classmethod
+    def _GETS(cls, _components, _attr):
+        """Get attribute value to cls controllers which are used by
+        _components.
+
+        :param _components: Component(s) which use cls controller.
+        :type _components: Component or Iterable
+        :param str _attr: attribute name to get.
+        """
+
+        # initialize result
+        result = {}
+
+        # ensure _components is a list of components
+        if isinstance(_components, Component):
+            _components = [_components]
+
+        # get all cls controllers of _components
+        controllers = set()
+        for component in _components:
+            controller = cls.get_nf(component)
+            if controller is not None:
+                controllers.add(controller)
+
+        # update result
+        for controller in controllers:
+            partial_result = getattr(controller, _attr)
+            result[controller] = partial_result
+
+        return result
+
+    @classmethod
+    def _SETS(cls, _components, _attr, _value):
+        """Set attribute value to cls controllers which are used by
+        _components.
+
+        :param _components: Component(s) which use cls controller.
+        :type _components: Component or Iterable
+        :param str _attr: attribute name to set.
+        :param _value: attribute value to set.
+        """
+
+        # ensure _components is a list of components
+        if isinstance(_components, Component):
+            _components = [_components]
+
+        controllers = set()
+
+        # get all cls controllers of _components
+        for component in _components:
+            controller = cls.get_nf(component)
+            if controller is not None:
+                controllers.add(controller)
+
+        for controller in controllers:
+            setattr(controller, _attr, _value)
+
+    @classmethod
+    def _PROCESS(cls, _component, _method, *args, **kwargs):
+        """Execute a controller class method bound to a component.
+
+        :param Component _component: Component from where find controller.
+        :param str _method: controller method name.
+        :param list args: controller method args.
+        :param dict kwargs: controller method kwargs.
+        :return: controller method result.
+        """
+
+        result = None
+
+        process_result = cls._PROCESSS(
+            _components=_component, _method=_method, *args, **kwargs
+        )
+
+        if process_result:
+            for controller in process_result:
+                result = process_result[controller]
+                break
+
+        return result
+
+    @classmethod
+    def _GET(cls, _component, _attr):
+        """Get an attribute value to cls controller which is used by
+        _component.
+
+        :param Component _components: Component which use cls controller.
+        :param str _attr: attribute name to get.
+        """
+
+        result = None
+
+        gets_result = cls._GETS(_components=_component, _attr=_attr)
+
+        if gets_result:
+            for controller in gets_result:
+                result = gets_result[controller]
+                break
+
+        return result
+
+    @classmethod
+    def _SET(cls, _component, _attr, _value):
+        """Set an attribute value to cls controller which is used by
+        _component.
+
+        :param Component _components: Component which use cls controller.
+        :param str _attr: attribute name to set.
+        :param _value: attribute value to set.
+        """
+
+        cls._SETS(_components=_component, _attr=_attr, _value=_value)

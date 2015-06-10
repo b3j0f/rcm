@@ -24,6 +24,24 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-# extend b3j0f.rcm package with all rcm sub-projects
-from pkgutil import extend_path
-__path__ = extend_path(__path__, __name__)
+from b3j0f.rcm.nf.impl import Output
+
+
+@Output()
+class Checker(object):
+    """In charge of check component configuration.
+    """
+
+    class Error(Exception):
+        """Handle checking errors.
+        """
+
+    def check(self, conf):
+        """Check a configuration.
+
+        :param b3j0f.rcm.conf.core.Configuration conf: configuration to check.
+        :return: configuration component.
+        :rtype: Component
+        """
+
+        raise NotImplementedError()

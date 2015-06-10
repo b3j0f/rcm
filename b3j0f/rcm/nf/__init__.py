@@ -24,6 +24,29 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-# extend b3j0f.rcm package with all rcm sub-projects
-from pkgutil import extend_path
-__path__ = extend_path(__path__, __name__)
+"""Contains definition of main controllers.
+"""
+
+__all__ = [
+    'Controller',
+    'ImplController',
+    'IOController',
+    'LifecycleController',
+    'NameController',
+    'RemoteController',
+    'IntentController',
+    'ContentController',
+    'PropertyController'
+]
+
+__version__ = '0.1.0'  #: project version
+
+from b3j0f.rcm.nf.core import Controller
+from b3j0f.rcm.nf.impl import ImplController
+from b3j0f.rcm.nf.io import IOController
+from b3j0f.rcm.nf.lifecycle import LifecycleController
+from b3j0f.rcm.nf.name import NameController
+from b3j0f.rcm.nf.remote import RemoteController
+from b3j0f.rcm.nf.intent import IntentController
+from b3j0f.rcm.nf.content import ContentController
+from b3j0f.rcm.nf.property import PropertyController

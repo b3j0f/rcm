@@ -19,9 +19,11 @@ import os
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('..'))
-sys.path.append('../../utils')
-sys.path.append('../../annotation')
-sys.path.append('../../aop')
+sys.path.append('../../rcm-core')
+sys.path.append('../../rcm-io')
+sys.path.append('../../rcm-nf')
+sys.path.append('../../rcm-conf')
+sys.path.append('../../rcm-factory')
 
 from b3j0f.rcm import __version__
 

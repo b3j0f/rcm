@@ -3,7 +3,7 @@
 # --------------------------------------------------------------------
 # The MIT License (MIT)
 #
-# Copyright (c) 2015 Jonathan Labéjof <jonathan.labejof@gmail.com>
+# Copyright (c) 2014 Jonathan Labéjof <jonathan.labejof@gmail.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,24 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-# extend b3j0f.rcm package with all rcm sub-projects
-from pkgutil import extend_path
-__path__ = extend_path(__path__, __name__)
+from b3j0f.rcm.nf.impl import Output
+
+
+@Output()
+class Parser(object):
+    """Parse a resource and returns a component configuration.
+    """
+
+    class Error(Exception):
+        """Handle parsing errors.
+        """
+
+    def get_conf(self, resource):
+        """
+        :param resource: resource to parse.
+        :return: resource configuration.
+        :rtype: Configuration
+        :raises: ParserError in case of a parser error happened.
+        """
+
+        raise NotImplementedError()

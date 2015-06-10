@@ -24,6 +24,26 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-# extend b3j0f.rcm package with all rcm sub-projects
-from pkgutil import extend_path
-__path__ = extend_path(__path__, __name__)
+from b3j0f.rcm.nf.impl import Output
+
+
+@Output()
+class Instantiator(object):
+    """In charge of instantiate components from configuration.
+    """
+
+    class Error(Exception):
+        """Handle Instantiation errors.
+        """
+
+    def instantiate(self, conf):
+        """Instantiate a component from input configuration.
+
+        :param Configuration conf: configuration from where get properties to
+            instantiate a new component.
+        :return: related component.
+        :rtype: b3j0f.rcm.core.Component
+        :raises: Instantiator.Error in case of error.
+        """
+
+        raise NotImplementedError()

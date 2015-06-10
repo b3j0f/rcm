@@ -24,6 +24,11 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-# extend b3j0f.rcm package with all rcm sub-projects
-from pkgutil import extend_path
-__path__ = extend_path(__path__, __name__)
+from b3j0f.rcm.nf.core import Controller
+
+
+class RemoteController(Controller):
+    """Controller dedicated to manage component remote access.
+    """
+
+    pass

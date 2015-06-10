@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # --------------------------------------------------------------------
@@ -24,6 +25,16 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-# extend b3j0f.rcm package with all rcm sub-projects
-from pkgutil import extend_path
-__path__ = extend_path(__path__, __name__)
+from b3j0f.utils.ut import UTCase
+
+from unittest import main
+
+
+class IntentTest(UTCase):
+
+    def testIntent(self):
+
+        pass
+
+if __name__ == '__main__':
+    main()

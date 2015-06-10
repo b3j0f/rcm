@@ -37,7 +37,7 @@ with open(join(_path, 'README.rst')) as f:
     desc = f.read()
 
 dependencies = [
-    'b3j0f.rcm-core', 'b3j0f.rcm-io', 'b3j0f.rcm-nf', 'b3j0f.rcm-conf'
+    'b3j0f.utils', 'b3j0f.annotation', 'b3j0f.aop'
 ]
 
 keywords = [
