@@ -8,6 +8,13 @@ b3j0f.rcm: Reflective component model in python
 ===============================================
 
 .. toctree::
+   :caption: Table of Contents
+   :maxdepth: 1
+
+   index
+   changelog
+
+.. toctree::
    :hidden:
 
    sources/modules

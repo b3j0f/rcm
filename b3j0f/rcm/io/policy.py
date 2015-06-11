@@ -30,6 +30,7 @@ Selection
 ---------
 
 A selection is a function which takes in parameters:
+
 - port: proxy port.
 - resources: port resources.
 - proxies: list of port proxies.
@@ -39,6 +40,7 @@ A selection is a function which takes in parameters:
 And returns one proxy or a PolicyResultSet.
 
 Here are types of selection proxies classes:
+
 - SelectAllPolicy: select all proxies.
 - SelectFirstPolicy: select the first proxy or an empty list of proxies.
 - SelectCountPolicy: select (random) proxies between [inf;sup].
@@ -52,6 +54,7 @@ Execution
 ---------
 
 An execution is a function which takes in parameters:
+
 - port: proxy port.
 - resources: port resources.
 - proxies: list of port proxies.
@@ -69,6 +72,7 @@ Result selection
 ----------------
 
 A result selection is a function which takes in parameters:
+
 - port: proxy port.
 - resources: port resources.
 - proxies: list of port proxies.

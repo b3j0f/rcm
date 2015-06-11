@@ -19,11 +19,10 @@ import os
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('..'))
-sys.path.append('../../rcm-core')
-sys.path.append('../../rcm-io')
-sys.path.append('../../rcm-nf')
-sys.path.append('../../rcm-conf')
-sys.path.append('../../rcm-factory')
+sys.path.append('../../utils')
+sys.path.append('../../aop')
+sys.path.append('../../annotation')
+sys.path.append('../../conf')
 
 from b3j0f.rcm import __version__
 
@@ -57,7 +56,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'b3j0f.rcm'
-copyright = u'2014, b3j0f'
+copyright = u'2015, b3j0f'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -189,7 +188,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'b3j0faopdoc'
+htmlhelp_basename = 'b3j0frcmdoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -209,7 +208,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ('index', 'b3j0faop.tex', u'b3j0f.rcm Documentation',
+  ('index', 'b3j0frcm.tex', u'b3j0f.rcm Documentation',
    u'b3j0f', 'manual'),
 ]
 
@@ -239,7 +238,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'b3j0faop', u'b3j0f.rcm Documentation',
+    ('index', 'b3j0frcm', u'b3j0f.rcm Documentation',
      [u'b3j0f'], 1)
 ]
 
@@ -253,8 +252,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'b3j0faop', u'b3j0f.rcm Documentation',
-   u'b3j0f', 'b3j0faop', 'One line description of project.',
+  ('index', 'b3j0frcm', u'b3j0f.rcm Documentation',
+   u'b3j0f', 'b3j0frcm', 'One line description of project.',
    'Miscellaneous'),
 ]
 

@@ -24,17 +24,8 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-from json import load
-
-from os.path import exists, join
-
 from sys import path
 
-from b3j0f.rcm.core import Component
-from b3j0f.rcm.factory.core import Factory
-from b3j0f.rcm.factory import FactoryManager
-from b3j0f.rcm.io import BindingManager, InputPort, OutputPort
-from b3j0f.rcm.parser.core import ParserManager
 
 PATHS = path[:]
 DEFAULT_FILE_PATH = 'b3j0f.rcm.conf'
@@ -66,77 +57,3 @@ class Configuration(object):
         self.type = _type
         self.props = props if props else {}
         self.content = content if content else {}
-
-
-def get_config(config_path=DEFAULT_FILE_PATH, paths=PATHS):
-    """
-    Get configuration file.
-    """
-
-    result = None
-    if exists(config_path):
-        result = load(config_path)
-    else:
-        for path in PATHS:
-            full_config_path = join(path, config_path)
-            if exists(full_config_path):
-                result = load(full_config_path)
-                break
-
-    return result
-
-
-BOOTSTRAP = 'bootstrap'
-bootstrap = None
-
-
-def get_bootstrap_component(renew=False):
-    """
-    Return current bootstrap component.
-    """
-
-    global bootstrap
-    if bootstrap is None or renew:
-
-        config = get_config()
-
-        if config is not None:
-            bootsrap_path = config[BOOTSTRAP]
-            for path in PATHS:
-                full_bootstrap_path = join(path, bootsrap_path)
-                if exists(full_bootstrap_path):
-                    bootstrap_config = load(full_bootstrap_path)
-                    bootstrap = Factory.new_component(bootstrap_config)
-                    break
-
-    return bootstrap
-
-
-class Bootstrap(Component):
-
-    def __init__(self, factory, binding):
-        pass
-
-    @InputPort(interface=FactoryManager)
-    def set_factory(self, factory):
-        self.factory = factory
-
-    @OutputPort(interface=FactoryManager)
-    def get_factory(self):
-        return self.factory
-
-    @InputPort(interface=BindingManager)
-    def set_binding(self, binding):
-        self.binding = binding
-
-    @OutputPort(interface=BindingManager)
-    def get_binding(self):
-        return self.binding
-
-    @InputPort(interface=ParserManager)
-    def set_parser(self, parser):
-        self.parser = parser
-
-    @OutputPort(interface=ParserManager)
-    def get_parser(self):
-        return self.binding

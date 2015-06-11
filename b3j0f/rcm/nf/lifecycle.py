@@ -33,7 +33,7 @@ from b3j0f.rcm.nf.core import Controller
 from b3j0f.rcm.nf.annotation import (
     CtrlAnnotationInterceptor, C2CtrlAnnotation
 )
-from b3j0f.rcm.nf.binding import OutputPort
+from b3j0f.rcm.nf.io import OutputPort
 from b3j0f.rcm.nf.content import ContentController
 from b3j0f.aop import weave, unweave
 
