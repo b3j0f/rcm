@@ -42,7 +42,7 @@ dependencies = [
 
 keywords = [
     'reflective', 'component', 'model', 'non-functional', 'business', 'CBSE',
-    'Component based software engineering'
+    'Component based software engineering', 'reflect'
 ]
 
 setup(

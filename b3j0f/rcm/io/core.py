@@ -39,128 +39,196 @@ order to describe bound resources. The ``how`` is ensured with Binding objects
 which are used by Port objects.
 """
 
-__all__ = ['Resource', 'Interface']
+__all__ = ['Port', 'ProxySet']
 
-from inspect import isclass
+from inspect import getmembers, isroutine
 
+from functools import wraps
+
+from sys import maxsize
+
+from b3j0f.utils.proxy import get_proxy
+from b3j0f.rcm.io.policy import PolicyResultSet
 from b3j0f.rcm.nf.core import Controller
 
 
-class Interface(object):
-    """Resource interface which is used to check and to generate proxy
-    resource.
+class Port(Controller):
+    """Controller which implements the proxy design pattern in order
+    to separate component business realization from its consumption/providing.
 
-    Provides a ``py_class`` which is the python interface corresponding to the
-    value.
+    A Port uses:
+
+    - interfaces such as resource provided/consumed description.
+    - a proxified resource.
+    - a input/output port kind.
+    - bound port(s) to proxify.
+    - a multiple boolean flag which specifies port proxifier cardinality. If
+        True, get_proxy returns one proxy, otherwise a tuple of proxies. False
+        by default.
+    - an inferior/superior bound related to minimal/maximal number of
+        resources to bind. Used only if multiple is True.
+    - proxy selection, execution and result selection in case of not multiple.
+
+    While interfaces and proxies are internal to the port, resources and
+    bindings are bound to the port because they are seen such as port
+    functional properties.
     """
 
-    class ValueError(Exception):
-        """Raised while trying to update value.
+    class PortError(Exception):
+        """Raised if new port resource is inconsistent with port requirements.
         """
         pass
 
-    VALUE = '_value'  #: value attribute name
-    PYCLS = '_pycls'  #: python class value attribute name
+    INPUT = 1 << 0  #: input port kind
+    OUTPUT = 1 << 1  #: output port kind
+    DEFAULT_IOKIND = INPUT | OUTPUT  #: default port kind
 
-    def __init__(self, value=None):
+    ITFS = '_itfs'  #: interfaces attribute name
+    PROXY = '_proxy'  #: proxy attribute name
+    IOKIND = '_iokind'  #: i/o kind of port (input/output/both)
+    MULTIPLE = '_multiple'  #: multiple resource proxy attribute name
+    INF = 'inf'  #: minimal number of bindable resources attribute name
+    SUP = 'sup'  #: maximal number of bindable resources attribute name
+    _PROXY = '_proxy'  #: private proxies attribute name
+    _SELECTPOLICY = '_selectpolicy'  #: proxy selection policy attr name
+    _EXECPOLICY = '_execpolicy'  #: proxy execution policy attribute name
+    _RESULTPOLICY = '_resultpolicy'  #: proxy result selection policy attr name
+
+    def __init__(
+        self, itfs=None, proxy=None,
+        iokind=DEFAULT_IOKIND, multiple=True, inf=0, sup=maxsize,
+        selectpolicy=None, execpolicy=None, respolicy=None,
+        *args, **kwargs
+    ):
         """
-        :param str value: value interface. Default is object.
+        :param itfs: list of Interface which describe this resource.
+        :type itfs: Interface(s)
+        :param proxy: default resource proxy.
+        :param int iokind: i/o kind of ports among Port.OUTPUT, Port.INPUT or
+            both (default).
+        :param bool multiple: multiple proxy cardinality. False by default.
+        :param int inf: minimal proxy number to use. Default 0.
+        :param int sup: maximal proxy number to use. Default infinity.
+        :param selectpolicy: in case of not multiple port, a selectpolicy
+            choose at runtime which proxy method to run. If it is a dict, keys
+            are method names and values are callable selectpolicy. Every
+            selectpolicy takes in parameters:
+            - port: self port,
+            - resources: self resources,
+            - proxies: list of proxies to execute,
+            - name: the called method name,
+            - instance: the proxy instance,
+            - args: method args,
+            - kwargs: method kwargs.
+        :type selectpolicy: dict or callable
+        :param execpolicy: in case of not multiple port, a execpolicy choose at
+            runtime how to execute a proxy method. If it is a dict, keys are
+            method names and values are callable execpolicy. Every execpolicy
+            takes in parameters:
+            - port: self port,
+            - resources: self resources,
+            - proxies: list of proxies to execute,
+            - name: the called method name,
+            - instance: the proxy instance,
+            - args: method args,
+            - kwargs: method kwargs.
+        :type selectpolicy: dict or callable
+        :param respolicy: in case of not multiple port, a respolicy choose at
+            which proxy method result to return. If it is a dict, keys are
+            method names and values are callable respolicy. Every respolicy
+            takes in parameters:
+            - port: self port,
+            - resources: self resources,
+            - proxies: list of proxies to execute,
+            - name: the called method name,
+            - instance: the proxy instance,
+            - args: method args,
+            - kwargs: method kwargs,
+            - results: method results.
+        :type respolicy: dict or callable
         """
 
-        super(Interface, self).__init__()
+        super(Port, self).__init__(*args, **kwargs)
 
-        self.value = value
-
-    def __repr__(self):
-
-        result = "Interface(id={0}, value={1}, pycls={2})".format(
-            id(self), self.value, self.pycls
-        )
-
-        return result
+        # set private attributes
+        self._proxy = proxy
+        self._itfs = itfs
+        self._iokind = iokind
+        self._multiple = multiple
+        self._inf = inf
+        self._sup = sup
+        self._selectpolicy = selectpolicy
+        self._execpolicy = execpolicy
+        self._resultpolicy = respolicy
 
     @property
-    def value(self):
-        """Get interface value.
+    def isoutput(self):
+        """True iif this is a component output.
 
-        :return: self value.
-        :rtype: str
-        """
-
-        return self._value
-
-    @value.setter
-    def value(self, value):
-        """Change of value interface.
-
-        :param str value: new value interface.
-        """
-
-        # set private value attribute
-        self._value = value
-        # get _pycls
-        if value is None:  # if value is None, use object
-            value = object
-        elif not isclass(value):  # if not class, use py_class generator
-            value = self._get_pycls()
-
-        # check type of value
-        if isclass(value):  # update attribute only if value is a class
-            self._pycls = value
-        else:  # otherwise, raise an error
-            raise Interface.ValueError(
-                "Wrong interface value {0}".format(value)
-            )
-
-    @property
-    def pycls(self):
-        """Get python interface.
-
-        :return: python interface.
-        """
-
-        return self._pycls
-
-    def _get_pycls(self):
-        """Protected method to override in order to get py_class from input
-        value.
-
-        :return: python value conversion.
-        :rtype: type
-        """
-
-        raise NotImplementedError()
-
-    def is_sub_itf(self, itf):
-        """Check if self is a sub interface of itf.
-
-        :param Interface itf: interface to check.
-        :return: True iif self.py_class subclass of itf.py_class.
+        :return: True iif this is a component output.
         :rtype: bool
         """
 
-        return issubclass(self.pycls, itf.pycls)
+        return self._iokind & Port.OUTPUT
 
+    @property
+    def isinput(self):
+        """True iif this is a component input.
 
-class Resource(Controller):
-    """Resource element which implements the proxy design pattern in order
-    to separate resource realization from its usage.
-
-    It uses Interfaces in order to describe itself.
-    """
-
-    ITFS = '_itfs'  #: interfaces attribute name
-
-    def __init__(self, itfs=(Interface(),), proxy=None, *args, **kwargs):
-        """
-        :param Iterable itfs: list of Interface which describe this resource.
-        :param proxy: default resource proxy.
+        :return: True iif this is a component input.
+        :rtype: bool
         """
 
-        super(Resource, self).__init__(*args, **kwargs)
+        return self._iokind & Port.INPUT
 
-        self._itfs = itfs
-        self._proxy = proxy
+    @property
+    def iokind(self):
+        """Get this i/o kind.
+
+        :return: this i/o kind.
+        :rtype: int
+        """
+
+        return self._iokind
+
+    @iokind.setter
+    def iokind(self, value):
+        """Change of i/o kind.
+
+        :param int value: new i/o kind to use.
+        """
+
+        return self._set_iokind(value)
+
+    def _set_iokind(self, iokind):
+        """Change of i/o kind.
+
+        :param int iokind: new i/o kind to use.
+        """
+
+        self._iokind = iokind
+
+    @property
+    def multiple(self):
+        """Get self multiple value.
+
+        :return: self multiple flag.
+        :rtype: bool
+        """
+
+        return self._multiple
+
+    @multiple.setter
+    def multiple(self, value):
+        """Change of self multiple value.
+
+        :param bool value: new multiple value to use.
+        """
+
+        if value != self._multiple:
+            self._multiple = not self._multiple
+
+            self._renewproxy()
 
     @property
     def itfs(self):
@@ -173,12 +241,50 @@ class Resource(Controller):
         self._set_itfs(itfs=value)
 
     def _set_itfs(self, itfs):
+
         """Change of itfs.
 
         :param list itfs: list of interfaces to use.
         """
 
         self._itfs = itfs
+
+        self._renewproxy()
+
+    @property
+    def inf(self):
+
+        return self._inf
+
+    @inf.setter
+    def inf(self, value):
+
+        self._inf = value
+
+        self._renewproxy()
+
+    @property
+    def sup(self):
+
+        return self._sup
+
+    @sup.setter
+    def sup(self, value):
+
+        self._sup = value
+
+        self._renewproxy()
+
+    def get_resources(self):
+        """Get resources by name.
+
+        :return: self resources.
+        :rtype: dict
+        """
+
+        result = Port.GET_PORTS(component=self)
+
+        return result
 
     @property
     def proxy(self):
@@ -198,4 +304,277 @@ class Resource(Controller):
         :return: self proxy.
         """
 
-        return self._proxy
+        # renew self _proxy if necessary
+        if self._proxy is None:
+            self._renewproxy()
+        # return self proxy
+        result = self._proxy
+
+        return result
+
+    def set_port(self, port, name=None, *args, **kwargs):
+
+        # check port before binding it to self ports
+        if (
+            isinstance(port, Port)
+            and not self.check_resource(resource=port)
+        ):
+            # and raise related error
+            raise Port.PortError(
+                "Port {0} does not validate requirements {1}."
+                .format(port, self.itfs)
+            )
+        # bind the port to self
+        name, oldport = super(Port, self).set_port(
+            port=port, name=name, *args, **kwargs
+        )
+        result = name, oldport
+
+        # if resources have changed
+        if isinstance(oldport, Port) or isinstance(port, Port):
+            # renew proxy with a possible chance of raising a PortError
+            self._renewproxy()
+
+        return result
+
+    def check_resource(self, resource):
+        """Check input resource related to self interfaces.
+
+        :param Port resource: resource to check.
+        """
+
+        # check if maximal number of resources have not been acquired
+        result = len(self.get_resources()) < self.sup
+
+        if result and self.itfs:  # check all port itfs if they exist
+            for selfitf in self.itfs:
+                for resourceitf in resource.itfs:
+                    result = resourceitf.is_sub_itf(selfitf)
+                    if not result:
+                        break
+
+        return result
+
+    def _renewproxy(self):
+        """Renew self proxy and propagate new proxies to all ``boundon``
+        ports.
+
+        :raises: Port.PortError if resources do not match inf/sup conditions.
+        """
+
+        # nonify proxy in case of errors are raised
+        self._proxy = None
+
+        # get resources
+        resources = self.get_resources()
+
+        # check number of resources
+        if len(resources) < self.inf or self.sup < len(resources):
+            raise Port.PortError(
+                "Number of resources: {0}. [{1}; {2}] expected in {3}.".format(
+                    len(resources), self.inf, self.sup, self.uid
+                )
+            )
+        # get bases interfaces
+        bases = (itf.pycls for itf in self.itfs)
+
+        # if multiple, proxies is a ProxySet
+        if self.multiple:
+            self._proxy = ProxySet(
+                port=self, resources=resources, bases=bases
+            )
+        else:  # use one object which propagates methods to resource proxies
+            if not resources:  # do nothing if resources is empty
+                self._proxy = None
+            else:
+                proxies = []  # get a list of proxies
+                for resource_name in resources:
+                    resource = resources[resource_name]
+                    proxy = resource.proxy
+                    if isinstance(proxy, ProxySet):
+                        proxies += proxy
+                    else:
+                        proxies.append(proxy)
+                # embed proxies in a policy result set for future policies
+                proxies = PolicyResultSet(proxies)
+                _dict = {}  # proxy dict to fill with dedicated methods
+                # wraps all interface methods
+                for base in bases:
+                    # among public members
+                    for rname, routine in getmembers(
+                        base,
+                        lambda mname, member:
+                            mname[0] != '_' and isroutine(member)
+                    ):
+                        # get related method proxy
+                        methodproxy = self._methodproxy(
+                            rountine=routine, proxies=proxies,
+                            rname=rname
+                        )
+                        # update _dict with method proxy
+                        _dict[rname] = methodproxy
+
+                # add default constructor
+                _dict['__new__'] = _dict['__init__'] = (
+                    lambda *args, **kwargs: None
+                )
+                # get proxy elt
+                proxycls = type('Proxy', bases, _dict)
+                proxy = proxycls()
+                # generate a dedicated proxy which respects method signatures
+                self._proxy = get_proxy(elt=proxy, bases=bases, _dict=_dict)
+
+        # and propagate changes to reversed ports
+        for component in list(self._rports):
+            if component is not self and isinstance(component, Port):
+                bound_names = self._rports[component]
+                for bound_name in list(bound_names):
+                    # in this way, bound on ports will use new self proxies
+                    try:
+                        component[bound_name] = self
+                    except Exception:
+                        pass  # in catching silently bind errors
+
+    def _methodproxy(self, routine, rname, proxies):
+        """Generate a routine proxy related to input routine, routine name and
+        a list of proxies.
+
+        :param routine: routine to proxify.
+        :param str rname: routine name.
+        :param PolicyResultSet proxies: proxies to proxify.
+        :return: routine proxy.
+        """
+
+        # get the rights selectpolicy and execpolicy
+        if isinstance(self._selectpolicy, dict):
+            selectpolicy = self._selectpolicy.get(rname)
+        else:
+            selectpolicy = self._selectpolicy
+        if isinstance(self._execpolicy, dict):
+            execpolicy = self._execpolicy.get(rname)
+        else:
+            execpolicy = self._execpolicy
+        if isinstance(self._respolicy, dict):
+            respolicy = self._respolicy.get(rname)
+        else:
+            respolicy = self._respolicy
+
+        # wraps the rountine
+        @wraps(routine)
+        def result(proxyinstance, *args, **kwargs):
+            # check if proxies have to change dynamically
+            if selectpolicy is None:
+                proxiestorun = proxies
+            else:
+                proxiestorun = selectpolicy(
+                    port=self, proxies=proxies, routine=rname,
+                    instance=proxyinstance,
+                    args=args, kwargs=kwargs
+                )
+            # if execpolicy is None, process proxies
+            if execpolicy is None:
+                results = []
+                for proxy_to_run in proxiestorun:
+                    rountine = getattr(proxy_to_run, rname)
+                    method_res = rountine(*args, **kwargs)
+                    results.append(method_res)
+            else:  # if execpolicy is asked
+                results = execpolicy(
+                    port=self, proxies=proxiestorun,
+                    routine=rname, instance=proxyinstance,
+                    args=args, kwargs=kwargs
+                )
+            if respolicy is None:
+                if (
+                    isinstance(results, PolicyResultSet)
+                    and results
+                ):
+                    result = [0]
+                else:
+                    result = results
+            else:
+                result = respolicy(
+                    port=self, proxies=proxies,
+                    routine=rname, instance=proxyinstance,
+                    args=args, kwargs=kwargs,
+                    results=results
+                )
+            return result
+
+        return result
+
+
+class ProxySet(tuple):
+    """Associate a port proxy list with related resource names in order to
+    easily choose proxies depending on resource names.
+
+    It uses a port, port resources by name and a list of proxies.
+    The get_resource_name(proxy) permits to find back proxy resource name.
+
+    It inherits from a tuple in order avoid modification.
+    """
+
+    PORT = 'port'  #: port attribute name
+    RESOURCES = 'resources'  #: resources attribute name
+    BASES = 'bases'  #: port interface types
+
+    #: private proxies by name attribute name
+    _RESOURCE_NAMES_BY_PROXY = '_resource_names_by_proxy'
+
+    def __new__(cls, port, resources, bases):
+        """
+        :param Port port: resources port.
+        :param dict resources: list of resource elements by name to proxify.
+        :param tuple bases: port interface pycls.
+        """
+
+        _resource_names_by_proxy = {}
+
+        for name in resources:
+            resource = resources[name]
+            # do something only if resource != port
+            if resource is not port:
+                proxy = resource.proxy
+                # ensure proxy is an Iterable
+                if not isinstance(proxy, ProxySet):
+                    proxy = (proxy,)
+                # generate a proxy for all resource proxy
+                for p in proxy:
+                    new_proxy = get_proxy(elt=proxy, bases=bases)
+                    # and save names in _resource_names_by_proxy
+                    try:
+                        _resource_names_by_proxy[new_proxy] = name
+                    except TypeError:
+                        _resource_names_by_proxy[id(new_proxy)] = name
+
+        result = super(ProxySet, cls).__new__(
+            cls, _resource_names_by_proxy.keys()
+        )
+        result._resource_names_by_proxy = _resource_names_by_proxy
+
+        return result
+
+    def __init__(self, port, resources, bases):
+        """
+        :param Port port: resources port.
+        :param dict resources: list of resource elements by name to proxify.
+        :param tuple bases: port interface pycls.
+        """
+
+        self.port = port
+        self.resources = resources
+        self.bases = bases
+
+    def get_resource_name(self, proxy):
+        """Get proxy resource name.
+
+        :param proxy: proxy from where get resource name.
+        :return: corresponding proxy resource name.
+        :rtype: str
+        """
+        try:
+            result = self._resource_names_by_proxy[proxy]
+        except TypeError:
+            result = self._resource_names_by_proxy[id(proxy)]
+
+        return result

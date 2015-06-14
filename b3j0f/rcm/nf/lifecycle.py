@@ -59,6 +59,8 @@ class LifecycleController(Controller):
     """
 
     class LifecycleError(Exception):
+        """Handle LifecycleController errors.
+        """
         pass
 
     class _Call(object):

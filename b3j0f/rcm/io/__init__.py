@@ -28,7 +28,7 @@
 """
 
 __all__ = [
-    'Resource', 'Interface',  # from core
+    'Interface',  # from core
     'Port', 'ProxySet',  # from port
     'PolicyResultSet', 'Policy', 'ParameterizedPolicy',  # from policy
     'SelectFirstPolicy', 'SelectAllPolicy', 'SelectCountPolicy',
@@ -40,8 +40,8 @@ __all__ = [
 
 __version__ = '0.1.1'  #: project version
 
-from b3j0f.rcm.io.core import Resource, Interface
-from b3j0f.rcm.io.port import Port, ProxySet
+from b3j0f.rcm.io.core import Port, ProxySet
+from b3j0f.rcm.io.desc import Interface
 from b3j0f.rcm.io.policy import (
     PolicyResultSet, Policy, ParameterizedPolicy,
     SelectFirstPolicy, SelectAllPolicy, SelectCountPolicy,
