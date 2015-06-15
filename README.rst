@@ -43,6 +43,10 @@ Reflective component model library for python.
    :target: https://readthedocs.org/projects/b3j0fconf/?badge=master
    :alt: Documentation Status
 
+.. image:: https://landscape.io/github/b3j0f/rcm/master/landscape.svg?style=flat
+   :target: https://landscape.io/github/b3j0f/rcm/master
+   :alt: Code Health
+
 Links
 -----
 
