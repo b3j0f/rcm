@@ -48,14 +48,15 @@ class Interface(object):
     VALUE = '_value'  #: value attribute name
     PYCLS = '_pycls'  #: python class value attribute name
 
-    def __init__(self, value=None):
+    def __init__(self, value=object):
         """
         :param str value: value interface. Default is object.
         """
 
         super(Interface, self).__init__()
 
-        self.value = value
+        self._pycls = None
+        self._value = value
 
     def __repr__(self):
 
@@ -87,12 +88,15 @@ class Interface(object):
         # get _pycls
         if value is None:  # if value is None, use object
             value = object
+
         elif not isclass(value):  # if not class, use py_class generator
-            value = self._get_pycls()
+            self._pycls = None  # nonify self _pycls to init self.pycls
+            value = self.pycls  # and get pycls
 
         # check type of value
         if isclass(value):  # update attribute only if value is a class
             self._pycls = value
+
         else:  # otherwise, raise an error
             raise Interface.ValueError(
                 "Wrong interface value {0}".format(value)
@@ -102,14 +106,22 @@ class Interface(object):
     def pycls(self):
         """Get python interface.
 
-        :return: python interface.
+        :return: self._get_pycls() by default.
         """
 
-        return self._pycls
+        # use self._pycls in order to keep in memory last call of get_pycls
+        result = self._pycls
+
+        if result is None:
+            result = self._pycls = self._get_pycls()
+
+        return result
 
     def _get_pycls(self):
         """Protected method to override in order to get py_class from input
         value.
+
+        In this call context, self.value exists.
 
         :return: python value conversion.
         :rtype: type

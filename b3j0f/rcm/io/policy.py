@@ -109,6 +109,8 @@ from sys import maxsize
 
 from time import time
 
+from collections import Callable
+
 try:
     from threading import Thread
 except ImportError:
@@ -196,7 +198,8 @@ class CountPolicy(ParameterizedPolicy):
         self.random = random
 
     class CountError(Exception):
-        pass
+        """Handle CountPolicy errors.
+        """
 
     def __call__(self, *args, **kwargs):
 
@@ -208,7 +211,7 @@ class CountPolicy(ParameterizedPolicy):
 
             if len_proxies < self.inf:
                 raise CountPolicy.CountError(
-                    "param count {0} ({1}) must be greater than {1}."
+                    "param count {0} ({1}) must be greater than {2}."
                     .format(result, len_proxies, self.inf)
                 )
 
@@ -372,9 +375,9 @@ class AsyncPolicy(Policy):
             proxy_rountine = getattr(proxy, routine)
             try:
                 proxy_result = proxy_rountine(*args, **kwargs)
-            except Exception as e:
+            except Exception as ex:
                 self._callback(  # and send the occured error to the callback
-                    error=e
+                    error=ex
                 )
             else:
                 self._callback(  # and send result to the callback
@@ -405,14 +408,13 @@ class BestEffortPolicy(Policy):
     class MaxTryError(Exception):
         """Raised when a max try is passed.
         """
-        pass
 
         MAXTRY = 'maxtry'  #: maxtry attribute name
         RANDOM = 'random'  #: random attribute name
         TIMEOUT = 'timeout'  #: timeout attribute name
 
     def __init__(
-        self, maxtry=maxsize, random=False, timeout=None, *args, **kwargs
+            self, maxtry=maxsize, random=False, timeout=None, *args, **kwargs
     ):
         """
         :param int maxtry: maximum try. sys.maxsize by default.
@@ -529,3 +531,108 @@ class ResultRoundaboutPolicy(RoundaboutPolicy):
         super(ResultRoundaboutPolicy, self).__init__(
             name='results', *args, **kwargs
         )
+
+
+class PolicyRules(object):
+    """Manage three policies of proxy selection, execution and result.
+    """
+
+    SELECT_POLICY = 'selectp'  #: selection policy attribute name
+    EXEC_POLICY = 'execp'  #: execution policy attribute name
+    RESULT_POLICY = 'resultp'  #: result policy attribute name
+
+    __slots__ = [SELECT_POLICY, EXEC_POLICY, RESULT_POLICY]
+
+    def __init__(self, selectp=None, execp=None, resultp=None):
+        """
+        :param selectp: in case of not multiple port, a selectp
+            chooses at runtime which proxy method to run. If it is a dict, keys
+            are method names and values are callable selectp. Every
+            selectp takes in parameters:
+            - port: self port,
+            - resources: self resources,
+            - proxies: list of proxies to execute,
+            - name: the called method name,
+            - instance: the proxy instance,
+            - args: method args,
+            - kwargs: method kwargs.
+        :type selectp: dict or callable
+        :param execp: in case of not multiple port, a execp chooses at
+            runtime how to execute a proxy method. If it is a dict, keys are
+            method names and values are callable execp. Every execp
+            takes in parameters:
+            - port: self port,
+            - resources: self resources,
+            - proxies: list of proxies to execute,
+            - name: the called method name,
+            - instance: the proxy instance,
+            - args: method args,
+            - kwargs: method kwargs.
+        :type execp: dict or callable
+        :param resultp: in case of not multiple port, a resultp
+            choose at which proxy method result to return. If it is a dict,
+            keys are method names and values are callable resultp. Every
+            resultp takes in parameters:
+            - port: self port,
+            - resources: self resources,
+            - proxies: list of proxies to execute,
+            - name: the called method name,
+            - instance: the proxy instance,
+            - args: method args,
+            - kwargs: method kwargs,
+            - results: method results.
+        :type resultp: dict or callable
+        """
+
+        self.selectp = selectp
+        self.execp = execp
+        self.resultp = resultp
+
+    @staticmethod
+    def _rule(policy, rname):
+        """Get the right policy rule related to specific policy and
+        routine name.
+
+        :param policy: policy to use.
+        :type policy: dict or Callable
+        :param str rname: routine name.
+        :return: policy rule.
+        """
+
+        result = None
+
+        # if policy is a set of rules by routine name
+        if isinstance(policy, dict):
+            result = policy.get(rname)
+        # if policy is a rule
+        elif isinstance(policy, Callable):
+            result = policy
+
+        return result
+
+    def selectpr(self, rname):
+        """Get the right selection policy rule related to a routine name.
+
+        :param str rname: routine name.
+        :return: selection policy rule.
+        """
+
+        return self._rule(policy=self.selectp, rname=rname)
+
+    def execpr(self, rname):
+        """Get the right execution policy rule related to a routine name.
+
+        :param str rname: routine name.
+        :return: execution policy rule.
+        """
+
+        return self._rule(policy=self.execp, rname=rname)
+
+    def resultpr(self, rname):
+        """Get the right result policy rule related to a routine name.
+
+        :param str rname: routine name.
+        :return: policy rule.
+        """
+
+        return self._rule(policy=self.resultp, rname=rname)

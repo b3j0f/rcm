@@ -62,7 +62,7 @@ from sys import maxsize
 
 
 class Component(dict):
-    """Respect the component design pattenr with ports and an unique id.
+    """Respect the component design pattern with ports and an unique id.
 
     A port is a couple of (id, resource) where the id is unique among
     Component resources, and a resource is an object which enriches Component
@@ -83,7 +83,7 @@ class Component(dict):
     RPORTS = '_rports'  #: rports field name
 
     def __init__(
-        self, uid=None, ports=None, namedports=None
+            self, uid=None, ports=None, namedports=None
     ):
         """Constructor which register ports with generated name and named
         interfaces.
@@ -131,6 +131,7 @@ class Component(dict):
         :return: sub-port where port names respect input name order.
         :raises: KeyError if port hierarchy does not correspond with names.
         """
+
         # default result is None
         result = None
         # use the variable port in order to parse port hierarchy
@@ -141,6 +142,7 @@ class Component(dict):
             port = port[name]
         else:  # if all names have been founded, result equals port
             result = port
+            break
 
         return result
 
@@ -305,6 +307,7 @@ class Component(dict):
         if key in self.keys():
             result = self[key]
             del self[key]
+
         elif not default:
             raise KeyError("Port {0} does not exist in {1}".format(key, self))
 
@@ -408,8 +411,8 @@ class Component(dict):
 
     @staticmethod
     def SELECT(
-        component, select,
-        depth=maxsize, ports=True, rports=True, limit=maxsize
+            component, select,
+            depth=maxsize, ports=True, rports=True, limit=maxsize
     ):
         """Get component(s) from a component model where select(component) is
         True. Otherwise, return None.
@@ -435,7 +438,7 @@ class Component(dict):
             components_to_visit = [component]  # components to visit
 
             def visit_components(
-                components, _components_to_visit=components_to_visit
+                    components, _components_to_visit=components_to_visit
             ):
                 """Try to find component(s) among input components where the
                 selection filter matches input components.
