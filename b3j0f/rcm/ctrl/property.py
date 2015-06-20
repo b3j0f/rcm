@@ -48,11 +48,11 @@ __all__ = [
 
 from b3j0f.aop import weave, unweave
 from b3j0f.rcm.core import Component
-from b3j0f.rcm.nf.core import Controller
-from b3j0f.rcm.nf.annotation import (
+from b3j0f.rcm.ctrl.core import Controller
+from b3j0f.rcm.ctrl.annotation import (
     CtrlAnnotation, getter_name, setter_name, C2CtrlAnnotation
 )
-from b3j0f.rcm.nf.impl import ImplController
+from b3j0f.rcm.ctrl.impl import ImplController
 
 
 class Property(Component):

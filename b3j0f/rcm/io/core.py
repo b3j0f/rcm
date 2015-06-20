@@ -49,7 +49,7 @@ from sys import maxsize
 
 from b3j0f.utils.proxy import get_proxy
 from b3j0f.rcm.io.policy import PolicyResultSet
-from b3j0f.rcm.nf.core import Controller
+from b3j0f.rcm.ctrl.core import Controller
 
 
 class Port(Controller):
@@ -105,8 +105,8 @@ class Port(Controller):
         :param int iokind: i/o kind of ports among Port.OUTPUT, Port.INPUT or
             both (default).
         :param bool multiple: multiple proxy cardinality. False by default.
-        :param int inf: minimal proxy number to use. Default 0.
-        :param int sup: maximal proxy number to use. Default infinity.
+        :param int inf: minimal port number to use. Default 0.
+        :param int sup: maximal port number to use. Default infinity.
         :param b3j0f.rcm.io.policy.PolicyRules policyrules: policy rules.
         """
 
@@ -339,8 +339,7 @@ class Port(Controller):
         return result
 
     def _renewproxy(self):
-        """Renew self proxy and propagate new proxies to all ``boundon``
-        ports.
+        """Renew self proxy and propagate new proxies to all ``rports`` ports.
 
         :raises: Port.PortError if resources do not match inf/sup conditions.
         """
@@ -521,6 +520,7 @@ class ProxySet(tuple):
                     # and save names in _resource_names_by_proxy
                     try:
                         _resource_names_by_proxy[new_proxy] = name
+
                     except TypeError:
                         _resource_names_by_proxy[id(new_proxy)] = name
 
@@ -551,8 +551,10 @@ class ProxySet(tuple):
         :return: corresponding proxy port name.
         :rtype: str
         """
+
         try:
             result = self._resource_names_by_proxy[proxy]
+
         except TypeError:
             result = self._resource_names_by_proxy[id(proxy)]
 

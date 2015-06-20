@@ -142,7 +142,6 @@ class Component(dict):
             port = port[name]
         else:  # if all names have been founded, result equals port
             result = port
-            break
 
         return result
 
@@ -437,9 +436,7 @@ class Component(dict):
             visited_uids = set()  # visited uids is a set of uids
             components_to_visit = [component]  # components to visit
 
-            def visit_components(
-                    components, _components_to_visit=components_to_visit
-            ):
+            def visit_components(components):
                 """Try to find component(s) among input components where the
                 selection filter matches input components.
 
@@ -467,7 +464,7 @@ class Component(dict):
                         # add component uid in visited_uids
                         visited_uids.add(component.uid)
                         # and component in _components_to_visit
-                        _components_to_visit.append(component)
+                        components_to_visit.append(component)
 
             # while there are components to visit and limit > len(result)
             # and depth >= 0

@@ -589,7 +589,7 @@ class PolicyRules(object):
         self.resultp = resultp
 
     @staticmethod
-    def _rule(policy, rname):
+    def _rule(policy, rname=None):
         """Get the right policy rule related to specific policy and
         routine name.
 
@@ -610,7 +610,7 @@ class PolicyRules(object):
 
         return result
 
-    def selectpr(self, rname):
+    def selectpr(self, rname=None):
         """Get the right selection policy rule related to a routine name.
 
         :param str rname: routine name.
@@ -619,7 +619,7 @@ class PolicyRules(object):
 
         return self._rule(policy=self.selectp, rname=rname)
 
-    def execpr(self, rname):
+    def execpr(self, rname=None):
         """Get the right execution policy rule related to a routine name.
 
         :param str rname: routine name.
@@ -628,7 +628,7 @@ class PolicyRules(object):
 
         return self._rule(policy=self.execp, rname=rname)
 
-    def resultpr(self, rname):
+    def resultpr(self, rname=None):
         """Get the right result policy rule related to a routine name.
 
         :param str rname: routine name.

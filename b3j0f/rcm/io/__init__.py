@@ -24,29 +24,7 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-"""Contains definition of main binding concepts for final user.
+"""This project provides tools to manage input/output of components.
 """
 
-__all__ = [
-    'Interface',  # from core
-    'Port', 'ProxySet',  # from port
-    'PolicyResultSet', 'Policy', 'ParameterizedPolicy',  # from policy
-    'SelectFirstPolicy', 'SelectAllPolicy', 'SelectCountPolicy',
-    'SelectRandomPolicy', 'SelectRoundaboutPolicy',
-    'AsyncPolicy', 'BestEffortPolicy',
-    'ResultFirstPolicy', 'ResultAllPolicy', 'ResultCountPolicy',
-    'ResultRandomPolicy', 'ResultRoundaboutPolicy',
-]
-
-__version__ = '0.1.1'  #: project version
-
-from b3j0f.rcm.io.core import Port, ProxySet
-from b3j0f.rcm.io.desc import Interface
-from b3j0f.rcm.io.policy import (
-    PolicyResultSet, Policy, ParameterizedPolicy,
-    SelectFirstPolicy, SelectAllPolicy, SelectCountPolicy,
-    SelectRandomPolicy, SelectRoundaboutPolicy,
-    AsyncPolicy, BestEffortPolicy,
-    ResultFirstPolicy, ResultAllPolicy, ResultCountPolicy,
-    ResultRandomPolicy, ResultRoundaboutPolicy
-)
+__version__ = '0.1.0'  #: project version

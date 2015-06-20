@@ -36,7 +36,7 @@ from b3j0f.rcm.io.policy import (
     SelectRandomPolicy, SelectRoundaboutPolicy,
     AsyncPolicy, BestEffortPolicy,
     ResultFirstPolicy, ResultAllPolicy, ResultCountPolicy,
-    ResultRandomPolicy, ResultRoundaboutPolicy
+    ResultRandomPolicy, ResultRoundaboutPolicy, PolicyRules
 )
 
 
@@ -55,7 +55,9 @@ class TestParameterizedPolicy(TestPolicy):
     """Test ParameterizedPolicy.
     """
 
-    def setUp(self):
+    def setUp(self, *args, **kwargs):
+
+        super(TestParameterizedPolicy, self).setUp(*args, **kwargs)
 
         self.count = 50  # number of proxies to generate in a PolicyResultSet
         self.policy_cls = self._get_policy_cls()  # get policy cls
@@ -71,6 +73,7 @@ class TestParameterizedPolicy(TestPolicy):
         """
         :return: parameterized policy name.
         """
+
         return 'test'
 
     def _get_policy(self):
@@ -602,6 +605,87 @@ class TestBestEffortPolicy(TestParameterizedPolicy):
             BestEffortPolicy.TimeoutError, self.policy,
             proxies=proxies, routine='__call__'
         )
+
+
+class TestPolicyRules(UTCase):
+    """Test PolicyRules class.
+    """
+
+    def setUp(self):
+
+        super(TestPolicyRules, self).setUp()
+
+        def execpr():
+            """Execution policy rule.
+            """
+
+        def selectpr():
+            """Selection policy rule.
+            """
+
+        def resultpr():
+            """Result policy rule.
+            """
+
+        self.prs = PolicyRules(
+            selectp=selectpr, execp=execpr, resultp=resultpr
+        )
+
+    def _assertpr(self, prname, rname=None):
+        """Assert PolicyRules pr method.
+
+        :param str prname: pr method name.
+        """
+
+        prmethod = getattr(self.prs, prname)
+
+        prule = prmethod(rname=rname)
+
+        self.assertTrue(prule.__name__, prname)
+
+    def test_selectpr(self):
+        """Test PolicyRules.selectpr method.
+        """
+
+        self._assertpr('selectpr')
+
+    def test_execpr(self):
+        """Test PolicyRules.execpr method.
+        """
+
+        self._assertpr('execpr')
+
+    def test_resultpr(self):
+        """Test PolicyRules.resultpr method.
+        """
+
+        self._assertpr('resultpr')
+
+    def _assertprrname(self, prname):
+        """Assert pr with specific rname.
+        """
+
+        rname = 'test'
+        setattr(self.prs, prname[:-1], {rname: getattr(self.prs, prname)})
+        self._assertpr(prname, rname=rname)
+
+    def test_selectprrname(self):
+        """Test PolicyRules.selectpr method with rname.
+        """
+
+        self._assertprrname('selectpr')
+
+    def test_execprrname(self):
+        """Test PolicyRules.execpr method with rname.
+        """
+
+        self._assertprrname('execpr')
+
+    def test_resultprrname(self):
+        """Test PolicyRules.resultpr method.
+        """
+
+        self._assertprrname('resultpr')
 
 
 if __name__ == '__main__':

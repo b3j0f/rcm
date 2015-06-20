@@ -27,7 +27,7 @@
 __all__ = ['Controller']
 
 from b3j0f.rcm.core import Component
-from b3j0f.rcm.nf.annotation import CtrlAnnotation
+from b3j0f.rcm.ctrl.annotation import CtrlAnnotation
 
 
 class Controller(Component):
@@ -50,12 +50,12 @@ class Controller(Component):
         controllers = Controller.GET_PORTS(component=component)
         for portname in controllers:
             controller = controllers[portname]
-            controller._on_bind_nf(self, component=component)
+            controller._on_bind_ctrl(self, component=component)
 
         # apply all Controller annotations
         CtrlAnnotation.apply_on(component=component, impl=self)
 
-    def _on_bind_nf(self, controller, component):
+    def _on_bind_ctrl(self, controller, component):
         """Callback when a component is bound to the component.
 
         :param Controller controller: newly bound controller.
@@ -74,7 +74,7 @@ class Controller(Component):
         controllers = Controller.GET_PORTS(component=component)
         for portname in controllers:
             controller = controllers[portname]
-            controller._on_unbind_nf(self, component=component)
+            controller._on_unbind_ctrl(self, component=component)
 
         # unapply all Controller Annotation
         CtrlAnnotation.unapply_from(
@@ -82,7 +82,7 @@ class Controller(Component):
             impl=self
         )
 
-    def _on_unbind_nf(self, controller, component):
+    def _on_unbind_ctrl(self, controller, component):
         """Callback when a component is unbound from the component.
 
         :param Controller controller: newly bound controller.
@@ -116,10 +116,10 @@ class Controller(Component):
         :param list components: component(s) where apply self controller.
         """
 
-        nf_name = self.nf_name()
+        ctrl_name = self.ctrl_name()
 
         for component in components:
-            component[nf_name] = self
+            component[ctrl_name] = self
 
     def unapply(self, *components):
         """Unapply self from input components.
@@ -127,9 +127,9 @@ class Controller(Component):
         :param list components: component(s) from where unapply self.
         """
 
-        nf_name = self.nf_name()
+        ctrl_name = self.ctrl_name()
         for component in components:
-            component.pop(nf_name, None)
+            component.pop(ctrl_name, None)
 
     @classmethod
     def APPLY(cls, components, *args, **kwargs):
@@ -165,10 +165,10 @@ class Controller(Component):
         """
 
         result = [None] * len(components)
-        nf_name = cls.nf_name()
+        ctrl_name = cls.ctrl_name()
         # unapply all controllers registered by cls.crtl_name()
         for index, component in enumerate(components):
-            controller = component.pop(nf_name, None)
+            controller = component.pop(ctrl_name, None)
             result[index] = controller
 
         return result
@@ -182,8 +182,8 @@ class Controller(Component):
         """
 
         for controller in controllers:
-            nf_name = controller.nf_name()
-            component[nf_name] = controller
+            ctrl_name = controller.ctrl_name()
+            component[ctrl_name] = controller
 
     @staticmethod
     def UNAPPLY_ALL(component, *controllers):
@@ -193,11 +193,11 @@ class Controller(Component):
         """
 
         for controller in controllers:
-            nf_name = controller.nf_name()
-            component.pop(nf_name, None)
+            ctrl_name = controller.ctrl_name()
+            component.pop(ctrl_name, None)
 
     @classmethod
-    def nf_name(cls):
+    def ctrl_name(cls):
         """Get controller unique name.
 
         :return: cls python path.
@@ -211,7 +211,7 @@ class Controller(Component):
         return result
 
     @classmethod
-    def get_nf(cls, component):
+    def get_ctrl(cls, component):
         """Get controller from input component.
 
         :param component: component from where get cls controller.
@@ -219,7 +219,7 @@ class Controller(Component):
         :rtype: Controller
         """
 
-        controller_name = cls.nf_name()
+        controller_name = cls.ctrl_name()
         result = component.get(controller_name)
 
         return result
@@ -268,7 +268,7 @@ class Controller(Component):
         # get all cls controllers of _components
         controllers = set()
         for component in _components:
-            controller = cls.get_nf(component)
+            controller = cls.get_ctrl(component)
             if controller is not None:
                 controllers.add(controller)
 
@@ -298,7 +298,7 @@ class Controller(Component):
 
         # get all cls controllers of _components
         for component in _components:
-            controller = cls.get_nf(component)
+            controller = cls.get_ctrl(component)
             if controller is not None:
                 controllers.add(controller)
 

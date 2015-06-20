@@ -29,12 +29,12 @@ try:
 except ImportError:
     from dummy_threading import Lock, Condition
 
-from b3j0f.rcm.nf.core import Controller
-from b3j0f.rcm.nf.annotation import (
+from b3j0f.rcm.ctrl.core import Controller
+from b3j0f.rcm.ctrl.annotation import (
     CtrlAnnotationInterceptor, C2CtrlAnnotation
 )
-from b3j0f.rcm.nf.io import OutputPort
-from b3j0f.rcm.nf.content import ContentController
+from b3j0f.rcm.io.core import Port
+from b3j0f.rcm.ctrl.content import ContentController
 from b3j0f.aop import weave, unweave
 
 
@@ -134,22 +134,32 @@ class LifecycleController(Controller):
     _CALLSTACK = '_callstack'  #: private callstack field name
 
     def __init__(
-        self,
-        status=STOP,
-        keep_last=DEFAULT_KEEP_LAST,
-        mem_size=DEFAULT_MEM_SIZE,
-        idle_statuses=DEFAULT_IDLE_STATUSES,
-        propagate=DEFAULT_PROPAGATE,
-        *args, **kwargs
+            self,
+            status=STOP,
+            keep_last=DEFAULT_KEEP_LAST,
+            mem_size=DEFAULT_MEM_SIZE,
+            idle_statuses=None,
+            propagate=DEFAULT_PROPAGATE,
+            *args, **kwargs
     ):
 
+        super(LifecycleController, self).__init__(*args, **kwargs)
+
+        # init private attributes
+        self._status = None
+        self._mem_size = None
+        self._idle_statuses = None
+        self._lock = Lock()
+        self._callstack = []
+        # init attributes
         self.status = status
         self.keep_last = keep_last
         self.mem_size = mem_size
-        self.idle_statuses = idle_statuses
+        self.idle_statuses = (
+            LifecycleController.DEFAULT_IDLE_STATUSES if idle_statuses is None
+            else idle_statuses
+        )
         self.propagate = propagate
-        self._lock = Lock()
-        self._callstack = []
 
     def intercept(self, joinpoint):
         """Called when a business port is intercepted.
@@ -223,11 +233,19 @@ class LifecycleController(Controller):
 
     @property
     def mem_size(self):
+        """Get self memory size.
 
+        :return: memory size.
+        :rtype: int
+        """
         return self._mem_size
 
     @mem_size.setter
     def mem_size(self, value):
+        """Change of memory size.
+
+        :param int value: new memory size.
+        """
 
         self._lock.acquire()
         self._mem_size = value
@@ -236,18 +254,30 @@ class LifecycleController(Controller):
 
     @property
     def idle_statuses(self):
+        """Get idle statuses.
+
+        :return: set of idle statuses.
+        :rtype: set
+        """
         return self._idle_statuses
 
     @idle_statuses.setter
     def idle_statuses(self, value):
+        """Change of idle statuses.
 
+        :param set value: idle statuses to use.
+        """
         self._lock.acquire()
         self._idle_statuses = value
         self._lock.release()
 
     @property
     def idle(self):
+        """True iif this is idle.
 
+        :return: True iif this status is an idle statuses.
+        :rtype: bool
+        """
         return self._status in self._idle_statuses
 
     @property
@@ -283,8 +313,10 @@ class LifecycleController(Controller):
             # if lifecycle controller enters in an idle status
             if self.idle:
                 # weave advices
-                for component in self._bound_to:
-                    ports = OutputPort.get_cls_ports(component=component)
+                for component in self._rports:
+                    ports = Port.GET_PORTS(
+                        component=component, select=lambda n, p: p.isoutput
+                    )
                     for port in ports:
                         weave(port, advices=self.intercept)
 
@@ -292,8 +324,10 @@ class LifecycleController(Controller):
                 # clean call stack
                 self.clear()
                 # unweave advices
-                for component in self._bound_to:
-                    ports = OutputPort.get_cls_ports(component=component)
+                for component in self._rports:
+                    ports = Port.GET_PORTS(
+                        component=component, select=lambda n, p: p.isoutput
+                    )
                     for port in ports:
                         unweave(port, advices=self.intercept)
 
@@ -301,7 +335,7 @@ class LifecycleController(Controller):
             if self.propagate:
                 content = ContentController.get_content(component=component)
                 for component in content:
-                    LifecycleController.set_status(
+                    LifecycleController.SET_STATUS(
                         component=component,
                         status=status
                     )
@@ -321,26 +355,14 @@ class LifecycleController(Controller):
         self.status = LifecycleController.STOP
 
     @staticmethod
-    def set_status(component, value):
+    def SET_STATUS(component, status):
+        """Change status of the input component lifecycle.
 
-        lc = LifecycleController.get_controller(component)
-
-        if lc is not None:
-            lc.status = value
-
-    @staticmethod
-    def set_start(component):
-        """Start all component lifecycle controllers.
+        :param str status: new status to use.
         """
-
-        LifecycleController.set_status(LifecycleController.START)
-
-    @staticmethod
-    def set_stop(component):
-        """Stop all component lifecycle controllers.
-        """
-
-        LifecycleController.set_status(LifecycleController.STOP)
+        LifecycleController._PROCESS(
+            _component=component, _method='_set_status', status=status
+        )
 
 
 class Lifecycle(C2CtrlAnnotation):
@@ -349,7 +371,7 @@ class Lifecycle(C2CtrlAnnotation):
 
     def get_value(self, component, *args, **kwargs):
 
-        return LifecycleController.get_controller(component)
+        return LifecycleController.get_ctrl(component=component)
 
 
 class NewLCStatus(CtrlAnnotationInterceptor):
@@ -362,6 +384,6 @@ class NewLCStatus(CtrlAnnotationInterceptor):
 
     def get_target_ctx(self, component, *args, **kwargs):
 
-        lc = LifecycleController.get_controller(component=component)
+        lcc = LifecycleController.get_ctrl(component=component)
 
-        return lc._set_status, lc
+        return lcc._set_status, lcc

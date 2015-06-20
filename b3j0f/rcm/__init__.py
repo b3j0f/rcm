@@ -24,6 +24,9 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
+"""This package is shared among all rcm sub-projects.
+"""
+
 # extend b3j0f.rcm package with all rcm sub-projects
 from pkgutil import extend_path
 __path__ = extend_path(__path__, __name__)

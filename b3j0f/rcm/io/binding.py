@@ -24,26 +24,35 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-from b3j0f.rcm.io.annotation import Output
+"""This module provides port bindings in charge of defining the way how ports
+interact with the environment outside the component model.
+
+An example of binding is for example a web service binding which encapsulates
+object method calls into a webservice stub.
+"""
+
+__all__ = ['Binding']
+
+from b3j0f.rcm.io.core import Port
 
 
-@Output()
-class Instantiator(object):
-    """In charge of instantiate components from configuration.
+class Binding(Port):
+    """Class to specialize in order to ensure communication with technologies
+    outside the reflective component model.
+
+    Binding specialization might be in overidding the _renew_proxy method.
     """
 
-    class Error(Exception):
-        """Handle Instantiation errors.
-        """
+    def _on_bind(self, component, *args, **kwargs):
 
-    def instantiate(self, conf):
-        """Instantiate a component from input configuration.
+        super(Binding, self)._on_bind(component=component, *args, **kwargs)
+        # get itfs from components which use this binding
+        if isinstance(component, Port):
+            self.itfs = component.itfs
 
-        :param Configuration conf: configuration from where get properties to
-            instantiate a new component.
-        :return: related component.
-        :rtype: b3j0f.rcm.core.Component
-        :raises: Instantiator.Error in case of error.
-        """
+    def set_port(self, component, *args, **kwargs):
 
-        raise NotImplementedError()
+        super(Binding, self).set_port(component=component, *args, **kwargs)
+        # renew the proxy after binding a port
+        if isinstance(component, Port):
+            self._get_proxy()

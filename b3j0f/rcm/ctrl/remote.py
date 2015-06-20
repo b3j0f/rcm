@@ -24,29 +24,11 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-"""Contains definition of main controllers.
-"""
+from b3j0f.rcm.ctrl.core import Controller
 
-__all__ = [
-    'Controller',
-    'ImplController',
-    'IOController',
-    'LifecycleController',
-    'NameController',
-    'RemoteController',
-    'IntentController',
-    'ContentController',
-    'PropertyController'
-]
 
-__version__ = '0.1.0'  #: project version
+class RemoteController(Controller):
+    """Controller dedicated to manage component remote access.
+    """
 
-from b3j0f.rcm.nf.core import Controller
-from b3j0f.rcm.nf.impl import ImplController
-from b3j0f.rcm.nf.io import IOController
-from b3j0f.rcm.nf.lifecycle import LifecycleController
-from b3j0f.rcm.nf.name import NameController
-from b3j0f.rcm.nf.remote import RemoteController
-from b3j0f.rcm.nf.intent import IntentController
-from b3j0f.rcm.nf.content import ContentController
-from b3j0f.rcm.nf.property import PropertyController
+    pass

@@ -24,11 +24,8 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-from b3j0f.rcm.nf.core import Controller
+"""This package provides tools to manage non-functional properties of
+components.
+"""
 
-
-class RemoteController(Controller):
-    """Controller dedicated to manage component remote access.
-    """
-
-    pass
+__version__ = '0.1.0'  #: project version

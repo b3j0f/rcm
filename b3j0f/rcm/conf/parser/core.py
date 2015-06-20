@@ -24,7 +24,7 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-from b3j0f.rcm.nf.io import Output
+from b3j0f.rcm.io.annotation import Output
 
 
 @Output()

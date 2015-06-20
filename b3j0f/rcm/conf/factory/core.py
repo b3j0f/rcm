@@ -24,7 +24,7 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-from b3j0f.rcm.nf.impl import Input, Output
+from b3j0f.rcm.io.annotation import Input, Output
 from b3j0f.rcm.conf.parse import Parser
 from b3j0f.rcm.conf.check import Checker
 from b3j0f.rcm.conf.instance import Instantiator

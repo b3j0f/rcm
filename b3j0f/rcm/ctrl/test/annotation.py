@@ -29,8 +29,8 @@ from unittest import main
 
 from b3j0f.utils.ut import UTCase
 from b3j0f.rcm.core import Component
-from b3j0f.rcm.nf.core import Controller
-from b3j0f.rcm.nf.annotation import (
+from b3j0f.rcm.ctrl.core import Controller
+from b3j0f.rcm.ctrl.annotation import (
     CtrlAnnotation, Ctrl2CAnnotation, C2CtrlAnnotation,
     C2Ctrl2CAnnotation,
     CtrlAnnotationInterceptor,

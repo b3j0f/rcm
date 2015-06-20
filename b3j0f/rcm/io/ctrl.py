@@ -39,23 +39,15 @@ order to describe bound resources. The ``how`` is ensured with Binding objects
 which are used by Port objects.
 """
 
-__all__ = [
-    'IOController', 'SetIOCtrl',
-    'InputPort', 'OutputPort', 'Input', 'Output'
-]
+__all__ = ['IOController']
 
 from collections import Iterable
 
-from b3j0f.annotation.check import Target, MaxCount
 from b3j0f.utils.version import basestring
 from b3j0f.rcm.core import Component
-from b3j0f.rcm.io.port import Port
-from b3j0f.rcm.nf.core import Controller
-from b3j0f.rcm.nf.annotation import (
-    CtrlAnnotation, Ctrl2CAnnotation, C2CtrlAnnotation
-)
-from b3j0f.rcm.nf.impl import ImplController
-from b3j0f.rcm.nf.name import NameController
+from b3j0f.rcm.io.core import Port
+from b3j0f.rcm.ctrl.core import Controller
+from b3j0f.rcm.ctrl.name import NameController
 
 
 class IOController(Controller):
@@ -63,7 +55,8 @@ class IOController(Controller):
     """
 
     class Error(Exception):
-        pass
+        """Handle IOController exceptions.
+        """
 
     def get_sub_ports(
         self, components=None,
@@ -87,7 +80,7 @@ class IOController(Controller):
         # initialize result with an empty dictionary
         result = {}
 
-        self_components = self.components
+        self_components = self._rports.keys()
         # if components is None, use self components
         if components is None:
             _components = self_components
@@ -105,7 +98,7 @@ class IOController(Controller):
                             _components.append(component)
                     # if component is a name, get related components
                     elif isinstance(component, basestring):
-                        for self_component in self.components:
+                        for self_component in self_components:
                             name_component = NameController.get_name(
                                 self_component
                             )
@@ -187,166 +180,3 @@ class IOController(Controller):
             _components=components, _method='unwire',
             inputports=inputports, outputports=outputports
         )
-
-
-class InputPort(Port):
-    """Port dedicated to consume resources.
-    """
-
-
-class OutputPort(Port):
-    """Port dedicated to provide resources.
-    """
-
-
-class Input(C2CtrlAnnotation):
-    """InputPort injector which uses a name in order to inject a InputPort.
-    """
-
-    NAME = 'name'  #: input port name field name
-
-    __slots__ = (NAME, ) + Ctrl2CAnnotation.__slots__
-
-    def __init__(self, name, *args, **kwargs):
-
-        super(Input, self).__init__(*args, **kwargs)
-
-        self.name = name
-
-    def get_port_name(self, *args, **kwargs):
-
-        return self.name
-
-
-class Output(Ctrl2CAnnotation):
-    """Output descriptor.
-    """
-
-    ASYNC = 'async'  #: asynchronous mode
-    STATELESS = 'stateless'  #: stateless mode
-    INTERFACES = 'interfaces'  #: interfaces
-
-    __slots__ = (INTERFACES, ASYNC, STATELESS, ) + Ctrl2CAnnotation.__slots__
-
-    def __init__(
-        self, async=None, stateless=None, interfaces=None, *args, **kwargs
-    ):
-
-        self.async = async
-        self.stateless = stateless
-        self.interfaces = interfaces
-
-
-@MaxCount()
-@Target([Target.ROUTINE, type])
-class Async(CtrlAnnotation):
-    """Specify asynchronous mode on class methods.
-    """
-
-
-@Target(type)
-class Ports(CtrlAnnotation):
-    """Annotation in charge of binding Port in a component Port.
-    """
-
-    Port = 'Port'
-
-    #__slots__ = (Port, ) + CtrlAnnotation.__slots__
-
-    def __init__(self, port, *args, **kwargs):
-        """
-        :param dict port: port to bind to component.
-        """
-
-        super(Ports, self).__init__(*args, **kwargs)
-
-        self.port = port
-
-    def apply(self, component, *args, **kwargs):
-
-        # iterate on all self port
-        self_port = self.port
-        for port_name in self_port:
-            port = self_port[port_name]
-            # bind it with its name
-            component[port_name] = port
-
-    def unapply(self, component, *args, **kwargs):
-
-        # iterate on all self port
-        self_port = self.port
-        for port_name in self_port:
-            # bind it with its name
-            del component[port_name]
-
-
-class SetIOCtrl(C2CtrlAnnotation):
-    """Inject Binding controller in component implementation.
-    """
-
-    def get_value(self, component, *args, **kargs):
-
-        return IOController.get_controller(component)
-
-
-class PromotedPort(Port):
-    """A promoted Port is dedicated to promote other proxies.
-    """
-
-    CMP_PORT_SEPARATOR = '/'
-
-    def promote(self, component, promoted=""):
-        """Promote this port to input component Port where names match with
-        input promoted.
-
-        :param Component component: component from where find promoted.
-        :param promoted: promoted to promote.
-        :type promoted: list or str of type [port_name/]sub_port_name
-        """
-
-        # ensure promoted is a list of str
-        if isinstance(promoted, basestring):
-            promoted = [promoted]
-
-        for resource in promoted:
-            # first, identify component name with Port
-            splitted_source = resource.split(PromotedPort.CMP_PORT_SEPARATOR)
-            if len(splitted_source) == 1:
-                # by default, search among the impl controller
-                component_rc = re_compile(
-                    '^{0}'.format(ImplController.nf_name())
-                )
-                port_rc = re_compile(splitted_source[0])
-            else:
-                component_rc = re_compile(splitted_source[0])
-                port_rc = re_compile(splitted_source[1])
-
-            Port = self._component_cls().get_cls_Port(
-                component=component,
-                select=lambda name, component:
-                (
-                    component_rc.match(name)
-                    and self._component_filter(name, component)
-                )
-            )
-            # bind port
-            for name in Port:
-                port = Port[name]
-                if port_rc.match(name) and self._port_filter(name, port):
-                    self[name] = port
-
-    def _component_cls(self):
-
-        return Component
-
-    def _port_cls(self):
-
-        return Port
-
-    def _component_filter(self, name, component):
-
-        return True
-
-    def _port_filter(self, name, port):
-
-        return True
