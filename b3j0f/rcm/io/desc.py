@@ -55,8 +55,11 @@ class Interface(object):
 
         super(Interface, self).__init__()
 
+        # set private attributes
         self._pycls = None
         self._value = value
+        # set public attribtues
+        self.value = value
 
     def __repr__(self):
 
