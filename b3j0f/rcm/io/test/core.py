@@ -25,79 +25,175 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
+"""Test the module b3j0f.rcm.io.core.
+"""
+
 from unittest import main
 
 from b3j0f.utils.ut import UTCase
-from b3j0f.rcm.core import Component
-from b3j0f.rcm.io.core import Interface, Resource
+from b3j0f.utils.version import OrderedDict
+from b3j0f.rcm.io.core import ProxySet, Port
+from b3j0f.rcm.io.desc import Interface
 
 
-class TestResource(UTCase):
-    """Test Resource.
+class PortTest(UTCase):
+    """Test Port.
     """
 
-    def test_noitfs(self):
-        """Test itfs consistency with default initialization parameter.
-        """
-        resource = Resource()
-
-        self.assertEquals(len(resource.itfs), 1)
-        self.assertIs(resource.itfs[0].pycls, object)
-
-    def test_itfs(self):
-        """Test itfs consistency with initialization parameter.
-        """
-        itfs = (1)
-        resource = Resource(itfs=itfs)
-        self.assertEqual(resource.itfs, itfs)
-
-    def test_proxy(self):
-        """Test resource proxy getter.
+    def test_sup(self):
+        """Test to put more resources than granted.
         """
 
-        resource = Resource()
-        self.assertIsNone(resource.proxy, resource.proxy)
+        port = Port(sup=2)
+
+        port.set_port(port)
+        port.set_port(port)
+        self.assertRaises(Port.PortError, port.set_port, port)
+
+        resources = port.get_resources()
+        self.assertEqual(len(resources), 2)
+
+    def test_inf(self):
+        """Test to put less resources than granted.
+        """
+
+        port = Port(inf=2)
+
+        self.assertRaises(Port.PortError, port.set_port, port)
+        port.set_port(port)
+
+        resources = port.get_resources()
+        self.assertEqual(len(resources), 2)
+
+    def test_check_resource(self):
+        """Test the check_resource method.
+        """
+
+        port = Port()
+
+        port2 = Port()
+
+        # check with default interfaces
+        checked = port.check_resource(port2)
+        self.assertTrue(checked)
+
+        # uncheck with int interface
+        port.itfs = (Interface(value=int),)
+        checked = port.check_resource(port2)
+        self.assertFalse(checked)
+
+        # check back with int interface
+        port2.itfs = (Interface(value=int),)
+        checked = port.check_resource(port2)
+        self.assertTrue(checked)
+
+        # check back with object interface
+        port.itfs = (Interface(),)
+        checked = port.check_resource(port2)
+        self.assertTrue(checked)
+
+    def test_multiple(self):
+        """Test multiple port.
+        """
+
+        port = Port(multiple=True)
+
+        proxy = port.proxy
+        self.assertIsInstance(proxy, ProxySet)
+        self.assertFalse(proxy)
+
+        port2 = Port()
+        port.set_port(port2)
+        proxy = port.proxy
+        self.assertIsInstance(proxy, ProxySet)
+        self.assertFalse(proxy, proxy)
+
+        resource = Port(proxy=object)
+        port.set_port(resource)
+        proxy = port.proxy
+        self.assertIsInstance(proxy, ProxySet)
+        self.assertTrue(proxy, proxy)
+        self.assertEqual(len(proxy), 1)
+
+        port2.set_port(resource)
+        proxy = port.proxy
+        self.assertIsInstance(proxy, ProxySet)
+        self.assertTrue(proxy, proxy)
+        self.assertEqual(len(proxy), 2)
+
+        port2['test'] = resource
+        proxy = port.proxy
+        self.assertIsInstance(proxy, ProxySet)
+        self.assertTrue(proxy, proxy)
+        self.assertEqual(len(proxy), 3)
+
+        port2['test'] = resource
+        proxy = port.proxy
+        self.assertIsInstance(proxy, ProxySet)
+        self.assertTrue(proxy, proxy)
+        self.assertEqual(len(proxy), 3)
+
+    def test_notmultiple(self):
+        """Test not multiple port.
+        """
+
+        port = Port(multiple=False)
+
+        proxy = port.proxy
+        self.assertIsNone(proxy)
+
+    def test_renewproxy(self):
+        """Test _renewproxy method.
+        """
+
+        port = Port()
+        port2 = Port()
+
+        port.set_port(port2)
 
 
-class TestInterface(UTCase):
-    """Test Interface.
+class TestProxySet(UTCase):
+    """Test ProxySet.
     """
 
-    def setUp(self):
-
-        self.interface = Interface()
-
-    def test_none(self):
-        """Test to set a None value.
+    def test_empty(self):
+        """Test to instantiate a proxy set without resources.
         """
 
-        self.interface = Interface()
-        self.assertIsNone(self.interface.value, None)
-        self.assertIs(self.interface.pycls, object)
+        port = Port()
+        proxyset = ProxySet(port=port, resources={}, bases=(object,))
+        self.assertFalse(proxyset)
+        self.assertIs(proxyset.port, port)
 
-    def test_inconsistent_value(self):
-        """Test to instantiate an interface with an inconsistent value.
+    def test_get_resource_name(self):
+        """Test get_resource_name function.
         """
 
-        self.assertRaises(NotImplementedError, Interface, "")
+        port = Port()
+        first = second = Port(proxy=object())
+        third = Port(
+            proxy=ProxySet(
+                port=port,
+                resources={
+                    0: Port(proxy=object()),
+                    1: Port(proxy=object())
+                },
+                bases=(object,)
+            )
+        )
+        resources = OrderedDict()
+        resources['first'] = first
+        resources['second'] = second
+        resources['third'] = third
+        proxyset = ProxySet(port=port, resources=resources, bases=(object,))
 
-    def test_is_sub_itf(self):
-        """Test is_sub_itf method.
-        """
-
-        baseitf = Interface(value=object)
-        subitf = Interface(value=Component)
-        subsubitf = Interface(value=Resource)
-
-        self.assertFalse(baseitf.is_sub_itf(subitf))
-        self.assertFalse(baseitf.is_sub_itf(subsubitf))
-
-        self.assertFalse(subitf.is_sub_itf(subsubitf))
-
-        self.assertTrue(subsubitf.is_sub_itf(baseitf))
-        self.assertTrue(subsubitf.is_sub_itf(subitf))
-
-        self.assertTrue(subitf.is_sub_itf(baseitf))
+        self.assertEqual(len(proxyset), 4)
+        keys = ['first', 'second', 'third', 'third']
+        for proxy in proxyset:
+            key = proxyset.get_resource_name(proxy)
+            keys.remove(key)
+        self.assertFalse(keys)
+        self.assertRaises(Exception, proxyset.get_resource_name, proxyset)
 
 if __name__ == '__main__':
     main()

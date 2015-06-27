@@ -39,16 +39,11 @@ order to describe bound resources. The ``how`` is ensured with Binding objects
 which are used by Port objects.
 """
 
-__all__ = ['Port', 'ProxySet']
-
-from inspect import getmembers, isroutine
-
-from functools import wraps
+__all__ = ['Port']
 
 from sys import maxsize
 
-from b3j0f.utils.proxy import get_proxy
-from b3j0f.rcm.io.policy import PolicyResultSet
+from b3j0f.rcm.io.proxy import ProxySet
 from b3j0f.rcm.ctrl.core import Controller
 
 
@@ -59,9 +54,9 @@ class Port(Controller):
     A Port uses:
 
     - interfaces such as port provided/consumed description.
-    - a proxified resource.
     - input/output port kind(s).
-    - bound port(s) to proxify.
+    - a resource to proxify which can come from outside the component model.
+    - bound port(s) to proxify such as component model resources.
     - a multiple boolean flag which specifies port proxifier cardinality. If
         True, get_proxy returns one proxy, otherwise a tuple of proxies. False
         by default.
@@ -89,19 +84,18 @@ class Port(Controller):
     MULTIPLE = '_multiple'  #: multiple port proxy attribute name
     INF = 'inf'  #: minimal number of bindable resources attribute name
     SUP = 'sup'  #: maximal number of bindable resources attribute name
-    _PROXY = '_proxy'  #: private proxies attribute name
+    RESOURCE = '_resource'  #: resource attribute name
     POLICYRULES = '_policyrules'  #: policy rules attribute name
 
     def __init__(
-            self, itfs=None, proxy=None,
-            iokind=DEFAULT_IOKIND, multiple=True, inf=0, sup=maxsize,
-            policyrules=None,
+            self, itfs=None, resource=None, iokind=DEFAULT_IOKIND,
+            multiple=True, inf=0, sup=maxsize, policyrules=None,
             *args, **kwargs
     ):
         """
         :param itfs: interface(s) which describe this port.
         :type itfs: Interface or list
-        :param proxy: default port proxy.
+        :param resource: resource to proxify.
         :param int iokind: i/o kind of ports among Port.OUTPUT, Port.INPUT or
             both (default).
         :param bool multiple: multiple proxy cardinality. False by default.
@@ -113,7 +107,8 @@ class Port(Controller):
         super(Port, self).__init__(*args, **kwargs)
 
         # set private attributes
-        self._proxy = proxy
+        self._proxy = None
+        self._resource = resource
         self._itfs = itfs
         self._iokind = iokind
         self._multiple = multiple
@@ -258,16 +253,63 @@ class Port(Controller):
 
         self._renewproxy()
 
-    def get_resources(self):
+    @property
+    def resources(self):
+        """Get resources by port name or self if resource is this external
+        resource.
+
+        :return: self resources.
+        :rtype: dict
+        """
+
+        return self._get_resources()
+
+    def _get_resources(self):
         """Get resources by name.
 
         :return: self resources.
         :rtype: dict
         """
 
+        # defaul result is self ports
         result = Port.GET_PORTS(component=self)
 
+        # add resource
+        resource = self.resource
+        if resource is not None:
+            result[self] = resource
+
         return result
+
+    @property
+    def resource(self):
+        """Get resource.
+        :return: this resource.
+        """
+
+        return self._resource
+
+    @resource.setter
+    def resource(self, value):
+        """Change of resource.
+
+        :param value: new resource to use.
+        """
+
+        result = self._set_resource(value)
+
+        return result
+
+    def _set_resource(self, resource):
+        """Change of resource.
+
+        :param value: new resource to use.
+        """
+
+        # renew resource only if input resource is not the actual resource
+        if resource is not self._resource:
+            self._resource = resource
+            self._renewproxy()
 
     @property
     def proxy(self):
@@ -327,7 +369,8 @@ class Port(Controller):
         """
 
         # check if maximal number of resources have not been acquired
-        result = len(self.get_resources()) < self.sup
+        resources = self.resources
+        result = len(resources) < self.sup
 
         if result and self.itfs:  # check all port itfs if they exist
             for selfitf in self.itfs:
@@ -348,7 +391,7 @@ class Port(Controller):
         self._proxy = None
 
         # get resources
-        resources = self.get_resources()
+        resources = self.resources
 
         # check number of resources
         if len(resources) < self.inf or self.sup < len(resources):
@@ -357,54 +400,9 @@ class Port(Controller):
                     len(resources), self.inf, self.sup, self.uid
                 )
             )
-        # get bases interfaces
-        bases = (itf.pycls for itf in self.itfs)
 
-        # if multiple, proxies is a ProxySet
-        if self.multiple:
-            self._proxy = ProxySet(
-                port=self, resources=resources, bases=bases
-            )
-        else:  # use one object which propagates methods to port proxies
-            if not resources:  # do nothing if resources is empty
-                self._proxy = None
-            else:
-                proxies = []  # get a list of proxies
-                for resource_name in resources:
-                    port = resources[resource_name]
-                    proxy = port.proxy
-                    if isinstance(proxy, ProxySet):
-                        proxies += proxy
-                    else:
-                        proxies.append(proxy)
-                # embed proxies in a policy result set for future policies
-                proxies = PolicyResultSet(proxies)
-                _dict = {}  # proxy dict to fill with dedicated methods
-                # wraps all interface methods
-                for base in bases:
-                    # among public members
-                    for rname, routine in getmembers(
-                            base,
-                            lambda mname, member:
-                            mname[0] != '_' and isroutine(member)
-                    ):
-                        # get related method proxy
-                        methodproxy = self._methodproxy(
-                            routine=routine, proxies=proxies,
-                            rname=rname
-                        )
-                        # update _dict with method proxy
-                        _dict[rname] = methodproxy
-
-                # add default constructor
-                _dict['__new__'] = _dict['__init__'] = (
-                    lambda *args, **kwargs: None
-                )
-                # get proxy elt
-                proxycls = type('Proxy', bases, _dict)
-                proxy = proxycls()
-                # generate a dedicated proxy which respects method signatures
-                self._proxy = get_proxy(elt=proxy, bases=bases, _dict=_dict)
+        # get the port proxy and save it in memory
+        self._proxy = ProxySet.get_proxy(port=self)
 
         # and propagate changes to reversed ports
         for component in list(self._rports):
@@ -413,149 +411,6 @@ class Port(Controller):
                 for bound_name in list(bound_names):
                     # in this way, bound on ports will use new self proxies
                     try:
-                        component[bound_name] = self
+                        component.set_port(name=bound_name, port=self)
                     except Exception:
                         pass  # in catching silently bind errors
-
-    def _methodproxy(self, routine, rname, proxies):
-        """Generate a routine proxy related to input routine, routine name and
-        a list of proxies.
-
-        :param routine: routine to proxify.
-        :param str rname: routine name.
-        :param PolicyResultSet proxies: proxies to proxify.
-        :return: routine proxy.
-        """
-
-        # get the rights policy rules
-        selectpr = self._policyrules.selectpr(rname)
-        execpr = self._policyrules.exectpr(rname)
-        resultpr = self._policyrules.resultpr(rname)
-
-        # wraps the routine
-        @wraps(routine)
-        def result(proxyinstance, *args, **kwargs):
-            """Proxy selection wraper.
-            """
-
-            # check if proxies have to change dynamically
-            if selectpr is None:
-                proxiestorun = proxies
-            else:
-                proxiestorun = selectpr(
-                    port=self, proxies=proxies, routine=rname,
-                    instance=proxyinstance,
-                    args=args, kwargs=kwargs
-                )
-            # if execpr is None, process proxies
-            if execpr is None:
-                results = []
-                for proxy_to_run in proxiestorun:
-                    rountine = getattr(proxy_to_run, rname)
-                    method_res = rountine(*args, **kwargs)
-                    results.append(method_res)
-            else:  # if execpr is asked
-                results = execpr(
-                    port=self, proxies=proxiestorun,
-                    routine=rname, instance=proxyinstance,
-                    args=args, kwargs=kwargs
-                )
-            if resultpr is None:
-                if (
-                        isinstance(results, PolicyResultSet)
-                        and results
-                ):
-                    result = [0]
-                else:
-                    result = results
-            else:
-                result = resultpr(
-                    port=self, proxies=proxies,
-                    routine=rname, instance=proxyinstance,
-                    args=args, kwargs=kwargs,
-                    results=results
-                )
-            return result
-
-        return result
-
-
-class ProxySet(tuple):
-    """Associate a port proxy list with related port names in order to
-    easily choose proxies depending on port names.
-
-    It uses a port, port resources by name and a list of proxies.
-    The get_resource_name(proxy) permits to find back proxy port name.
-
-    It inherits from a tuple in order avoid modification.
-    """
-
-    PORT = 'port'  #: port attribute name
-    RESOURCES = 'resources'  #: resources attribute name
-    BASES = 'bases'  #: port interface types
-
-    #: private proxies by name attribute name
-    _RESOURCE_NAMES_BY_PROXY = '_resource_names_by_proxy'
-
-    def __new__(cls, port, resources, bases):
-        """
-        :param Port port: resources port.
-        :param dict resources: list of port elements by name to proxify.
-        :param tuple bases: port interface pycls.
-        """
-
-        _resource_names_by_proxy = {}
-
-        for name in resources:
-            port = resources[name]
-            # do something only if port != port
-            if port is not port:
-                proxies = port.proxy
-                # ensure proxies is an Iterable
-                if not isinstance(proxies, ProxySet):
-                    proxies = (proxies,)
-                # generate a proxy for all port proxies
-                for proxy in proxies:
-                    new_proxy = get_proxy(elt=proxy, bases=bases)
-                    # and save names in _resource_names_by_proxy
-                    try:
-                        _resource_names_by_proxy[new_proxy] = name
-
-                    except TypeError:
-                        _resource_names_by_proxy[id(new_proxy)] = name
-
-        result = super(ProxySet, cls).__new__(
-            cls, _resource_names_by_proxy.keys()
-        )
-        result._resource_names_by_proxy = _resource_names_by_proxy
-
-        return result
-
-    def __init__(self, port, resources, bases):
-        """
-        :param Port port: resources port.
-        :param dict resources: list of port elements by name to proxify.
-        :param tuple bases: port interface pycls.
-        """
-
-        super(ProxySet, self).__init__()
-
-        self.port = port
-        self.resources = resources
-        self.bases = bases
-
-    def get_resource_name(self, proxy):
-        """Get proxy port name.
-
-        :param proxy: proxy from where get port name.
-        :return: corresponding proxy port name.
-        :rtype: str
-        """
-
-        try:
-            result = self._resource_names_by_proxy[proxy]
-
-        except TypeError:
-            result = self._resource_names_by_proxy[id(proxy)]
-
-        return result
