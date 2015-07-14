@@ -41,9 +41,9 @@ which are used by Port objects.
 
 __all__ = ['Port']
 
-from sys import maxsize
+from sys import maxsize as maxint
 
-from b3j0f.rcm.io.proxy import ProxySet
+from b3j0f.rcm.io.proxy import getportproxy
 from b3j0f.rcm.ctrl.core import Controller
 
 
@@ -89,7 +89,7 @@ class Port(Controller):
 
     def __init__(
             self, itfs=None, resource=None, iokind=DEFAULT_IOKIND,
-            multiple=True, inf=0, sup=maxsize, policyrules=None,
+            multiple=True, inf=0, sup=maxint, policyrules=None,
             *args, **kwargs
     ):
         """
@@ -265,7 +265,8 @@ class Port(Controller):
         return self._get_resources()
 
     def _get_resources(self):
-        """Get resources by name.
+        """Get resources by name or by self if resource is this private
+        resource.
 
         :return: self resources.
         :rtype: dict
@@ -277,7 +278,7 @@ class Port(Controller):
         # add resource
         resource = self.resource
         if resource is not None:
-            result[self] = resource
+            result[self.uid] = resource
 
         return result
 
@@ -363,19 +364,25 @@ class Port(Controller):
         return result
 
     def check_resource(self, port):
-        """Check input port related to self interfaces.
+        """Check input port related to self interfaces and self.
 
-        :param Port port: port to check.
+        :param Port port: port to check. Can not be self.
         """
 
-        # check if maximal number of resources have not been acquired
         resources = self.resources
-        result = len(resources) < self.sup
+        # check if maximal number of resources have not been acquired
+        # and port is not self
+        result = port is not self and len(resources) < self.sup
 
         if result and self.itfs:  # check all port itfs if they exist
             for selfitf in self.itfs:
-                for resourceitf in port.itfs:
-                    result = resourceitf.is_sub_itf(selfitf)
+                if port.itfs:
+                    for resourceitf in port.itfs:
+                        result = resourceitf.is_sub_itf(selfitf)
+                        if not result:
+                            break
+                else:
+                    result = issubclass(object, selfitf.pycls)
                     if not result:
                         break
 
@@ -402,7 +409,7 @@ class Port(Controller):
             )
 
         # get the port proxy and save it in memory
-        self._proxy = ProxySet.get_proxy(port=self)
+        self._proxy = getportproxy(port=self)
 
         # and propagate changes to reversed ports
         for component in list(self._rports):
@@ -414,3 +421,41 @@ class Port(Controller):
                         component.set_port(name=bound_name, port=self)
                     except Exception:
                         pass  # in catching silently bind errors
+
+    @classmethod
+    def INPUTS(cls, component, names=None, select=lambda *p: True):
+        """Get input ports.
+
+        :param type cls: port type.
+        :param Component component: component from where get input ports.
+        :param names: port names.
+        :type names: str or list
+        :param select: boolean selection function which takes a name and a port
+        in parameters. True by default.
+        :return: found input ports by name.
+        :rtype: dict
+        """
+
+        return cls.GET_PORTS(
+            component=component, names=names,
+            select=lambda n, p: p.isinput and select(n, p)
+        )
+
+    @classmethod
+    def OUTPUTS(cls, component, names=None, select=lambda *p: True):
+        """Get output ports.
+
+        :param type cls: port type.
+        :param Component component: component from where get output ports.
+        :param names: port names.
+        :type names: str or list
+        :param select: boolean selection function which takes a name and a port
+        in parameters. True by default.
+        :return: found output ports by name.
+        :rtype: dict
+        """
+
+        return cls.GET_PORTS(
+            component=component, names=names,
+            select=lambda n, p: p.isoutput and select(n, p)
+        )

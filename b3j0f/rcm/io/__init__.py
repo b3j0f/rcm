@@ -26,5 +26,3 @@
 
 """This project provides tools to manage input/output of components.
 """
-
-__version__ = '0.1.0'  #: project version

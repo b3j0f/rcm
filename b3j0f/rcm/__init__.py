@@ -24,11 +24,12 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-"""This package is shared among all rcm sub-projects.
+"""b3j0f.rcm package.
 """
 
-# extend b3j0f.rcm package with all rcm sub-projects
-from pkgutil import extend_path
-__path__ = extend_path(__path__, __name__)
+__all__ = ['__version_info__', '__version__']
 
-__version__ = '0.1.0'  #: project version
+#: project version info
+__version_info__ = 0, 1, 0, "beta", 0
+#: project version
+__version__ = ".".join(str(v) for v in __version_info__[:3])

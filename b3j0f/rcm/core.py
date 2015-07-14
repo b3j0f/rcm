@@ -99,7 +99,7 @@ class Component(dict):
         self._rports = {}
 
         # save _uid
-        self._uid = uuid() if uid is None else uid
+        self._uid = str(uuid()) if uid is None else uid
         # save ports
         if ports is not None:
             for port in ports:
@@ -396,7 +396,7 @@ class Component(dict):
         return result
 
     @classmethod
-    def GET_PORTS(cls, component, names=None, select=lambda *p: True):
+    def GET_PORTS(cls, component, names=None, select=lambda n, p: True):
         """Get all component ports which inherits from this class.
 
         :param Component component: component from where get ports.
@@ -404,6 +404,8 @@ class Component(dict):
         :type names: str or list
         :param select: boolean selection function which takes a name and a port
         in parameters. True by default.
+        :return: found ports by name.
+        :rtype: dict
         """
 
         return component.get_ports(names=names, types=cls, select=select)

@@ -31,16 +31,78 @@
 from unittest import main
 
 from b3j0f.utils.ut import UTCase
+from b3j0f.utils.proxy import proxified_elt
+from b3j0f.rcm.io.core import Port
 from b3j0f.rcm.io.proxy import ProxySet
 
 
-class ProxySet(UTCase):
+class TestProxySet(UTCase):
     """Test ProxySet.
     """
 
-    def setUp(self):
+    def test_empty(self):
+        """Test to instantiate a proxy set without resources.
+        """
 
-        self.proxyset = ProxySet
+        proxyset = ProxySet(port=None, resources={}, bases=(object,))
+        self.assertFalse(proxyset)
+        self.assertIsNone(proxyset.port)
+
+    def test_get_resource_name(self):
+        """Test get_resource_name function.
+        """
+
+        resources = {
+            '0': 1,
+            '1': None,
+            '2': 1,
+            '3': object(),
+            '4': Port(),
+            '5': Port(resource=object()),
+            '6': ProxySet(
+                port=None, resources={0: 0, 1: 1}, bases=(object,)),
+            '7': Port(resource=ProxySet(
+                port=None, resources={0: 0, 1: 1}, bases=(object,))
+            )
+        }
+
+        proxyset = ProxySet(port=None, resources=resources, bases=(object,))
+
+        self.assertEqual(len(proxyset), 9)
+        # number of proxies to find per resources
+        counts = {
+            '0': 1,
+            '1': 1,
+            '2': 1,
+            '3': 1,
+            '4': 0,
+            '5': 1,
+            '6': 2,
+            '7': 2
+        }
+        # dictionary of proxy counts which will be decreased in order to check
+        # if all proxies are given
+        assertions = counts.copy()
+
+        for pos, proxy in enumerate(proxyset):
+
+            # get resource name
+            rname = proxyset.get_resource_name(pos)
+
+            # assert len of resource proxy positions
+            positions = proxyset.get_proxies_pos(rname)
+            self.assertEqual(len(positions), counts[rname])
+
+            # decrement assertions
+            assertions[rname] -= 1
+
+            # check proxyfied element
+            proxified = proxified_elt(proxy)
+            self.assertIsNot(proxified, proxy)
+
+        # check if all assertions are checked
+        for assertion in assertions.values():
+            self.assertEqual(assertion, 0)
 
 
 if __name__ == '__main__':

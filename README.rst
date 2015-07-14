@@ -1,5 +1,5 @@
 Description
------------
+===========
 
 Reflective component model library for python.
 
@@ -48,19 +48,19 @@ Reflective component model library for python.
    :alt: Code Health
 
 Links
------
+=====
 
 - `Homepage`_
 - `PyPI`_
 - `Documentation`_
 
 Installation
-------------
+============
 
 pip install b3j0f.rcm
 
 Features
---------
+========
 
 The Reflective Component Model, ``RCM``, makes easier the development of softwares in focusing in separation of concerns (SoC_) thanks to a lazy and dynamic coupling between business and non-functional code. This SoC provides several powerful paradigms such as Dependency Injection (DI_), Inversion of Control (IoC_), and so on... whatever used programming languages and technologies.
 
@@ -78,31 +78,44 @@ This model has a specific definition about component behavior. Components are a 
 Here is a description of provided packages:
 
 * b3j0f.rcm.core: default package which contains the definition of a Component.
+* b3j0f.rcm.ctrl: non-functional properties of components.
 * b3j0f.rcm.io: Input/Output Component management.
-* b3j0f.rcm.nf: non-functional properties of components.
 * b3j0f.rcm.conf: component configuration and factory definition.
 
-It is possible to install any of previous package independently from others in using the command:
-
-``pip install b3j0f.rcm-X``
-
-where ``X`` is among {``core``; ``io``; ``nf``; ``conf``}
-
 Examples
---------
+========
 
 State of the art
-----------------
+================
 
 This library is mainly inspirated from the projects `Fractal`_ and `FraSCAti`_ in adding more possibilities in usage with management of multiple cardinality in most layers and more lazy coupling without more complexity.
 
+Python implementations
+----------------------
+
++------------+------------------------------+----------+-----------+-----+---------------+---------------+
+| Library    | Url                          | Python implementation | License  | Execution | Use | Benchmark     | Compatibility |
++============+==============================+==========+===========+=====+===============+===============+
+| b3j0f.rcm  | https://github.com/b3j0f/aop | MIT      | 4/5       | 4/5 | 4/5           | 4/5 (>=2.6)   |
++------------+------------------------------+----------+-----------+-----+---------------+---------------+
+| FraSCAti/Fractal     | https://spring.io/ | Apache   | 4/5       | 2/5 | 3/5           | 2/5           |
++------------+------------------------------+----------+-----------+-----+---------------+---------------+
+| spring     | https://spring.io/ | Apache   | 4/5       | 2/5 | 3/5           | 2/5           |
++------------+------------------------------+----------+-----------+-----+---------------+---------------+
+| iPOJO/iPOPO | http://ipopo.coderxpress.net/   | GPL 3    | 1/5       | 1/5 | 1/5           | 1/5           |
++------------+------------------------------+----------+-----------+-----+---------------+---------------+
+| OSGi | http://www.osgi.org/   | GPL 3    | 1/5       | 1/5 | 1/5           | 1/5           |
++------------+------------------------------+----------+-----------+-----+---------------+---------------+
+| CCM     | https://spring.io/ | Apache   | 4/5       | 2/5 | 3/5           | 2/5           |
++------------+------------------------------+----------+-----------+-----+---------------+---------------+
+
 Perspectives
-------------
+============
 
 - Cython implementation.
 
 Donation
---------
+========
 
 .. image:: https://cdn.rawgit.com/gratipay/gratipay-badge/2.3.0/dist/gratipay.png
    :target: https://gratipay.com/b3j0f/

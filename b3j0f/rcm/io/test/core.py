@@ -31,8 +31,9 @@
 from unittest import main
 
 from b3j0f.utils.ut import UTCase
-from b3j0f.utils.version import OrderedDict
-from b3j0f.rcm.io.core import ProxySet, Port
+from b3j0f.rcm.core import Component
+from b3j0f.rcm.io.proxy import ProxySet
+from b3j0f.rcm.io.core import Port
 from b3j0f.rcm.io.desc import Interface
 
 
@@ -46,11 +47,14 @@ class PortTest(UTCase):
 
         port = Port(sup=2)
 
-        port.set_port(port)
-        port.set_port(port)
+        # assert new port is not port
         self.assertRaises(Port.PortError, port.set_port, port)
+        # assert sup
+        port.set_port(Port())
+        port.set_port(Port())
+        self.assertRaises(Port.PortError, port.set_port, Port())
 
-        resources = port.get_resources()
+        resources = port.resources
         self.assertEqual(len(resources), 2)
 
     def test_inf(self):
@@ -58,11 +62,13 @@ class PortTest(UTCase):
         """
 
         port = Port(inf=2)
-
+        # assert new port is not port
         self.assertRaises(Port.PortError, port.set_port, port)
-        port.set_port(port)
+        # assert inf
+        self.assertRaises(Port.PortError, port.set_port, Port())
+        port.set_port(Port())
 
-        resources = port.get_resources()
+        resources = port.resources
         self.assertEqual(len(resources), 2)
 
     def test_check_resource(self):
@@ -103,22 +109,22 @@ class PortTest(UTCase):
         self.assertFalse(proxy)
 
         port2 = Port()
-        port.set_port(port2)
+        port.set_port(port=port2)
         proxy = port.proxy
         self.assertIsInstance(proxy, ProxySet)
-        self.assertFalse(proxy, proxy)
+        self.assertFalse(proxy)
 
-        resource = Port(proxy=object)
-        port.set_port(resource)
+        resource = Port(resource=object())
+        port.set_port(port=resource)
         proxy = port.proxy
         self.assertIsInstance(proxy, ProxySet)
-        self.assertTrue(proxy, proxy)
+        self.assertTrue(proxy)
         self.assertEqual(len(proxy), 1)
 
-        port2.set_port(resource)
+        port2.set_port(port=resource)
         proxy = port.proxy
         self.assertIsInstance(proxy, ProxySet)
-        self.assertTrue(proxy, proxy)
+        self.assertTrue(proxy)
         self.assertEqual(len(proxy), 2)
 
         port2['test'] = resource
@@ -151,49 +157,59 @@ class PortTest(UTCase):
 
         port.set_port(port2)
 
-
-class TestProxySet(UTCase):
-    """Test ProxySet.
-    """
-
-    def test_empty(self):
-        """Test to instantiate a proxy set without resources.
+    def test_iokind(self):
+        """Test iokind.
         """
 
         port = Port()
-        proxyset = ProxySet(port=port, resources={}, bases=(object,))
-        self.assertFalse(proxyset)
-        self.assertIs(proxyset.port, port)
 
-    def test_get_resource_name(self):
-        """Test get_resource_name function.
+        self.assertEqual(port.iokind, Port.DEFAULT_IOKIND)
+        self.assertTrue(port.isinput)
+        self.assertTrue(port.isoutput)
+
+        port.iokind = Port.INPUT
+        self.assertEqual(port.iokind, Port.INPUT)
+        self.assertTrue(port.isinput)
+        self.assertFalse(port.isoutput)
+
+        port.iokind = Port.OUTPUT
+        self.assertEqual(port.iokind, Port.OUTPUT)
+        self.assertFalse(port.isinput)
+        self.assertTrue(port.isoutput)
+
+    def test_INPUTS_OUTPUTS(self):
+        """Test INPUTS class method.
         """
 
-        port = Port()
-        first = second = Port(proxy=object())
-        third = Port(
-            proxy=ProxySet(
-                port=port,
-                resources={
-                    0: Port(proxy=object()),
-                    1: Port(proxy=object())
-                },
-                bases=(object,)
-            )
+        cmpt = Component(
+            namedports={
+                'i0': Port(iokind=Port.INPUT),
+                'i1': Port(iokind=Port.INPUT),
+                'o0': Port(iokind=Port.OUTPUT),
+                'o1': Port(iokind=Port.OUTPUT),
+                'io0': Port(),
+                'io1': Port(),
+            }
         )
-        resources = OrderedDict()
-        resources['first'] = first
-        resources['second'] = second
-        resources['third'] = third
-        proxyset = ProxySet(port=port, resources=resources, bases=(object,))
 
-        self.assertEqual(len(proxyset), 4)
-        keys = ['first', 'second', 'third', 'third']
-        for proxy in proxyset:
-            key = proxyset.get_resource_name(proxy)
-            keys.remove(key)
-        self.assertFalse(keys)
-        self.assertRaises(Exception, proxyset.get_resource_name, proxyset)
+        def assertPorts(names, _input=True):
+            """Assert INPUTS/OUTPUTS result with input names.
+
+            :param list names: port names to check.
+            :param bool _input: if True (default) assert input ports. Otherwise
+                , output ports.
+            """
+            func_name = 'INPUTS' if _input else 'OUTPUTS'
+            ports = getattr(Port, func_name)(component=cmpt)
+            self.assertEqual(len(ports), 4)
+            for name in names:
+                port = ports.pop(name)
+                attrname = 'isinput' if _input else 'isoutput'
+                self.assertTrue(getattr(port, attrname))
+
+        assertPorts(names=['i0', 'i1', 'io0', 'io1'])
+        assertPorts(names=['o0', 'o1', 'io0', 'io1'], _input=False)
+
 
 if __name__ == '__main__':
     main()

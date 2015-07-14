@@ -28,7 +28,7 @@
 ProxySet.get_proxy static method.
 """
 
-__all__ = ['ProxySet']
+__all__ = ['getportproxy', 'ProxySet', '_methodproxy']
 
 from functools import wraps
 
@@ -53,7 +53,7 @@ class ProxySet(tuple):
     BASES = 'bases'  #: port interface types
 
     #: private proxies by name attribute name
-    _RESOURCE_NAMES_BY_PROXY = '_resource_names_by_proxy'
+    _RESOURCE_NAMES_BY_PROXY = '_resource_names_by_proxy_pos'
 
     def __new__(cls, port, resources, bases):
         """
@@ -62,30 +62,27 @@ class ProxySet(tuple):
         :param tuple bases: port interface pycls.
         """
 
-        _resource_names_by_proxy = {}
+        _resource_names_by_proxy_pos = {}
 
+        proxies = []
+
+        # get proxies of resources
         for name in resources:
-            port = resources[name]
-            # do something only if port != port
-            if port is not port:
-                proxies = port.proxy
-                # ensure proxies is an Iterable
-                if not isinstance(proxies, ProxySet):
-                    proxies = (proxies,)
-                # generate a proxy for all port proxies
-                for proxy in proxies:
-                    new_proxy = get_proxy(elt=proxy, bases=bases)
-                    # and save names in _resource_names_by_proxy
-                    try:
-                        _resource_names_by_proxy[new_proxy] = name
+            resource = resources[name]
+            resourceproxies = getattr(resource, 'proxy', resource)
+            # ensure proxies is an Iterable
+            if not isinstance(resourceproxies, ProxySet):
+                resourceproxies = (resourceproxies,)
+            # generate a proxy for all port proxies
+            for proxy in resourceproxies:
+                new_proxy = get_proxy(elt=proxy, bases=bases)
+                proxies.append(new_proxy)
+                # and save names in _resource_names_by_proxy_pos
+                _resource_names_by_proxy_pos[len(proxies) - 1] = name
 
-                    except TypeError:
-                        _resource_names_by_proxy[id(new_proxy)] = name
-
-        result = super(ProxySet, cls).__new__(
-            cls, _resource_names_by_proxy.keys()
-        )
-        result._resource_names_by_proxy = _resource_names_by_proxy
+        # get result from super constructor
+        result = super(ProxySet, cls).__new__(cls, proxies)
+        result._resource_names_by_proxy_pos = _resource_names_by_proxy_pos
 
         return result
 
@@ -102,144 +99,158 @@ class ProxySet(tuple):
         self.resources = resources
         self.bases = bases
 
-    def get_resource_name(self, proxy):
-        """Get proxy port name.
+    def get_resource_name(self, pos):
+        """Get resource name from a proxy pos.
 
-        :param proxy: proxy from where get port name.
+        :param pos: proxy position in proxies list.
         :return: corresponding proxy port name.
         :rtype: str
         """
 
-        try:
-            result = self._resource_names_by_proxy[proxy]
-
-        except TypeError:
-            result = self._resource_names_by_proxy[id(proxy)]
+        result = self._resource_names_by_proxy_pos[pos]
 
         return result
 
-    @staticmethod
-    def get_proxy(port):
-        """Get port proxy.
+    def get_proxies_pos(self, name):
+        """Get positions of proxies from a resource name.
 
-        :param b3j0f.rcm.io.core.Port port: port from which get proxy.
-        :return: proxy port related to port resources.
+        :param str name: resource name from where get proxies.
+        :return:
+        :rtype: list
         """
-        result = None
 
-        # get bases interfaces
-        bases = object if port.itfs is None else (
-            itf.pycls for itf in port.itfs
+        result = []
+
+        for pos in self._resource_names_by_proxy_pos:
+            resource_name = self._resource_names_by_proxy_pos[pos]
+            if resource_name == name:
+                result.append(pos)
+
+        return result
+
+
+def getportproxy(port):
+    """Get port proxy.
+
+    :param b3j0f.rcm.io.core.Port port: port from which get proxy.
+    :return: proxy port related to port resources.
+    """
+
+    result = None
+
+    # get bases interfaces
+    bases = object if port.itfs is None else (
+        itf.pycls for itf in port.itfs
+    )
+
+    resources = port.resources
+
+    # if multiple, proxies is a ProxySet
+    if port.multiple:
+        result = ProxySet(
+            port=port, resources=resources, bases=bases
         )
+    # use one object which propagates methods to port proxies
+    elif resources:
+        proxies = []  # get a list of proxies
+        for rname in resources:
+            # get subport
+            subport = resources[rname]
+            # if rname is not port, use directly subport
+            proxy = subport if rname is port else subport.proxy
+            # if proxy is a proxy set, add items
+            if isinstance(proxy, ProxySet):
+                proxies += proxy
+            else:
+                proxies.append(proxy)
+        # embed proxies in a policy result set for future policies
+        proxies = PolicyResultSet(proxies)
+        _dict = {}  # proxy dict to fill with dedicated methods
+        # wraps all interface methods
+        for base in bases:
+            # among public members
+            for rname, routine in getmembers(
+                    base,
+                    lambda mname, member:
+                    mname[0] != '_' and isroutine(member)
+            ):
+                # get related method proxy
+                methodproxy = _methodproxy(
+                    port=port, routine=routine, proxies=proxies,
+                    rname=rname
+                )
+                # update _dict with method proxy
+                _dict[rname] = methodproxy
 
-        resources = port.resources
+        # add default constructor
+        _dict['__new__'] = _dict['__init__'] = (
+            lambda *args, **kwargs: None
+        )
+        # get proxy elt
+        proxycls = type('Proxy', bases, _dict)
+        proxy = proxycls()
+        # generate a dedicated proxy which respects method signatures
+        result = get_proxy(elt=proxy, bases=bases, _dict=_dict)
 
-        # if multiple, proxies is a ProxySet
-        if port.multiple:
-            result = ProxySet(
-                port=port, resources=resources, bases=bases
-            )
-        # use one object which propagates methods to port proxies
-        elif resources:
-            proxies = []  # get a list of proxies
-            for rname in resources:
-                # get subport
-                subport = resources[rname]
-                # if rname is not port, use directly subport
-                proxy = subport if rname is port else subport.proxy
-                # if proxy is a proxy set, add items
-                if isinstance(proxy, ProxySet):
-                    proxies += proxy
-                else:
-                    proxies.append(proxy)
-            # embed proxies in a policy result set for future policies
-            proxies = PolicyResultSet(proxies)
-            _dict = {}  # proxy dict to fill with dedicated methods
-            # wraps all interface methods
-            for base in bases:
-                # among public members
-                for rname, routine in getmembers(
-                        base,
-                        lambda mname, member:
-                        mname[0] != '_' and isroutine(member)
-                ):
-                    # get related method proxy
-                    methodproxy = ProxySet._methodproxy(
-                        port=port, routine=routine, proxies=proxies,
-                        rname=rname
-                    )
-                    # update _dict with method proxy
-                    _dict[rname] = methodproxy
+    return result
 
-            # add default constructor
-            _dict['__new__'] = _dict['__init__'] = (
-                lambda *args, **kwargs: None
-            )
-            # get proxy elt
-            proxycls = type('Proxy', bases, _dict)
-            proxy = proxycls()
-            # generate a dedicated proxy which respects method signatures
-            result = get_proxy(elt=proxy, bases=bases, _dict=_dict)
 
-        return result
+def _methodproxy(port, routine, rname, proxies):
+    """Generate a routine proxy related to input routine, routine name and
+    a list of proxies.
 
-    @staticmethod
-    def _methodproxy(port, routine, rname, proxies):
-        """Generate a routine proxy related to input routine, routine name and
-        a list of proxies.
+    :param routine: routine to proxify.
+    :param str rname: routine name.
+    :param PolicyResultSet proxies: proxies to proxify.
+    :return: routine proxy.
+    """
 
-        :param routine: routine to proxify.
-        :param str rname: routine name.
-        :param PolicyResultSet proxies: proxies to proxify.
-        :return: routine proxy.
+    # get the rights policy rules
+    selectpr = port._policyrules.selectpr(rname)
+    execpr = port._policyrules.exectpr(rname)
+    resultpr = port._policyrules.resultpr(rname)
+
+    # wraps the routine
+    @wraps(routine)
+    def result(proxyinstance, *args, **kwargs):
+        """Proxy selection wraper.
         """
 
-        # get the rights policy rules
-        selectpr = port._policyrules.selectpr(rname)
-        execpr = port._policyrules.exectpr(rname)
-        resultpr = port._policyrules.resultpr(rname)
-
-        # wraps the routine
-        @wraps(routine)
-        def result(proxyinstance, *args, **kwargs):
-            """Proxy selection wraper.
-            """
-
-            # check if proxies have to change dynamically
-            if selectpr is None:
-                proxiestorun = proxies
+        # check if proxies have to change dynamically
+        if selectpr is None:
+            proxiestorun = proxies
+        else:
+            proxiestorun = selectpr(
+                port=port, proxies=proxies, routine=rname,
+                instance=proxyinstance,
+                args=args, kwargs=kwargs
+            )
+        # if execpr is None, process proxies
+        if execpr is None:
+            results = []
+            for proxy_to_run in proxiestorun:
+                rountine = getattr(proxy_to_run, rname)
+                method_res = rountine(*args, **kwargs)
+                results.append(method_res)
+        else:  # if execpr is asked
+            results = execpr(
+                port=port, proxies=proxiestorun,
+                routine=rname, instance=proxyinstance,
+                args=args, kwargs=kwargs
+            )
+        # if resultpr is None, process the result
+        if resultpr is None:
+            if isinstance(results, PolicyResultSet) and results:
+                result = [0]
             else:
-                proxiestorun = selectpr(
-                    port=port, proxies=proxies, routine=rname,
-                    instance=proxyinstance,
-                    args=args, kwargs=kwargs
-                )
-            # if execpr is None, process proxies
-            if execpr is None:
-                results = []
-                for proxy_to_run in proxiestorun:
-                    rountine = getattr(proxy_to_run, rname)
-                    method_res = rountine(*args, **kwargs)
-                    results.append(method_res)
-            else:  # if execpr is asked
-                results = execpr(
-                    port=port, proxies=proxiestorun,
-                    routine=rname, instance=proxyinstance,
-                    args=args, kwargs=kwargs
-                )
-            # if resultpr is None, process the result
-            if resultpr is None:
-                if isinstance(results, PolicyResultSet) and results:
-                    result = [0]
-                else:
-                    result = results
-            else:
-                result = resultpr(
-                    port=port, proxies=proxies,
-                    routine=rname, instance=proxyinstance,
-                    args=args, kwargs=kwargs,
-                    results=results
-                )
-            return result
-
+                result = results
+        else:
+            result = resultpr(
+                port=port, proxies=proxies,
+                routine=rname, instance=proxyinstance,
+                args=args, kwargs=kwargs,
+                results=results
+            )
         return result
+
+    return result

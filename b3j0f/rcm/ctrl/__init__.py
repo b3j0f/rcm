@@ -27,5 +27,3 @@
 """This package provides tools to manage non-functional properties of
 components.
 """
-
-__version__ = '0.1.0'  #: project version
