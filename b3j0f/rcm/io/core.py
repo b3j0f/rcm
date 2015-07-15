@@ -104,17 +104,17 @@ class Port(Controller):
         :param b3j0f.rcm.io.policy.PolicyRules policyrules: policy rules.
         """
 
-        super(Port, self).__init__(*args, **kwargs)
-
         # set private attributes
-        self._proxy = None
         self._resource = resource
+        self._proxy = None
         self._itfs = itfs
         self._iokind = iokind
         self._multiple = multiple
         self._inf = inf
         self._sup = sup
         self._policyrules = policyrules
+
+        super(Port, self).__init__(*args, **kwargs)
 
     @property
     def isoutput(self):
@@ -276,7 +276,7 @@ class Port(Controller):
         result = Port.GET_PORTS(component=self)
 
         # add resource
-        resource = self.resource
+        resource = self._resource
         if resource is not None:
             result[self.uid] = resource
 

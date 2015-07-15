@@ -44,7 +44,7 @@ from collections import Iterable
 from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
 from b3j0f.aop import weave
-from b3j0f.annotation import Annotation
+from b3j0f.annotation.core import Annotation
 from b3j0f.annotation.check import Target
 
 

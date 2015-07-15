@@ -210,6 +210,20 @@ class PortTest(UTCase):
         assertPorts(names=['i0', 'i1', 'io0', 'io1'])
         assertPorts(names=['o0', 'o1', 'io0', 'io1'], _input=False)
 
+    def test_resources(self):
+        """Test to get port resources.
+        """
+
+        port = Port(
+            resource=1,
+            ports=(Port(), Port()),
+            namedports={'0': Port(), '1': Port()}
+        )
+
+        resources = port.resources
+
+        self.assertEqual(len(resources), 5)
+
 
 if __name__ == '__main__':
     main()
