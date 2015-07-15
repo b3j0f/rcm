@@ -391,6 +391,7 @@ class Port(Controller):
     def _renewproxy(self):
         """Renew self proxy and propagate new proxies to all ``rports`` ports.
 
+        :return: created proxy.
         :raises: Port.PortError if resources do not match inf/sup conditions.
         """
 

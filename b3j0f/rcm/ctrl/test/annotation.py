@@ -394,7 +394,7 @@ class TestC2CtrlAnnotation(BaseControllerTest):
         def assertMultiAnnotation(
             p1=None, p2=None, a=None, b=None, c=None, d=None
         ):
-            """Annotate a routine with both Ann1 and Ann2 with respective
+            """Annotate a routine with alltime Ann1 and Ann2 with respective
             parameters p1 and p2, then assert values of a Test instance
             with input a, b, c, d.
             """
@@ -853,47 +853,62 @@ class TestC2CtrlAnnotationInterceptor(UTCase):
                 self.test = test
 
             @TestC2CtrlAnnotationInterceptor.C2CtrlAI(
-                when=CtrlAnnotationInterceptor.BOTH
+                when=CtrlAnnotationInterceptor.ALLTIME
             )
-            def test_both(self):
+            def test_alltime(self):
+                """Test alltime.
+                """
                 self.test.before += 1
                 self.test.after += 1
 
             @TestC2CtrlAnnotationInterceptor.C2CtrlAI(
-                when=CtrlAnnotationInterceptor.BOTH,
+                when=CtrlAnnotationInterceptor.ALLTIME
+            )
+            def test_alltime_default(self, _result):
+                """Test with alltime and default behavior.
+
+                :param _result: intercepted function result.
+                """
+                if _result:
+                    self.test.after += 1
+
+            @TestC2CtrlAnnotationInterceptor.C2CtrlAI(
+                when=CtrlAnnotationInterceptor.ALLTIME,
                 vparams=['when', 'result']
             )
-            def test_both_v(self, _when, _result):
+            def test_alltime_v(self, _when, _result):
+                """Test alltime with vparams.
+                """
                 if _when == CtrlAnnotationInterceptor.BEFORE:
                     self.test.before += 1
                 elif _result:
                     self.test.after += 1
 
             @TestC2CtrlAnnotationInterceptor.C2CtrlAI(
-                when=CtrlAnnotationInterceptor.BOTH,
+                when=CtrlAnnotationInterceptor.ALLTIME,
                 vparams=['when', 'result']
             )
-            def test_both_vv(self, *args):
+            def test_alltime_vv(self, *args):
                 if args[0] == CtrlAnnotationInterceptor.BEFORE:
                     self.test.before += 1
                 elif args[1]:
                     self.test.after += 1
 
             @TestC2CtrlAnnotationInterceptor.C2CtrlAI(
-                when=CtrlAnnotationInterceptor.BOTH,
+                when=CtrlAnnotationInterceptor.ALLTIME,
                 kparams={'when': '_when', 'result': '_result'}
             )
-            def test_both_k(self, _when, _result):
+            def test_alltime_k(self, _when, _result):
                 if _when == CtrlAnnotationInterceptor.BEFORE:
                     self.test.before += 1
                 elif _result:
                     self.test.after += 1
 
             @TestC2CtrlAnnotationInterceptor.C2CtrlAI(
-                when=CtrlAnnotationInterceptor.BOTH,
+                when=CtrlAnnotationInterceptor.ALLTIME,
                 kparams={'when': '_when', 'result': '_result'}
             )
-            def test_both_kk(self, **kwargs):
+            def test_alltime_kk(self, **kwargs):
                 if kwargs['_when'] == CtrlAnnotationInterceptor.BEFORE:
                     self.test.before += 1
                 elif kwargs['_result']:
@@ -904,6 +919,15 @@ class TestC2CtrlAnnotationInterceptor(UTCase):
             )
             def test_before(self):
                 self.test.before += 1
+
+            @TestC2CtrlAnnotationInterceptor.C2CtrlAI(
+                when=CtrlAnnotationInterceptor.BEFORE
+            )
+            def test_before_default(self, _result):
+                """Test with before and default behavior.
+                """
+                if _result:
+                    self.test.before += 1
 
             @TestC2CtrlAnnotationInterceptor.C2CtrlAI(
                 when=CtrlAnnotationInterceptor.BEFORE, vparams=['when']
@@ -940,6 +964,15 @@ class TestC2CtrlAnnotationInterceptor(UTCase):
             )
             def test_after(self):
                 self.test.after += 1
+
+            @TestC2CtrlAnnotationInterceptor.C2CtrlAI(
+                when=CtrlAnnotationInterceptor.AFTER
+            )
+            def test_after_default(self, _result):
+                """Test with after and default behavior.
+                """
+                if _result:
+                    self.test.after += 1
 
             @TestC2CtrlAnnotationInterceptor.C2CtrlAI(
                 when=CtrlAnnotationInterceptor.AFTER,
@@ -988,10 +1021,10 @@ class TestC2CtrlAnnotationInterceptor(UTCase):
         self.assertEqual(self.before, 0)
         self.assertEqual(self.after, 0)
 
-        self.controller in self.component
+        self.component.contains(self.controller)
 
         self.assertEqual(self.before, 11)
-        self.assertEqual(self.after, 11)
+        self.assertEqual(self.after, 13)
 
 
 class TestSetPort(UTCase):
@@ -1028,16 +1061,21 @@ class TestSetPort(UTCase):
 
                 return result
 
-            @SetPort(when=CtrlAnnotationInterceptor.BOTH)
-            def test_both(self):
+            @SetPort(when=CtrlAnnotationInterceptor.ALLTIME)
+            def test_alltime(self):
                 self.test.before += 1
                 self.test.after += 1
 
+            @SetPort(when=CtrlAnnotationInterceptor.ALLTIME)
+            def test_alltime_default(self, _result):
+                if _result:
+                    self.test.after += 1
+
             @SetPort(
-                when=CtrlAnnotationInterceptor.BOTH,
+                when=CtrlAnnotationInterceptor.ALLTIME,
                 vparams=['when', 'result', 'name', 'port']
             )
-            def test_both_v(self, _when, _result, _name, _port):
+            def test_alltime_v(self, _when, _result, _name, _port):
                 if self.check_params(_name, _port):
                     if _when == CtrlAnnotationInterceptor.BEFORE:
                         self.test.before += 1
@@ -1045,10 +1083,10 @@ class TestSetPort(UTCase):
                         self.test.after += 1
 
             @SetPort(
-                when=CtrlAnnotationInterceptor.BOTH,
+                when=CtrlAnnotationInterceptor.ALLTIME,
                 vparams=['when', 'result', 'name', 'port']
             )
-            def test_both_vv(self, *args):
+            def test_alltime_vv(self, *args):
                 if self.check_params(*args[2:]):
                     if args[0] == CtrlAnnotationInterceptor.BEFORE:
                         self.test.before += 1
@@ -1056,7 +1094,7 @@ class TestSetPort(UTCase):
                         self.test.after += 1
 
             @SetPort(
-                when=CtrlAnnotationInterceptor.BOTH,
+                when=CtrlAnnotationInterceptor.ALLTIME,
                 kparams={
                     'when': '_when',
                     'result': '_result',
@@ -1064,7 +1102,7 @@ class TestSetPort(UTCase):
                     'port': '_port'
                 }
             )
-            def test_both_k(self, _when, _result, _name, _port):
+            def test_alltime_k(self, _when, _result, _name, _port):
                 if self.check_params(_name, _port):
                     if _when == CtrlAnnotationInterceptor.BEFORE:
                         self.test.before += 1
@@ -1072,7 +1110,7 @@ class TestSetPort(UTCase):
                         self.test.after += 1
 
             @SetPort(
-                when=CtrlAnnotationInterceptor.BOTH,
+                when=CtrlAnnotationInterceptor.ALLTIME,
                 kparams={
                     'when': '_when',
                     'result': '_result',
@@ -1080,7 +1118,7 @@ class TestSetPort(UTCase):
                     'port': '_port'
                 }
             )
-            def test_both_kk(self, **kwargs):
+            def test_alltime_kk(self, **kwargs):
                 if self.check_params(**kwargs):
                     if kwargs['_when'] == CtrlAnnotationInterceptor.BEFORE:
                         self.test.before += 1
@@ -1092,6 +1130,11 @@ class TestSetPort(UTCase):
             )
             def test_before(self):
                 self.test.before += 1
+
+            @SetPort(when=CtrlAnnotationInterceptor.BEFORE)
+            def test_before_default(self, _result):
+                if _result:
+                    self.test.after += 1
 
             @SetPort(
                 when=CtrlAnnotationInterceptor.BEFORE,
@@ -1142,6 +1185,11 @@ class TestSetPort(UTCase):
             )
             def test_after(self):
                 self.test.after += 1
+
+            @SetPort(when=CtrlAnnotationInterceptor.AFTER)
+            def test_after_default(self, _result):
+                if _result:
+                    self.test.after += 1
 
             @SetPort(
                 when=CtrlAnnotationInterceptor.AFTER,
@@ -1207,7 +1255,7 @@ class TestSetPort(UTCase):
         self.component.set_port(name='name', port='port')
 
         self.assertEqual(self.before, 11)
-        self.assertEqual(self.after, 11)
+        self.assertEqual(self.after, 13)
 
 
 class TestRemPort(UTCase):
@@ -1243,16 +1291,16 @@ class TestRemPort(UTCase):
 
                 return result
 
-            @RemPort(when=CtrlAnnotationInterceptor.BOTH)
-            def test_both(self):
+            @RemPort(when=CtrlAnnotationInterceptor.ALLTIME)
+            def test_alltime(self):
                 self.test.before += 1
                 self.test.after += 1
 
             @RemPort(
-                when=CtrlAnnotationInterceptor.BOTH,
+                when=CtrlAnnotationInterceptor.ALLTIME,
                 vparams=['when', 'result', 'name']
             )
-            def test_both_v(self, _when, _result, _name):
+            def test_alltime_v(self, _when, _result, _name):
                 if self.check_params(_name):
                     if _when == CtrlAnnotationInterceptor.BEFORE:
                         self.test.before += 1
@@ -1260,10 +1308,10 @@ class TestRemPort(UTCase):
                         self.test.after += 1
 
             @RemPort(
-                when=CtrlAnnotationInterceptor.BOTH,
+                when=CtrlAnnotationInterceptor.ALLTIME,
                 vparams=['when', 'result', 'name']
             )
-            def test_both_vv(self, *args):
+            def test_alltime_vv(self, *args):
                 if self.check_params(*args[2:]):
                     if args[0] == CtrlAnnotationInterceptor.BEFORE:
                         self.test.before += 1
@@ -1271,14 +1319,14 @@ class TestRemPort(UTCase):
                         self.test.after += 1
 
             @RemPort(
-                when=CtrlAnnotationInterceptor.BOTH,
+                when=CtrlAnnotationInterceptor.ALLTIME,
                 kparams={
                     'when': '_when',
                     'result': '_result',
                     'name': '_name'
                 }
             )
-            def test_both_k(self, _when, _result, _name):
+            def test_alltime_k(self, _when, _result, _name):
                 if self.check_params(_name):
                     if _when == CtrlAnnotationInterceptor.BEFORE:
                         self.test.before += 1
@@ -1286,14 +1334,14 @@ class TestRemPort(UTCase):
                         self.test.after += 1
 
             @RemPort(
-                when=CtrlAnnotationInterceptor.BOTH,
+                when=CtrlAnnotationInterceptor.ALLTIME,
                 kparams={
                     'when': '_when',
                     'result': '_result',
                     'name': '_name'
                 }
             )
-            def test_both_kk(self, **kwargs):
+            def test_alltime_kk(self, **kwargs):
                 if self.check_params(**kwargs):
                     if kwargs['_when'] == CtrlAnnotationInterceptor.BEFORE:
                         self.test.before += 1

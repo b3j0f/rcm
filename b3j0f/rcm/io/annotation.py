@@ -44,14 +44,17 @@ __all__ = [
 ]
 
 from b3j0f.annotation.check import Target, MaxCount
+from b3j0f.rcm.ctrl.annotation import CtrlAnnotationInterceptor
 from b3j0f.rcm.ctrl.annotation import (
     CtrlAnnotation, Ctrl2CAnnotation, C2CtrlAnnotation
 )
+from b3j0f.rcm.io.core import Port
 from b3j0f.rcm.io.ctrl import IOController
 
 
-class Input(C2CtrlAnnotation):
-    """InputPort injector which uses a name in order to inject a InputPort.
+class Input(CtrlAnnotationInterceptor):
+    """InputPort injector which uses a name in order to inject an InputPort
+    proxy.
     """
 
     NAME = 'name'  #: input port name field name
@@ -59,14 +62,27 @@ class Input(C2CtrlAnnotation):
     __slots__ = (NAME, ) + Ctrl2CAnnotation.__slots__
 
     def __init__(self, name, *args, **kwargs):
+        """
+        :param str name: port name to retrieve.
+        """
 
         super(Input, self).__init__(*args, **kwargs)
 
         self.name = name
 
-    def get_port_name(self, *args, **kwargs):
+    def get_target_ctx(self, component, *args, **kwargs):
 
-        return self.name
+        port = component.get(self.name)
+
+        target = None if port is None else port._renewproxy
+
+        result = target, port
+
+        return result
+
+    def _get_param(self, result, *args, **kwargs):
+
+        return result
 
 
 class Output(Ctrl2CAnnotation):
@@ -80,7 +96,7 @@ class Output(Ctrl2CAnnotation):
     __slots__ = (INTERFACES, ASYNC, STATELESS, ) + Ctrl2CAnnotation.__slots__
 
     def __init__(
-        self, async=None, stateless=None, interfaces=None, *args, **kwargs
+            self, async=None, stateless=None, interfaces=None, *args, **kwargs
     ):
 
         self.async = async
@@ -137,4 +153,34 @@ class SetIOCtrl(C2CtrlAnnotation):
 
     def get_value(self, component, *args, **kargs):
 
-        return IOController.get_controller(component)
+        return IOController.get_ctrl(component)
+
+
+class Input(CtrlAnnotationInterceptor):
+    """Dedicated to inject a port proxy into an implementation.
+    """
+
+    def __init__(self, port, *args, **kwargs):
+        """
+        :param str port: port name from where get a proxy to inject in the
+            implementation.
+        """
+
+        super(Input, self).__init__(*args, **kwargs)
+
+    def get_target_ctx(self, component, *args, **kwargs):
+
+        return component.set_port, component
+
+
+class Output(CtrlAnnotationInterceptor):
+    """Called when a port is unbound from component.
+
+    Specific parameters are Component.remove_port parameters:
+
+    - name: port name to remove.
+    """
+
+    def get_target_ctx(self, component, *args, **kwargs):
+
+        return component.remove_port, component
