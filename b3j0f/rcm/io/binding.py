@@ -40,7 +40,7 @@ class Binding(Port):
     """Class to specialize in order to ensure communication with technologies
     outside the reflective component model.
 
-    Binding specialization might be in overidding the _renew_proxy method.
+    Binding specialization might be in overidding the _renewproxy method.
     """
 
     def _on_bind(self, component, *args, **kwargs):
@@ -50,9 +50,9 @@ class Binding(Port):
         if isinstance(component, Port):
             self.itfs = component.itfs
 
-    def set_port(self, component, *args, **kwargs):
+    def set_port(self, port, *args, **kwargs):
 
-        super(Binding, self).set_port(component=component, *args, **kwargs)
-        # renew the proxy after binding a port
-        if isinstance(component, Port):
-            self._get_proxy()
+        super(Binding, self).set_port(port=port, *args, **kwargs)
+
+        if isinstance(port, Port):
+            self.itfs = port.itfs
