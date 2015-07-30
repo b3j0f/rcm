@@ -121,8 +121,6 @@ class PolicyResultSet(tuple):
     """In charge of embed a multiple policy result.
     """
 
-    pass
-
 
 class Policy(object):
     """In charge of applying a policy on proxy selection/execution/results.
@@ -178,8 +176,6 @@ class FirstPolicy(ParameterizedPolicy):
 class AllPolicy(ParameterizedPolicy):
     """Choose specific parameter.
     """
-
-    pass
 
 
 class CountPolicy(ParameterizedPolicy):
@@ -338,7 +334,7 @@ class AsyncPolicy(Policy):
     _CALLBACK = '_callback'  #: private callback attribute name
     _THREAD = '_thread'  #: private thread attribute name
 
-    def __init__(self, callback, *args, **kwargs):
+    def __init__(self, callback=None, *args, **kwargs):
         """
         :param callable callback: callable object which will get proxy
             execution results.
@@ -376,13 +372,17 @@ class AsyncPolicy(Policy):
             try:
                 proxy_result = proxy_rountine(*args, **kwargs)
             except Exception as ex:
-                self._callback(  # and send the occured error to the callback
-                    error=ex
-                )
+                if self._callback is not None:
+                    # and send the occured error to the callback
+                    self._callback(
+                        error=ex
+                    )
             else:
-                self._callback(  # and send result to the callback
-                    result=proxy_result
-                )
+                if self._callback is not None:
+                    # and send result to the callback
+                    self._callback(
+                        result=proxy_result
+                    )
 
     def join(self):
         """Wait until all proxy are executed.

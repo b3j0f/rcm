@@ -540,6 +540,54 @@ class TestAsyncPolicy(TestParameterizedPolicy):
         self.assertIsInstance(result, ValueError)
 
 
+class TestAsyncPolicyWithoutCallback(TestParameterizedPolicy):
+    """Test AsyncPolicy without callback.
+    """
+
+    def _get_policy_cls(self):
+
+        return AsyncPolicy
+
+    def _get_name(self):
+
+        return None
+
+    def _get_params(self, param):
+
+        return {'proxies': param, 'routine': '__str__'}
+
+    def _test_not_policy_result(self, param, result):
+
+        self.assertIsNone(result)
+
+        self.policy.join()
+
+    def _assert_empty_PolicyResultSet(self, param, result):
+
+        self.assertIsNone(result)
+
+        self.policy.join()
+
+    def _assert_PolicyResultSet(self, param, result):
+
+        self.assertIsNone(result)
+
+        self.policy.join()
+
+    def test_error(self):
+        """Test when the async proxy execution raises and error.
+        """
+
+        def proxy():
+            """testing proxy.
+            """
+            raise ValueError()
+
+        self.policy(proxies=proxy, routine='__call__')
+
+        self.policy.join()
+
+
 class TestBestEffortPolicy(TestParameterizedPolicy):
     """Test BestEffortPolicy.
     """
@@ -573,6 +621,8 @@ class TestBestEffortPolicy(TestParameterizedPolicy):
         self.assertEqual(result, str(param[0]))
 
         def proxy():
+            """test proxy.
+            """
             raise ValueError()
 
         # check proxies without errors
