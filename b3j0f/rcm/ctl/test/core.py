@@ -85,7 +85,7 @@ class ControllerTest(UTCase):
         )
 
     def test_get_controller(self):
-        """Test Controller.get_ctrl static method.
+        """Test Controller.get_ctl static method.
         """
 
         # bind controllers to components
@@ -95,14 +95,14 @@ class ControllerTest(UTCase):
         for controller in self.controllers:
             for component in self.components:
                 # assert with existing controller
-                _controller = controller.__class__.get_ctrl(component)
+                _controller = controller.__class__.get_ctl(component)
                 self.assertIs(_controller, controller)
                 # assert controller is missing after unbind it from component
-                del component[controller.ctrl_name()]
-                _controller = controller.__class__.get_ctrl(component)
+                del component[controller.ctl_name()]
+                _controller = controller.__class__.get_ctl(component)
                 self.assertIsNone(_controller)
                 # assert with not existing controller
-                _controller = ControllerTest.NotController.get_ctrl(
+                _controller = ControllerTest.NotController.get_ctl(
                     component
                 )
                 self.assertIsNone(_controller)
@@ -206,8 +206,8 @@ class ControllerTest(UTCase):
         # bind controllers
         self.test_apply_components()
 
-        controller = ControllerTest.TestController.get_ctrl(self.components[0])
-        controllerSlots = ControllerTest.TestSlotsController.get_ctrl(
+        controller = ControllerTest.TestController.get_ctl(self.components[0])
+        controllerSlots = ControllerTest.TestSlotsController.get_ctl(
             self.components[0]
         )
 
