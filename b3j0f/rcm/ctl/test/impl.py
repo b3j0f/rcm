@@ -30,9 +30,9 @@ from unittest import main
 from b3j0f.utils.ut import UTCase
 from b3j0f.utils.path import getpath
 from b3j0f.rcm.core import Component
-from b3j0f.rcm.ctrl.core import Controller
-from b3j0f.rcm.ctrl.annotation import C2CtrlAnnotation
-from b3j0f.rcm.ctrl.impl import (
+from b3j0f.rcm.ctl.core import Controller
+from b3j0f.rcm.ctl.annotation import C2CtrlAnnotation
+from b3j0f.rcm.ctl.impl import (
     ImplController, Impl, Stateless, Context
 )
 

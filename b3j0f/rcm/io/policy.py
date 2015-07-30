@@ -543,6 +543,47 @@ class PolicyRules(object):
 
     __slots__ = [SELECT_POLICY, EXEC_POLICY, RESULT_POLICY]
 
+    class PolicyRulesType(dict):
+
+        def apply(self, policies, rname=None):
+
+            raise NotImplementedError()
+
+        def unapply(self, policies, rname=None):
+
+            raise NotImplementedError()
+
+        def __iadd__(self, value):
+
+            self.apply(value)
+
+        def __isub__(self, value):
+
+            self.unapply(value)
+
+        def __getitem__(self, key):
+
+            return self.get(rname=key)
+
+        def get(self, rname=None):
+            """Get the right policy rule related to specific policy and
+            routine name.
+
+            :param str rname: routine name.
+            :return: policy rule.
+            """
+
+            result = None
+
+            # if policy is a set of rules by routine name
+            if isinstance(policy, dict):
+                result = policy.get(rname)
+            # if policy is a rule
+            elif isinstance(policy, Callable):
+                result = policy
+
+            return result
+
     def __init__(self, selectp=None, execp=None, resultp=None):
         """
         :param selectp: in case of not multiple port, a selectp
@@ -636,3 +677,21 @@ class PolicyRules(object):
         """
 
         return self._rule(policy=self.resultp, rname=rname)
+
+    def apply_policies(ptype, *policies):
+        """Apply policies in the input policy_rules.
+
+        :param PolicyRules policyrules: policyrules to update.
+        :param list policies: list of policies to apply.
+        """
+
+        raise NotImplementedError()
+
+    def unapply_policies(ptype, *policies):
+        """Unapply policies from the input policy_rules.
+
+        :param ptype: policy type to unapply.
+        :param list policies: list of policies to apply.
+        """
+
+        raise NotImplementedError()

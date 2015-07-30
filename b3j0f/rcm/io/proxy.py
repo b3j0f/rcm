@@ -132,7 +132,7 @@ class ProxySet(tuple):
 def getportproxy(port):
     """Get port proxy.
 
-    :param b3j0f.rcm.io.core.Port port: port from which get proxy.
+    :param b3j0f.rcm.io.port.Port port: port from which get proxy.
     :return: proxy port related to port resources.
     """
 

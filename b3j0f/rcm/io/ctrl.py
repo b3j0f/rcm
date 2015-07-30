@@ -45,9 +45,9 @@ from collections import Iterable
 
 from b3j0f.utils.version import basestring
 from b3j0f.rcm.core import Component
-from b3j0f.rcm.io.core import Port
-from b3j0f.rcm.ctrl.core import Controller
-from b3j0f.rcm.ctrl.name import NameController
+from b3j0f.rcm.io.port import Port
+from b3j0f.rcm.ctl.core import Controller
+from b3j0f.rcm.ctl.name import NameController
 
 
 class IOController(Controller):

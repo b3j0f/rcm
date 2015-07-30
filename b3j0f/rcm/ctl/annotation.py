@@ -26,6 +26,9 @@
 
 """Regroup base annotations to ensure dependency injection of controller
 components.
+
+Such annotations has their own behaviors, but in a future versino, this
+behavior will be independent from the annotaiton.
 """
 
 __all__ = [
@@ -174,7 +177,7 @@ class Ctrl2CAnnotation(CtrlAnnotation):
         """Handle Ctrl2CAnnotation errors.
         """
 
-    def get_result(self, component, impl, member, result):
+    def process_result(self, component, impl, member, result):
         """Callback method after calling the annotated implementation routine.
 
         :param Component component: implementation component.
@@ -224,22 +227,13 @@ class Ctrl2CAnnotation(CtrlAnnotation):
         # init getter result
         result = None
         # get Ctrl2CAnnotations
-        ctrl2cs = cls.get_annotations(getter, ctx=impl)
-        if ctrl2cs or force:  # if getter has getter annotations ?
+        ctl2cs = cls.get_annotations(getter, ctx=impl)
+        if ctl2cs or force:  # if getter has getter annotations ?
             # initialize args and kwargs
             if args is None:
                 args = []
             if kwargs is None:
                 kwargs = {}
-            # call the getter and save the result
-            result = getter(*args, **kwargs)
-            for ctrl2c in ctrl2cs:  # update args and kwargs with sias
-                ctrl2c.get_result(
-                    component=component,
-                    impl=impl,
-                    getter=getter,
-                    result=result
-                )
             # call the getter and save the result
             try:
                 result = getter(*args, **kwargs)
@@ -249,6 +243,14 @@ class Ctrl2CAnnotation(CtrlAnnotation):
                         ex, getter, (args, kwargs)
                     )
                 )
+            else:
+                for ctl2c in ctl2cs:
+                    ctl2c.process_result(
+                        component=component,
+                        impl=impl,
+                        getter=getter,
+                        result=result
+                    )
 
         return result
 
@@ -333,11 +335,11 @@ class C2CtrlAnnotation(CtrlAnnotation):
                 if member in values_by_members:  # if value already exists
                     value = values_by_members[member]
                     # update value in all Ctrl2CAnnotations
-                    ctrl2cs = Ctrl2CAnnotation.get_annotations(
+                    ctl2cs = Ctrl2CAnnotation.get_annotations(
                         member, ctx=impl
                     )
-                    for ctrl2c in ctrl2cs:
-                        ctrl2c.get_result(
+                    for ctl2c in ctl2cs:
+                        ctl2c.process_result(
                             component=component, impl=impl, member=member,
                             result=value
                         )
@@ -373,15 +375,15 @@ class C2CtrlAnnotation(CtrlAnnotation):
         else:
             target = setter
         # get C2CtrlAnnotations
-        c2ctrls = cls.get_annotations(target, ctx=impl)
-        if c2ctrls or force:  # if setter has setter annotations ?
+        c2ctls = cls.get_annotations(target, ctx=impl)
+        if c2ctls or force:  # if setter has setter annotations ?
             # initialize args and kwargs
             if args is None:
                 args = []
             if kwargs is None:
                 kwargs = {}
-            for c2ctrla in c2ctrls:  # update args and kwargs with sias
-                c2ctrla._update_params(
+            for c2ctla in c2ctls:  # update args and kwargs with sias
+                c2ctla._update_params(
                     component=component, impl=impl, member=setter,
                     args=args, kwargs=kwargs
                 )

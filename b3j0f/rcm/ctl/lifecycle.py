@@ -29,12 +29,12 @@ try:
 except ImportError:
     from dummy_threading import Lock, Condition
 
-from b3j0f.rcm.ctrl.core import Controller
-from b3j0f.rcm.ctrl.annotation import (
+from b3j0f.rcm.ctl.core import Controller
+from b3j0f.rcm.ctl.annotation import (
     CtrlAnnotationInterceptor, C2CtrlAnnotation
 )
-from b3j0f.rcm.io.core import Port
-from b3j0f.rcm.ctrl.content import ContentController
+from b3j0f.rcm.io.port import Port
+from b3j0f.rcm.ctl.content import ContentController
 from b3j0f.aop import weave, unweave
 
 
@@ -371,7 +371,7 @@ class Lifecycle(C2CtrlAnnotation):
 
     def get_value(self, component, *args, **kwargs):
 
-        return LifecycleController.get_ctrl(component=component)
+        return LifecycleController.get_ctl(component=component)
 
 
 class NewLCStatus(CtrlAnnotationInterceptor):
@@ -384,6 +384,6 @@ class NewLCStatus(CtrlAnnotationInterceptor):
 
     def get_target_ctx(self, component, *args, **kwargs):
 
-        lcc = LifecycleController.get_ctrl(component=component)
+        lcc = LifecycleController.get_ctl(component=component)
 
         return lcc._set_status, lcc

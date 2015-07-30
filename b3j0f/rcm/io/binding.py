@@ -33,7 +33,7 @@ object method calls into a webservice stub.
 
 __all__ = ['Binding']
 
-from b3j0f.rcm.io.core import Port
+from b3j0f.rcm.io.port import Port
 
 
 class Binding(Port):

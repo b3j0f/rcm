@@ -44,7 +44,7 @@ __all__ = ['Port']
 from sys import maxsize as maxint
 
 from b3j0f.rcm.io.proxy import getportproxy
-from b3j0f.rcm.ctrl.core import Controller
+from b3j0f.rcm.ctl.core import Controller
 
 
 class Port(Controller):

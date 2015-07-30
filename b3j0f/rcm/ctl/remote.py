@@ -24,7 +24,7 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-from b3j0f.rcm.ctrl.core import Controller
+from b3j0f.rcm.ctl.core import Controller
 
 
 class RemoteController(Controller):

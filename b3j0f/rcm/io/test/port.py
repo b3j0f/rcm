@@ -25,7 +25,7 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-"""Test the module b3j0f.rcm.io.core.
+"""Test the module b3j0f.rcm.io.port.
 """
 
 from unittest import main
@@ -33,7 +33,7 @@ from unittest import main
 from b3j0f.utils.ut import UTCase
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.io.proxy import ProxySet
-from b3j0f.rcm.io.core import Port
+from b3j0f.rcm.io.port import Port
 from b3j0f.rcm.io.desc import Interface
 
 

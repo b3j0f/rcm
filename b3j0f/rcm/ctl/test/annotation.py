@@ -29,8 +29,8 @@ from unittest import main
 
 from b3j0f.utils.ut import UTCase
 from b3j0f.rcm.core import Component
-from b3j0f.rcm.ctrl.core import Controller
-from b3j0f.rcm.ctrl.annotation import (
+from b3j0f.rcm.ctl.core import Controller
+from b3j0f.rcm.ctl.annotation import (
     CtrlAnnotation, Ctrl2CAnnotation, C2CtrlAnnotation,
     C2Ctrl2CAnnotation,
     CtrlAnnotationInterceptor,
@@ -156,17 +156,17 @@ class TestCtrl2CAnnotation(BaseControllerTest):
 
     class Ann(Ctrl2CAnnotation):
 
-        def get_result(self, result, **kwargs):
+        def process_result(self, result, **kwargs):
 
             result.count += 1
 
     def test_get_result(self):
-        """Test get_result method.
+        """Test process_result method.
         """
 
         annotation = TestCtrl2CAnnotation.Ann()
 
-        annotation.get_result(result=self)
+        annotation.process_result(result=self)
         self.assertEqual(self.count, 1)
 
     def test_call_getter(self):
@@ -643,7 +643,7 @@ class TestC2Ctrl2CAnnotation(BaseControllerTest):
 
             return self.tcbc
 
-        def get_result(self, result, *args, **kwargs):
+        def process_result(self, result, *args, **kwargs):
 
             result.count_result += 1
 

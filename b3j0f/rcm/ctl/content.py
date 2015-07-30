@@ -27,9 +27,9 @@
 __all__ = ['ContentController', 'Content', 'Add', 'Remove']
 
 from b3j0f.rcm.core import Component
-from b3j0f.rcm.ctrl.core import Controller
-from b3j0f.rcm.ctrl.name import NameController
-from b3j0f.rcm.ctrl.annotation import C2CtrlAnnotation, CtrlAnnotation
+from b3j0f.rcm.ctl.core import Controller
+from b3j0f.rcm.ctl.name import NameController
+from b3j0f.rcm.ctl.annotation import C2CtrlAnnotation, CtrlAnnotation
 
 
 class ContentController(Controller):

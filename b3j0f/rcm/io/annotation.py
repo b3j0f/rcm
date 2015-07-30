@@ -44,11 +44,11 @@ __all__ = [
 ]
 
 from b3j0f.annotation.check import Target, MaxCount
-from b3j0f.rcm.ctrl.annotation import CtrlAnnotationInterceptor
-from b3j0f.rcm.ctrl.annotation import (
+from b3j0f.rcm.ctl.annotation import CtrlAnnotationInterceptor
+from b3j0f.rcm.ctl.annotation import (
     CtrlAnnotation, Ctrl2CAnnotation, C2CtrlAnnotation
 )
-from b3j0f.rcm.io.core import Port
+from b3j0f.rcm.io.port import Port
 from b3j0f.rcm.io.ctrl import IOController
 
 
@@ -58,8 +58,6 @@ class Input(CtrlAnnotationInterceptor):
     """
 
     NAME = 'name'  #: input port name field name
-
-    __slots__ = (NAME, ) + Ctrl2CAnnotation.__slots__
 
     def __init__(self, name, *args, **kwargs):
         """
@@ -80,35 +78,65 @@ class Input(CtrlAnnotationInterceptor):
 
         return result
 
-    def _get_param(self, result, *args, **kwargs):
-
-        return result
-
 
 class Output(Ctrl2CAnnotation):
     """Output descriptor.
     """
 
-    ASYNC = 'async'  #: asynchronous mode
-    STATELESS = 'stateless'  #: stateless mode
-    INTERFACES = 'interfaces'  #: interfaces
-
-    __slots__ = (INTERFACES, ASYNC, STATELESS, ) + Ctrl2CAnnotation.__slots__
+    STATELESS = 'stateless'  #: port stateless mode
+    INTERFACES = 'interfaces'  #: port interfaces
+    POLICYRULES = 'policyrules'  #: port policyrules
 
     def __init__(
-            self, async=None, stateless=None, interfaces=None, *args, **kwargs
+            self, name=None, stateless=False, interfaces=None,
+            policyrules=None,
+            *args, **kwargs
     ):
+        """
+        :param str name: output port name.
+        :param bool stateless: stateless if True (False by default).
+        :param tuple interfaces: port interfaces.
+        :param PolicyRules policyrules: port policyrules.
+        """
 
-        self.async = async
+        super(Output, self).__init__(*args, **kwargs)
+
+        self.name = name
         self.stateless = stateless
         self.interfaces = interfaces
+        self.policyrules = policyrules
+
+    def process_result(self, result, component, *args, **kwargs):
+
+        # create a port and bind it to the component
+        port = Port(
+            resource=result, itfs=self.interfaces,
+            policyrules=self.policyrules
+        )
+        component.set_port(port=port, name=self.name)
 
 
 @MaxCount()
 @Target([Target.ROUTINE, type])
-class Async(CtrlAnnotation):
+class Async(Ctrl2CAnnotation):
     """Specify asynchronous mode on class methods.
     """
+
+    def __init__(self, name=None, *args, **kwargs):
+        """
+        :param str name: specific port name.
+        """
+
+        super(Async, self).__init__(*args, **kwargs)
+
+        self.name = name
+
+    def process_result(self, result, component, getter, *args, **kwargs):
+
+        getter_name = getter.__name__
+        # create a port and bind it to the component
+        port = Port.GET_PORTS(component=component, names=self.name)
+        apply_policy(port.policyrules)
 
 
 @Target(type)

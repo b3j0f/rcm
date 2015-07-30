@@ -32,7 +32,7 @@ from unittest import main
 
 from b3j0f.utils.ut import UTCase
 from b3j0f.rcm.core import Component
-from b3j0f.rcm.ctrl.core import Controller
+from b3j0f.rcm.ctl.core import Controller
 from b3j0f.rcm.io.desc import Interface
 
 
