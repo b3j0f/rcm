@@ -33,8 +33,8 @@ behavior will be independent from the annotaiton.
 
 __all__ = [
     # abstract annotations
-    'CtrlAnnotation', 'Ctrl2CAnnotation', 'C2CtrlAnnotation',
-    'C2Ctrl2CAnnotation', 'CtrlAnnotationInterceptor',
+    'CtlAnnotation', 'Ctl2CAnnotation', 'C2CtlAnnotation',
+    'C2Ctl2CAnnotation', 'CtlAnnotationInterceptor',
     'Controllers',  # Controller annotation
     'Port', 'SetPort', 'RemPort',  # impl controller annotations
     'getter_name', 'setter_name'
@@ -51,7 +51,7 @@ from b3j0f.annotation.core import Annotation
 from b3j0f.annotation.check import Target
 
 
-class CtrlAnnotation(Annotation):
+class CtlAnnotation(Annotation):
     """Annotation dedicated to do IoC and DI in controller implementation.
     """
 
@@ -137,7 +137,7 @@ class CtrlAnnotation(Annotation):
 
 
 @Target(type)
-class Controllers(CtrlAnnotation):
+class Controllers(CtlAnnotation):
     """Annotation dedicateed to bind several Controller classes on a component.
     """
 
@@ -166,7 +166,7 @@ class Controllers(CtrlAnnotation):
             controller.unbindfrom(component=component)
 
 
-class Ctrl2CAnnotation(CtrlAnnotation):
+class Ctl2CAnnotation(CtlAnnotation):
     """Controller to Component annotation in order to inject implementation
     values to the component properties.
 
@@ -174,7 +174,7 @@ class Ctrl2CAnnotation(CtrlAnnotation):
     """
 
     class Error(Exception):
-        """Handle Ctrl2CAnnotation errors.
+        """Handle Ctl2CAnnotation errors.
         """
 
     def process_result(self, component, impl, member, result):
@@ -194,7 +194,7 @@ class Ctrl2CAnnotation(CtrlAnnotation):
 
         :param Component component: implementation component.
         :param impl: implementation instance.
-        :raises: Ctrl2CAnnotation.Error in case of getter call error.
+        :raises: Ctl2CAnnotation.Error in case of getter call error.
         """
         # parse members which are routine and not constructors
         for _, member in getmembers(
@@ -220,13 +220,13 @@ class Ctrl2CAnnotation(CtrlAnnotation):
         :param routine getter: getter to call if it is annotated.
         :param list args: args to use in calling the getter.
         :param dict kwargs: kwargs to use in calling the getter.
-        :param bool force: force call even if no C2CtrlAnnotation exist.
+        :param bool force: force call even if no C2CtlAnnotation exist.
         :return: getter call if it is annotated by cls.
         """
 
         # init getter result
         result = None
-        # get Ctrl2CAnnotations
+        # get Ctl2CAnnotations
         ctl2cs = cls.get_annotations(getter, ctx=impl)
         if ctl2cs or force:  # if getter has getter annotations ?
             # initialize args and kwargs
@@ -238,7 +238,7 @@ class Ctrl2CAnnotation(CtrlAnnotation):
             try:
                 result = getter(*args, **kwargs)
             except Exception as ex:
-                raise Ctrl2CAnnotation.Error(
+                raise Ctl2CAnnotation.Error(
                     "Error ({0}) while calling {1} with {2}".format(
                         ex, getter, (args, kwargs)
                     )
@@ -255,7 +255,7 @@ class Ctrl2CAnnotation(CtrlAnnotation):
         return result
 
 
-class C2CtrlAnnotation(CtrlAnnotation):
+class C2CtlAnnotation(CtlAnnotation):
     """Component to Controller annotation to use in order to configurate
     the controller from the component.
 
@@ -266,8 +266,8 @@ class C2CtrlAnnotation(CtrlAnnotation):
     IS_PNAME = 'ispname'  #: ispname attribute name
     UPDATE = 'update'  #: update parameter attribute name
 
-    class C2CtrlError(Exception):
-        """Handle C2CtrlAnnotation errors.
+    class Error(Exception):
+        """Handle C2CtlAnnotation errors.
         """
 
     def __init__(
@@ -293,7 +293,7 @@ class C2CtrlAnnotation(CtrlAnnotation):
         parameters.
         """
 
-        super(C2CtrlAnnotation, self).__init__(*args, **kwargs)
+        super(C2CtlAnnotation, self).__init__(*args, **kwargs)
 
         self.param = param
         self.ispname = ispname
@@ -334,8 +334,8 @@ class C2CtrlAnnotation(CtrlAnnotation):
             for _, member in members:
                 if member in values_by_members:  # if value already exists
                     value = values_by_members[member]
-                    # update value in all Ctrl2CAnnotations
-                    ctl2cs = Ctrl2CAnnotation.get_annotations(
+                    # update value in all Ctl2CAnnotations
+                    ctl2cs = Ctl2CAnnotation.get_annotations(
                         member, ctx=impl
                     )
                     for ctl2c in ctl2cs:
@@ -343,8 +343,8 @@ class C2CtrlAnnotation(CtrlAnnotation):
                             component=component, impl=impl, member=member,
                             result=value
                         )
-                else:  # execute the member with all Ctrl2CAnnotations
-                    Ctrl2CAnnotation.call_getter(
+                else:  # execute the member with all Ctl2CAnnotations
+                    Ctl2CAnnotation.call_getter(
                         component=component, impl=impl, getter=member
                     )
 
@@ -362,7 +362,7 @@ class C2CtrlAnnotation(CtrlAnnotation):
         :param routine setter: setter to call if it is annotated.
         :param list args: args to use in calling the setter.
         :param dict kwargs: kwargs to use in calling the setter.
-        :param bool force: force call even if no C2CtrlAnnotation exist.
+        :param bool force: force call even if no C2CtlAnnotation exist.
         :return: setter call if it is annotated by cls.
         """
 
@@ -374,7 +374,7 @@ class C2CtrlAnnotation(CtrlAnnotation):
             setter = impl
         else:
             target = setter
-        # get C2CtrlAnnotations
+        # get C2CtlAnnotations
         c2ctls = cls.get_annotations(target, ctx=impl)
         if c2ctls or force:  # if setter has setter annotations ?
             # initialize args and kwargs
@@ -391,7 +391,7 @@ class C2CtrlAnnotation(CtrlAnnotation):
             try:
                 result = setter(*args, **kwargs)
             except Exception as ex:
-                raise C2CtrlAnnotation.C2CtrlError(
+                raise C2CtlAnnotation.Error(
                     "Error ({0}) while calling {1} with {2}".format(
                         ex, setter, (args, kwargs)
                     )
@@ -506,12 +506,12 @@ class C2CtrlAnnotation(CtrlAnnotation):
         return result
 
 
-class C2Ctrl2CAnnotation(C2CtrlAnnotation, Ctrl2CAnnotation):
-    """Behaviour of both C2CtrlAnnotation and Ctrl2CAnnotation.
+class C2Ctl2CAnnotation(C2CtlAnnotation, Ctl2CAnnotation):
+    """Behaviour of both C2CtlAnnotation and Ctl2CAnnotation.
     """
 
 
-class Port(C2CtrlAnnotation):
+class Port(C2CtlAnnotation):
     """Annotation dedicated to inject a port in a component implementation.
 
     Value(s) to set depends on ``param``::
@@ -522,7 +522,7 @@ class Port(C2CtrlAnnotation):
         - dict: keys are parameters and values are port names.
     """
 
-    __slots__ = C2CtrlAnnotation.__slots__
+    __slots__ = C2CtlAnnotation.__slots__
 
     def __init__(self, param, *args, **kwargs):
 
@@ -531,7 +531,7 @@ class Port(C2CtrlAnnotation):
         )
 
 
-class CtrlAnnotationInterceptor(CtrlAnnotation):
+class CtlAnnotationInterceptor(CtlAnnotation):
     """C2B annotation dedicated to intercept context methods and to set
     corresponding methods in implementation.
 
@@ -564,7 +564,7 @@ class CtrlAnnotationInterceptor(CtrlAnnotation):
     SIMPLE = 'simple'  #: simple interceptor attribute name
 
     class Error(Exception):
-        """Handle CtrlAnnotationInterceptor Errors.
+        """Handle CtlAnnotationInterceptor Errors.
         """
 
     def __init__(
@@ -580,7 +580,7 @@ class CtrlAnnotationInterceptor(CtrlAnnotation):
             param names and values are interception param names.
         """
 
-        super(CtrlAnnotationInterceptor, self).__init__(*args, **kwargs)
+        super(CtlAnnotationInterceptor, self).__init__(*args, **kwargs)
 
         self.when = when
 
@@ -654,11 +654,11 @@ class CtrlAnnotationInterceptor(CtrlAnnotation):
         :param tuple argspec: member argspec.
 
         :return: specific parameter.
-        :raises: CtrlAnnotationInterceptor.Error if parameter value does
+        :raises: CtlAnnotationInterceptor.Error if parameter value does
             not exist.
         """
 
-        if name == CtrlAnnotationInterceptor.WHEN:
+        if name == CtlAnnotationInterceptor.WHEN:
             result = when
         elif name == 'component':
             result = component
@@ -674,7 +674,7 @@ class CtrlAnnotationInterceptor(CtrlAnnotation):
             index = argspec.args.index(name)
             result = joinpoint.args[index]
         else:  # if name is not handled, raise an Error
-            raise CtrlAnnotationInterceptor.Error(
+            raise CtlAnnotationInterceptor.Error(
                 "Wrong parameter name '{0}' in {1} ({2}).".format(
                     name, member, component
                 )
@@ -682,65 +682,56 @@ class CtrlAnnotationInterceptor(CtrlAnnotation):
 
         return result
 
-    def _get_advice(self, component, impl, member):
-        """Get an advice able to proceed impl member.
+    def _get_advice(self, joinpoint, component, impl, member, argspec):
+        """Advice able to proceed impl member.
 
+        :param Joinpoint joinpoint: joinpoint to proceed.
         :param Component component: advice component.
         :param impl: component implementation.
         :param member: adviced member.
         :return: impl member advice.
         """
 
-        argspec = getargspec(member)
+        if self.when & CtlAnnotationInterceptor.BEFORE:
+            args, kwargs = self._get_params(
+                component=component,
+                impl=impl,
+                member=member,
+                joinpoint=joinpoint,
+                when=CtlAnnotationInterceptor.BEFORE,
+                argspec=argspec
+            )
+            try:  # catch any exception
+                member(*args, **kwargs)
+            except Exception:
+                pass
 
-        def result(joinpoint):
-            """Resulting advice.
+        result = joinpoint.proceed()
 
-            :param Joinpoint joinpoint: joinpoint to proceed.
-            """
-
-            if self.when & CtrlAnnotationInterceptor.BEFORE:
+        if self.when & CtlAnnotationInterceptor.AFTER:
+            if not self.vparams and not self.kparams:
+                if len(argspec.args) > 1:
+                    args, kwargs = (), {argspec.args[1]:  result}
+                elif argspec.varargs:
+                    args, kwargs = (result, ), {}
+                elif argspec.keywords:
+                    args, kwargs = (), {'result': result}
+                else:
+                    args, kwargs = (), {}
+            else:
                 args, kwargs = self._get_params(
                     component=component,
                     impl=impl,
                     member=member,
                     joinpoint=joinpoint,
-                    when=CtrlAnnotationInterceptor.BEFORE,
+                    when=CtlAnnotationInterceptor.AFTER,
+                    result=result,
                     argspec=argspec
                 )
-                try:  # catch any exception
-                    member(*args, **kwargs)
-                except Exception:
-                    pass
-
-            result = joinpoint.proceed()
-
-            if self.when & CtrlAnnotationInterceptor.AFTER:
-                if not self.vparams and not self.kparams:
-                    if len(argspec.args) > 1:
-                        args, kwargs = (), {argspec.args[1]:  result}
-                    elif argspec.varargs:
-                        args, kwargs = (result, ), {}
-                    elif argspec.keywords:
-                        args, kwargs = (), {'result': result}
-                    else:
-                        args, kwargs = (), {}
-                else:
-                    args, kwargs = self._get_params(
-                        component=component,
-                        impl=impl,
-                        member=member,
-                        joinpoint=joinpoint,
-                        when=CtrlAnnotationInterceptor.AFTER,
-                        result=result,
-                        argspec=argspec
-                    )
-                try:  # catch any exception
-                    member(*args, **kwargs)
-                except Exception:
-                    pass
-
-            return result
+            try:  # catch any exception
+                member(*args, **kwargs)
+            except Exception:
+                pass
 
         return result
 
@@ -759,14 +750,17 @@ class CtrlAnnotationInterceptor(CtrlAnnotation):
             component=component, impl=impl, member=member, *args, **kwargs
         )
 
-        advice = self._get_advice(
-            component=component, impl=impl, member=member
+        argspec = getargspec(member)
+
+        advice = lambda joinpoint: self._get_advice(
+            joinpoint=joinpoint, component=component, impl=impl, member=member,
+            argspec=argspec
         )
 
         weave(target, advices=advice, ctx=ctx)
 
 
-class SetPort(CtrlAnnotationInterceptor):
+class SetPort(CtlAnnotationInterceptor):
     """Called when a port is bound to component.
 
     Specific parameters are Component.set_port parameters:
@@ -780,7 +774,7 @@ class SetPort(CtrlAnnotationInterceptor):
         return component.set_port, component
 
 
-class RemPort(CtrlAnnotationInterceptor):
+class RemPort(CtlAnnotationInterceptor):
     """Called when a port is unbound from component.
 
     Specific parameters are Component.remove_port parameters:

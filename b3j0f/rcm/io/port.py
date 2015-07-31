@@ -77,6 +77,9 @@ class Port(Controller):
     INPUT = 1 << 0  #: input port kind
     OUTPUT = 1 << 1  #: output port kind
     DEFAULT_IOKIND = INPUT | OUTPUT  #: default port kind
+    DEFAULT_MULTIPLE = True  #: default multiple value
+    DEFAULT_INF = 0  #: default inf value
+    DEFAULT_SUP = maxint  #: default sup value
 
     ITFS = '_itfs'  #: interfaces attribute name
     PROXY = '_proxy'  #: proxy attribute name
@@ -89,7 +92,8 @@ class Port(Controller):
 
     def __init__(
             self, itfs=None, resource=None, iokind=DEFAULT_IOKIND,
-            multiple=True, inf=0, sup=maxint, policyrules=None,
+            multiple=DEFAULT_MULTIPLE, inf=DEFAULT_INF, sup=DEFAULT_SUP,
+            policyrules=None,
             *args, **kwargs
     ):
         """

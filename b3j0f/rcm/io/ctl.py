@@ -130,7 +130,7 @@ class IOController(Controller):
 
         Input and output ports are bound to components in the same component.
 
-        :param inputports: input port name. If None, apply method on all
+        :param inputports: input port name(s). If None, apply method on all
             input ports.
         :type inputports: str, InputPort or Iterable
         :param outputports: output port name. If None, apply method on all
@@ -142,11 +142,13 @@ class IOController(Controller):
         """
 
         cinputports = self.get_sub_ports(
-            components=components, portnames=inputports, porttypes=InputPort
+            components=components, portnames=inputports, porttypes=Port
         )
+        cinputports = [port for port in cinputports if port.isinput]
         coutputports = self.get_sub_ports(
-            components=components, portnames=outputports, porttypes=OutputPort
+            components=components, portnames=outputports, porttypes=Port
         )
+        coutputports = [port for port in coutputports if port.isoutput]
         # bind all input ports to all output ports
         for component in cinputports:
             if component in coutputports:

@@ -229,8 +229,8 @@ def _methodproxy(port, routine, rname, proxies):
         if execpr is None:
             results = []
             for proxy_to_run in proxiestorun:
-                rountine = getattr(proxy_to_run, rname)
-                method_res = rountine(*args, **kwargs)
+                routine = getattr(proxy_to_run, rname)
+                method_res = routine(*args, **kwargs)
                 results.append(method_res)
         else:  # if execpr is asked
             results = execpr(

@@ -40,62 +40,151 @@ which are used by Port objects.
 """
 
 __all__ = [
-    'SetIOCtrl', 'Input', 'Output'
+    'SetIOCtl', 'Input', 'Output', 'Async', 'Ports'
 ]
 
+from inspect import isclass, isroutine
+
 from b3j0f.annotation.check import Target, MaxCount
-from b3j0f.rcm.ctl.annotation import CtrlAnnotationInterceptor
 from b3j0f.rcm.ctl.annotation import (
-    CtrlAnnotation, Ctrl2CAnnotation, C2CtrlAnnotation
+    CtlAnnotationInterceptor, getter_name, setter_name
+)
+from b3j0f.rcm.ctl.annotation import (
+    CtlAnnotation, Ctl2CAnnotation, C2CtlAnnotation
 )
 from b3j0f.rcm.io.port import Port
-from b3j0f.rcm.io.ctrl import IOController
+from b3j0f.rcm.io.ctl import IOController
 
 
-class Input(CtrlAnnotationInterceptor):
+class Input(CtlAnnotationInterceptor):
     """InputPort injector which uses a name in order to inject an InputPort
     proxy.
     """
 
-    NAME = 'name'  #: input port name field name
-
-    def __init__(self, name, *args, **kwargs):
+    class Error(Exception):
+        """Handle Input errors.
         """
-        :param str name: port name to retrieve.
+
+    DEFAULT_MANDATORY = False  #: default mandatory
+    DEFAULT_IOKIND = Port.INPUT  #: default port kind
+    DEFAULT_MULTIPLE = Port.MULTIPLE  #: default multiple value
+    DEFAULT_INF = Port.INF  #: default inf value
+    DEFAULT_SUP = Port.SUP  #: default sup value
+
+    NAME = 'name'  #: input port name field name
+    MANDATORY = 'mandatory'  #: input port mandatory field name
+    ITFS = 'itfs'  #: interfaces attribute name
+    IOKIND = 'iokind'  #: i/o kind of port (input/output/both)
+    MULTIPLE = 'multiple'  #: multiple port proxy attribute name
+    INF = 'inf'  #: minimal number of bindable resources attribute name
+    SUP = 'sup'  #: maximal number of bindable resources attribute name
+    POLICYRULES = 'policyrules'  #: policy rules attribute name
+
+    def __init__(
+            self, name=None, mandatory=DEFAULT_MANDATORY,
+            itfs=None, multiple=DEFAULT_MULTIPLE, iokind=DEFAULT_IOKIND,
+            inf=DEFAULT_INF, sup=DEFAULT_SUP, policyrules=None,
+            *args, **kwargs
+    ):
+        """
+        :param str name: port name to retrieve. Default is annotated name.
+        :param bool mandatory: if mandatory (default False) and port does not
+            already exists, raise an Error. Otherwise, if the port is not
+            created, creates it.
+        :param itfs: port interfaces to use.
+        :param bool multiple: port multiple attribute. Default is
+            Port.DEFAULT_MULTIPLE.
+        :param int iokind: port iokind attribute. Default is Port.INPUT.
+        :param int int: port inf attribute. Default is Port.DEFAULT_INF.
+        :param int sup: port sup attribute. Default is Port.DEFAULT_SUP.
+        :param policyrules: port policyrules.
         """
 
         super(Input, self).__init__(*args, **kwargs)
 
         self.name = name
+        self.mandatory = mandatory
+        self.itfs = itfs
+        self.multiple = multiple
+        self.iokind = iokind
+        self.inf = inf
+        self.sup = sup
+        self.policyrules = policyrules
 
-    def get_target_ctx(self, component, *args, **kwargs):
+    def get_target_ctx(self, component, member, *args, **kwargs):
 
-        port = component.get(self.name)
-
+        # get port name
+        name = self._get_port_name(member)
+        # get port
+        port = component.get(name)
+        # if port does not exist, instantiate it
+        if port is None:
+            port = Port(
+                iokind=self.iokind,
+                itfs=self.itfs,
+                multiple=self.multiple,
+                inf=self.inf,
+                sup=self.sup,
+                policyrules=self.policyrules
+            )
+            # and bind it to the component
+            component.set_port(name=name, port=port)
+        # target is the port renewproxy method
         target = None if port is None else port._renewproxy
-
+        # result is the tuple of target (member) and port (ctx)
         result = target, port
 
         return result
 
+    def _get_advice(self, component, member, *args, **kwargs):
 
-class Output(Ctrl2CAnnotation):
-    """Output descriptor.
+        result = super(Input, self)._get_advice(*args, **kwargs)
+
+        # if port proxy is None and self.mandatory
+        if result is None and self.mandatory:
+            # get port name
+            name = self._get_port_name(member=member)
+            # raise an error
+            raise Input.Error(
+                "Mandatory input {0} does not exists on {1} in component {2}"
+                .format(name, member, component)
+            )
+
+        return result
+
+    def _get_port_name(self, member):
+        """get port name from self attributes or from the member.
+
+        :param routine member: member from where get port name if self name
+            is not given.
+        :return: port name.
+        :rtype: str
+        """
+
+        return getter_name(member) if self.name is None else self.name
+
+
+class Output(Ctl2CAnnotation):
+    """Output descriptor which automatically creates a port if related output
+    port does not exist in the component.
     """
 
     STATELESS = 'stateless'  #: port stateless mode
-    INTERFACES = 'interfaces'  #: port interfaces
+    ITFS = 'itfs'  #: port itfs
     POLICYRULES = 'policyrules'  #: port policyrules
+    IOKIND = 'iokind'  #: port iokind
+
+    DEFAULT_IOKIND = Port.OUTPUT  #: default port iokind
 
     def __init__(
-            self, name=None, stateless=False, interfaces=None,
-            policyrules=None,
+            self, name=None, stateless=False, itfs=None,
+            policyrules=None, iokind=DEFAULT_IOKIND,
             *args, **kwargs
     ):
         """
         :param str name: output port name.
         :param bool stateless: stateless if True (False by default).
-        :param tuple interfaces: port interfaces.
+        :param tuple itfs: port itfs.
         :param PolicyRules policyrules: port policyrules.
         """
 
@@ -103,22 +192,41 @@ class Output(Ctrl2CAnnotation):
 
         self.name = name
         self.stateless = stateless
-        self.interfaces = interfaces
+        self.itfs = itfs
         self.policyrules = policyrules
+        self.iokind = iokind
 
-    def process_result(self, result, component, *args, **kwargs):
+    def process_result(
+        self, result, component, member, target, *args, **kwargs
+    ):
 
-        # create a port and bind it to the component
+        # get port name
+        name = self.name
+        if name is None:  # get member name
+            if isroutine(member):  # from a routine
+                name = setter_name(member)
+            elif isclass(member):  # from a class
+                name = member.__name__.lower()
+            else:
+                raise RuntimeError("member must be a routine or a class.")
+
+        # get itfs
+        itfs = self.itfs
+        if itfs is None:  # if itfs is not given, use annotation target
+            itfs = target
+
+        # create a port
         port = Port(
-            resource=result, itfs=self.interfaces,
-            policyrules=self.policyrules
+            resource=result, itfs=self.itfs,
+            policyrules=self.policyrules, iokind=self.iokind
         )
-        component.set_port(port=port, name=self.name)
+        # and bind it to the component
+        component.set_port(port=port, name=name)
 
 
 @MaxCount()
 @Target([Target.ROUTINE, type])
-class Async(Ctrl2CAnnotation):
+class Async(Ctl2CAnnotation):
     """Specify asynchronous mode on class methods.
     """
 
@@ -140,13 +248,13 @@ class Async(Ctrl2CAnnotation):
 
 
 @Target(type)
-class Ports(CtrlAnnotation):
+class Ports(CtlAnnotation):
     """Annotation in charge of binding Port in a component Port.
     """
 
     Port = 'Port'
 
-    #__slots__ = (Port, ) + CtrlAnnotation.__slots__
+    #__slots__ = (Port, ) + CtlAnnotation.__slots__
 
     def __init__(self, port, *args, **kwargs):
         """
@@ -175,40 +283,10 @@ class Ports(CtrlAnnotation):
             del component[port_name]
 
 
-class SetIOCtrl(C2CtrlAnnotation):
+class SetIOCtl(C2CtlAnnotation):
     """Inject Binding controller in component implementation.
     """
 
     def get_value(self, component, *args, **kargs):
 
-        return IOController.get_ctrl(component)
-
-
-class Input(CtrlAnnotationInterceptor):
-    """Dedicated to inject a port proxy into an implementation.
-    """
-
-    def __init__(self, port, *args, **kwargs):
-        """
-        :param str port: port name from where get a proxy to inject in the
-            implementation.
-        """
-
-        super(Input, self).__init__(*args, **kwargs)
-
-    def get_target_ctx(self, component, *args, **kwargs):
-
-        return component.set_port, component
-
-
-class Output(CtrlAnnotationInterceptor):
-    """Called when a port is unbound from component.
-
-    Specific parameters are Component.remove_port parameters:
-
-    - name: port name to remove.
-    """
-
-    def get_target_ctx(self, component, *args, **kwargs):
-
-        return component.remove_port, component
+        return IOController.get_ctl(component)

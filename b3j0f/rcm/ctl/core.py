@@ -27,7 +27,7 @@
 __all__ = ['Controller']
 
 from b3j0f.rcm.core import Component
-from b3j0f.rcm.ctl.annotation import CtrlAnnotation
+from b3j0f.rcm.ctl.annotation import CtlAnnotation
 
 
 class Controller(Component):
@@ -53,7 +53,7 @@ class Controller(Component):
             controller._on_bind_ctl(self, component=component)
 
         # apply all Controller annotations
-        CtrlAnnotation.apply_on(component=component, impl=self)
+        CtlAnnotation.apply_on(component=component, impl=self)
 
     def _on_bind_ctl(self, controller, component):
         """Callback when a component is bound to the component.
@@ -77,7 +77,7 @@ class Controller(Component):
             controller._on_unbind_ctl(self, component=component)
 
         # unapply all Controller Annotation
-        CtrlAnnotation.unapply_from(
+        CtlAnnotation.unapply_from(
             component=component,
             impl=self
         )
