@@ -24,6 +24,11 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
+"""Configuration core module.
+
+Contains definition of the Configuration and the Bootstrap objects.
+"""
+
 from sys import path
 
 
@@ -41,7 +46,8 @@ class Configuration(object):
         - type: component type, like a Port, or Interface, etc. Default is
             ``component``.
         - props: dict of component properties by name.
-        - content: dict of inner component configurations by type.
+        - content: dict of inner component configurations by configuration
+            types.
     """
 
     TYPE = 'type'  #: configuration type attribute name

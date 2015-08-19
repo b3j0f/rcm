@@ -24,13 +24,18 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
+"""JSON Parser implementation.
+"""
+
 from b3j0f.utils.version import basestring
+from b3j0f.rcm.io.annotation import Output
 from b3j0f.rcm.conf.core import Configuration
-from b3j0f.rcm.conf.parser.core import Parser
+from b3j0f.rcm.conf.parser.base import Parser
 
 from json import loads, load
 
 
+@Output()
 class JSONParser(Parser):
     """Parser dedicated to json formats.
 
@@ -72,13 +77,13 @@ class JSONParser(Parser):
                 json_conf = loads(resource)
             else:
                 json_conf = load(resource)
-        except Exception as e:
-            raise Parser.ParserError(e)
+        except Exception as ex:
+            raise Parser.Error(ex)
         else:
             try:
                 result = self._get_conf(json_conf)
-            except Exception as e:
-                raise Parser.ParserError(e)
+            except Exception as ex:
+                raise Parser.Error(ex)
 
         return result
 
