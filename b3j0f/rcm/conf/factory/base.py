@@ -24,6 +24,11 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
+"""Base module for the factory package.
+
+Contains the implementation of the abstract Factory.
+"""
+
 from b3j0f.rcm.io.annotation import Input, Output
 from b3j0f.rcm.conf.check import Checker
 from b3j0f.rcm.conf.instance import Instantiator
@@ -60,6 +65,7 @@ class Factory(object):
 
         :param Checker checker: new checker to use.
         """
+
         self.checker = checker
 
     @Input(itfs=Instantiator, mandatory=True)
@@ -68,6 +74,7 @@ class Factory(object):
 
         :param Instantiator instantiator: new instantiator to use.
         """
+
         self.instantiator = instantiator
 
     def unload(self, component):
@@ -91,8 +98,8 @@ class Factory(object):
     def load(self, conf, cached=True, registry=None):
         """Instantiate a new Component from input conf.
 
-        :param Configuration conf: configuration to use.
-        :type conf: Configuration or configuration resource.
+        :param conf: configuration to use.
+        :type conf: dict, str, bool, list or number
         :param bool cached: if True (default), use loaded component cache
             system.
         :param FactoryRegistry registry: factory registry to use.
@@ -103,125 +110,17 @@ class Factory(object):
         result = None
 
         if conf is not None:
-            # instantiate a component only if the conf is validated
-            if self.checker is None or self.checker.validate(conf):
-                # first, instantiate all conf content with dedicated factories
-                content = {}
-                for contenttype in conf.content:
-                    contentvalue = conf.content[contenttype]
-                    component = registry.load(contentvalue, cached=cached)
-                    content[contenttype] = component
-                result = self.instantiator.instantiate(conf, content=content)
-
-        return result
-
-
-@Output()
-class FactoryRegistry(object):
-    """In charge of instantiate components from a set of factories.
-
-    By default, a factory registry have ports where names correspond to
-    configuration content type names.
-    """
-
-    class Error(Exception):
-        """Handle Instantiation errors.
-        """
-
-    def __init__(self, factories, cache=None):
-        """
-        :param dict factories: factories.
-        :param dict cache: cache system to use.
-        """
-
-        super(FactoryRegistry, self).__init__()
-
-        self.factories = {} if factories is None else factories
-        self.cache = {} if cache is None else cache
-
-    @Input(mandatory=False, itfs=Factory)
-    def set_factories(self, factories):
-        """Sub factories by type.
-
-        For example, {'binding': BindingFactory() , ...} for a port factory.
-        """
-        self.factories = factories
-
-    def set_cache(self, cache):
-        """Change of cache.
-
-        :param dict cache:
-        """
-
-        self.cache = cache
-
-    def copy(self, component, cached=True):
-        """Copy input component.
-
-        :param Component component: component to copy.
-        :return: input component copy.
-        :rtype: Component.
-        """
-
-        result = None
-
-        for factory in self.factories:
-            try:
-                result = factory.copy(component=component)
-            except Factory.Error:
-                pass
-            else:
-                if result is not None:
-                    if cached:
-                        self.cache[component.id] = component
-                    break
-
-        return result
-
-    def unload(self, component):
-        """Unload a component.
-
-        :param Component component: component to unload.
-        """
-
-        if component.id in self.cache:  # if component is in cache
-            del self.cache[component.id]  # clean cache
-            # remove component ports
-            for port in list(component.values()):
-                del component[port]
-                # unload recursively to not used ports
-                if not port._rports:
-                    self.unload(port)
-            # remove component reversed ports
-            for rport in list(component._rports):
-                del rport[component]
-            # try to delete the component
-            del component
-
-    def load(self, conf, cached=True):
-        """Instantiate a new Component from input conf.
-
-        :param Configuration conf: configuration to use.
-        :type conf: Configuration or configuration resource.
-        :param bool cached: if True (default), use loaded component cache
-            system.
-        :param str parser: parser name to use. If None (default) use the first
-            parser able to parse input conf.
-        :return: configuration component.
-        :rtype: Component
-        """
-
-        result = self.cache.get(conf.id) if cached else None
-
-        if result is None:
-            for factory in self.factories:
-                try:
-                    result = factory.load(
-                        conf=conf, cached=cached, registry=self
-                    )
-                except Factory.Error:
-                    pass
-                else:
-                    break
+            # instantiate a component only if the conf is checked
+            if self.checker is None or self.checker.check(conf):
+                # first, instantiate all conf ports with dedicated factories
+                if isinstance(conf, dict):  # if conf may have ports
+                    for portname in list(conf):
+                        if portname in registry.factories:
+                            portconf = conf[portname]
+                            port = registry.load(
+                                conf=portconf, cached=cached, factory=portname
+                            )
+                            conf[portname] = port
+                self.instantiator.instantiate(conf=conf)
 
         return result

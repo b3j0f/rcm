@@ -31,9 +31,10 @@ Contains definition of the Configuration and the Bootstrap objects.
 
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.io.annotation import Output, Input
-from b3j0f.rcm.conf.core import Configuration
 from b3j0f.rcm.conf.parser import ParserRegistry
-from b3j0f.rcm.conf.factory import FactoryRegistry
+from b3j0f.rcm.conf.parser.jsonparser import JSONParser
+from b3j0f.rcm.conf.factory.registry import FactoryRegistry
+from b3j0f.rcm.conf.factory.base import Factory
 
 
 @Output()
@@ -46,13 +47,15 @@ class Bootstrap(object):
         """Handle bootstrap errors.
         """
 
+    _RCM = None  #: singleton object which saves the first called bootstrap
+
     PARSERREGISTRY = 'parserregistry'  #: parser registry attribute name
     FACTORYREGISTRY = 'factoryregistry'  #: factory registry attribute name
     CACHE = 'cache'  #: created component cache attribute name
 
-    @Input(itfs=ParserRegistry, param="parserregistry", mandatory=True)
-    @Input(itfs=FactoryRegistry, param="factoryregistry", mandatory=True)
-    @Input(itfs=Component, param="cache")
+    @Input(itfs=ParserRegistry, name="parserregistry", mandatory=True)
+    @Input(itfs=FactoryRegistry, name="factoryregistry", mandatory=True)
+    @Input(itfs=Component, name="cache")
     def __init__(self, parserregistry, factoryregistry, cache=None):
         """
         :param ParserRegistry parserregistry: parser registry to use.
@@ -103,15 +106,14 @@ class Bootstrap(object):
         """
 
         # default result is resource if resource is a configuration
-        result = resource if isinstance(resource, Configuration) else None
+        result = None
 
-        if result is None:  # if resource is not a configuration, parse it
-            try:
-                result = self.parserregistry.parse(
-                    resource=resource, cached=cached, parser=parser
-                )
-            except ParserRegistry.Error as prerror:
-                raise Bootstrap.Error(prerror)
+        try:
+            result = self.parserregistry.parse(
+                resource=resource, cached=cached, parser=parser
+            )
+        except ParserRegistry.Error as prerror:
+            raise Bootstrap.Error(prerror)
 
         return result
 
@@ -134,11 +136,13 @@ class Bootstrap(object):
 
         :param resource: resource from where get a component configuration to
             unload.
-        :type resource: Configuration or object to parse with self parser
-            registry or input parser.
-        :param Parser parser: specific parser to use if resource is not a
+        :type resource: dict or object to parse with self parser registry or
+            input parser.
+        :param parser: specific parser (name) to use if resource is not a
             configuration.
+        :type parser: Parser or str
         """
+
         # get configuration
         conf = self._get_conf(resource=resource, parser=parser)
         # unload with the factory registry
@@ -152,7 +156,7 @@ class Bootstrap(object):
 
         :param resource: resource from where get a component configuration to
             load.
-        :type resource: Configuration or object to parse with self parser
+        :type resource: dict or object to parse with self parser
             registry or input parser.
         :param bool cached: if True (defaut) use the component cache system.
         :param Parser parser: specific parser to use if resource is not a
@@ -170,3 +174,28 @@ class Bootstrap(object):
             self.cache.set_port(result)
 
         return result
+
+_RCM = None  #: default rcm bootstrap component
+
+
+def rcm():
+    """Get the singleton bootsrap component.
+    """
+
+    if Bootstrap._RCM is None:
+        Bootstrap._RCM = Bootstrap(
+            factoryregistry=FactoryRegistry(
+                factories={'component': Factory()}
+            ),
+            parserregistry=ParserRegistry(
+                parsers={'json': JSONParser()}
+            )
+        )
+        # save in cache the bootstrap component
+        Bootstrap._RCM = Bootstrap._RCM.load(
+            resource='/b3j0f/rcm/conf/bootstrap.json'
+        )
+
+    result = Bootstrap._RCM
+
+    return result

@@ -3,7 +3,7 @@
 # --------------------------------------------------------------------
 # The MIT License (MIT)
 #
-# Copyright (c) 2015 Jonathan Labéjof <jonathan.labejof@gmail.com>
+# Copyright (c) 2014 Jonathan Labéjof <jonathan.labejof@gmail.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -24,42 +24,9 @@
 # SOFTWARE.
 # --------------------------------------------------------------------
 
-"""Configuration core module.
-
-Contains definition of the Configuration and the Bootstrap objects.
+"""Core module for configuration.
 """
 
-from sys import path
 
-
-PATHS = path[:]
-DEFAULT_FILE_PATH = 'b3j0f.rcm.conf'
-
-
-class Configuration(object):
-    """Component configuration object.
-
-    It provides a description for component instantiation/definition.
-
-    This description contains attributes:
-
-        - type: component type, like a Port, or Interface, etc. Default is
-            ``component``.
-        - props: dict of component properties by name.
-        - content: dict of inner component configurations by configuration
-            types.
-    """
-
-    TYPE = 'type'  #: configuration type attribute name
-    PROPS = 'props'  #: configuration props attribute name
-    CONTENT = 'content'  #: configuration content attribute name
-
-    DEFAULT_TYPE = 'component'  #: default type value
-
-    __slots__ = (TYPE, PROPS, CONTENT)
-
-    def __init__(self, _type=DEFAULT_TYPE, props=None, content=None):
-
-        self.type = _type
-        self.props = props if props else {}
-        self.content = content if content else {}
+UID = 'uid'  #: component configuration UID
+TYPE = 'type'  #: component configuration type

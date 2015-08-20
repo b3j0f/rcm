@@ -1,0 +1,7 @@
+{
+    "uid": "b3j0f.rcm.conf.parser.registry",
+    "impl": "b3j0f.rcm.conf.parser.registry.ParserRegistry",
+    "parsers": [
+        "b3j0f.rcm.conf.parser.JSONParser"
+    ]
+}
