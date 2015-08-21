@@ -42,7 +42,7 @@ initialization).
 """
 
 __all__ = [
-    'PropertyController',  'Property',  # property controller and component
+    'PropertyController', 'Property',  # property controller and component
     'SetPropertyCtrl', 'GetProperty', 'SetProperty',  # property annotations
 ]
 
@@ -50,7 +50,7 @@ from b3j0f.aop import weave, unweave
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.ctl.core import Controller
 from b3j0f.rcm.ctl.annotation import (
-    CtrlAnnotation, getter_name, setter_name, C2CtrlAnnotation
+    CtlAnnotation, getter_name, setter_name, C2CtlAnnotation
 )
 from b3j0f.rcm.ctl.impl import ImplController
 
@@ -81,7 +81,7 @@ class Property(Component):
     UPDATE = 'update'  #: update attribute name
 
     def __init__(
-        self, name, value=None, ptype=None, update=True, *args, **kwargs
+            self, name, value=None, ptype=None, update=True, *args, **kwargs
     ):
         """
         :param str name: property name.
@@ -92,6 +92,11 @@ class Property(Component):
         """
         super(Property, self).__init__(*args, **kwargs)
 
+        # init private attributes
+        self._name = None
+        self._value = None
+        self._ptype = None
+        # init public attributes
         self.name = name
         self.update = update
         self.ptype = ptype
@@ -163,7 +168,7 @@ class Property(Component):
                 prop = properties[name]
                 value = prop.value  # get bound property value
                 if value is not None and (
-                    ptype is None or isinstance(value, ptype)
+                        ptype is None or isinstance(value, ptype)
                 ):  # udpate value as soon as a compatible value is found
                     result = value
                     break
@@ -192,8 +197,10 @@ class Property(Component):
         # nonify value if value is None or ptype is None
         if value is None or self.ptype is None:
             self._value = value
+
         elif isinstance(value, self.ptype):  # check type
-                self._value = value
+            self._value = value
+
         else:  # otherwise, raise an error
             raise Property.PropertyError(
                 'Wrong property type {0} with {1}'.format(
@@ -233,6 +240,7 @@ class Property(Component):
         # value is an instance of ptype
         if value is None or ptype is None or isinstance(value, ptype):
             self._ptype = ptype
+
         else:  # otherwise, raise an error
             raise Property.PropertyError(
                 'Wrong ptype {0} with existing value {1}'.format(ptype, value)
@@ -247,23 +255,23 @@ class Property(Component):
             self.propagate_value(prop=component, force=False, error=False)
         else:
             # update property controller properties
-            pc = PropertyController.get_nf(component=component)
-            if pc is not None:
+            pctl = PropertyController.get_ctl(component=component)
+            if pctl is not None:
                 try:
                     value = self.value
                 except Property.PropertyError:
                     pass
                 else:
-                    pc.properties[self.name] = value
+                    pctl.properties[self.name] = value
 
     def _on_unbind(self, component, *args, **kwargs):
 
         super(Property, self)._on_unbind(component=component, *args, **kwargs)
 
         # update property controller properties
-        pc = PropertyController.get_nf(component=component)
-        if pc is not None:
-            pc._update_properties()
+        pctl = PropertyController.get_ctl(component=component)
+        if pctl is not None:
+            pctl._update_properties()
 
     def propagate_value(self, prop=None, force=False, error=True):
         """Propagate value on all bound properties and property controller.
@@ -287,9 +295,9 @@ class Property(Component):
                         if error:  # raise the exception if error
                             raise
                 else:  # update property controller with self value
-                    pc = PropertyController.get_nf(rport)
-                    if pc is not None:
-                        pc.properties[self.name] = value
+                    pctl = PropertyController.get_ctl(rport)
+                    if pctl is not None:
+                        pctl.properties[self.name] = value
         elif force or prop.update:
             try:
                 prop.value = value  # try to change of value
@@ -330,29 +338,30 @@ class PropertyController(Controller):
                 else:
                     self.properties[name] = value
 
-    def _enrich_impl_cons_params(self, jp, *args, **kwargs):
+    def _enrich_impl_cons_params(self, joinpoint, *args, **kwargs):
         """Enrich component implementation constructor params with self
         properties.
 
-        :param Joinpoint jp: component implementation constructor joinpoint.
+        :param Joinpoint joinpoint: component implementation constructor
+            joinpoint.
         :param list args: component implementation constructor varargs.
         :param dict kwargs: component implementation constructor keywords.
         """
 
         # enrich joinpoint params
-        params = jp.kwargs
-        ic = jp.kwargs['self'] if 'self' in jp.kwargs else jp.args[0]
+        params = joinpoint.kwargs
+        implctl = joinpoint.kwargs.get('self', joinpoint.args[0])
 
-        self_properties = self.properties  # get self properties
+        selfproperties = self.properties  # get self properties
 
         # enrich with dynamic properties
-        for name in self_properties:
+        for name in selfproperties:
             if name not in params:
-                value = self_properties[name]
+                value = selfproperties[name]
                 params[name] = value
 
         # enrich with GetProperty annotations from cls
-        gps = GetProperty.get_annotations(ic.cls)
+        gps = GetProperty.get_annotations(implctl.cls)
         for gp in gps:
             param = gp.name if gp.param is None else gp.param
             if param not in params:
@@ -360,20 +369,21 @@ class PropertyController(Controller):
         # and from the constructor
         try:
             constructor = getattr(
-                self._cls, '__init__', getattr(
-                    self._cls, '__new__'
+                implctl.cls, '__init__', getattr(
+                    implctl.cls, '__new__'
                 )
             )
         except AttributeError:  # do nothing if constructor does not exist
             pass
+
         else:
             gps = GetProperty.get_annotations(constructor)
-            for gp in gps:
-                param = gp.name if gp.param is None else gp.param
+            for gpi in gps:
+                param = gpi.name if gpi.param is None else gpi.param
                 if param not in params:
-                    params[param] = gps.params[gp.name]
+                    params[param] = gps.params[gpi.name]
 
-        result = jp.proceed()  # execute the constructor
+        result = joinpoint.proceed()  # execute the constructor
 
         return result
 
@@ -387,10 +397,10 @@ class PropertyController(Controller):
         self._update_properties()
 
         # weave _enrich_impl_cons_params on IC instantiate method
-        ic = ImplController.get_controller(component=component)
-        if ic is not None:
+        implctl = ImplController.get_ctl(component=component)
+        if implctl is not None:
             weave(
-                target=ic.instantiate, ctx=ic,
+                target=implctl.instantiate, ctx=implctl,
                 advices=self._enrich_impl_cons_params
             )
 
@@ -404,31 +414,31 @@ class PropertyController(Controller):
         self._update_properties()
 
         # unweave _enrich_impl_cons_params on IC instantiate method
-        ic = ImplController.get_controller(component=component)
-        if ic is not None:
+        implctl = ImplController.get_ctl(component=component)
+        if implctl is not None:
             unweave(
-                target=ic.instantiate, ctx=ic,
+                target=implctl.instantiate, ctx=implctl,
                 advices=self._enrich_impl_cons_params
             )
 
 
-class SetPropertyCtrl(C2CtrlAnnotation):
+class SetPropertyCtrl(C2CtlAnnotation):
     """Inject a PropertyController in a component implementation.
     """
 
     def get_value(self, component, *args, **kwargs):
 
-        return PropertyController.get_controller(component)
+        return PropertyController.get_ctl(component)
 
 
-class _PropertyAnnotation(CtrlAnnotation):
+class _PropertyAnnotation(CtlAnnotation):
     """Base annotation for DI/IoC of property with component implementation.
     """
     NAME = 'name'  #: name field name
 
-    __slots__ = (NAME, ) + CtrlAnnotation.__slots__
+    __slots__ = (NAME, ) + CtlAnnotation.__slots__
 
-    def __init__(self, name, *args, **kwargs):
+    def __init__(self, name=None, *args, **kwargs):
 
         super(_PropertyAnnotation, self).__init__(*args, **kwargs)
 
@@ -443,13 +453,13 @@ class SetProperty(_PropertyAnnotation):
 
     def get_resource(self, component, attr, *args, **kwargs):
 
-        pc = PropertyController.get_controller(component=component)
+        pctl = PropertyController.get_ctl(component=component)
 
-        if pc is not None:
+        if pctl is not None:
             # get the right name
             name = setter_name(attr) if self.name is None else self.name
             # and the right property
-            result = pc.properties[name]
+            result = pctl.properties[name]
 
         return result
 
@@ -462,12 +472,12 @@ class GetProperty(_PropertyAnnotation):
 
     def apply_on(self, component, attr, *args, **kwargs):
 
-        pc = PropertyController.get_controller(component=component)
+        pctl = PropertyController.get_ctl(component=component)
 
-        if pc is not None:
+        if pctl is not None:
             # get attr result
             value = attr()
             # get the right name
             name = getter_name(attr) if self.name is None else self.name
             # udate property controller
-            pc.properties[name] = value
+            pctl.properties[name] = value

@@ -1,7 +1,9 @@
 {
     "uid": "b3j0f.rcm.conf.factory.registry",
     "impl": "b3j0f.rcm.conf.factory.registry.FactoryRegistry",
-    "factories": [
-        "b3j0f.rcm.conf.factory.ComponentFactory.json"
-    ]
+    "factories": {
+        "component": "b3j0f/rcm/conf/factory/componentfactory.json",
+        "io": "b3j0f/rcm/conf/io/factory.json",
+        "ctl": "b3j0f/rcm/conf/ctl/factory.json"
+    }
 }

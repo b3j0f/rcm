@@ -1,0 +1,23 @@
+{
+    "uid": "b3j0f.rcm.conf.io.policyrulesfactory",
+    "impl": "b3j0f.rcm.conf.factory.base.Factory",
+    "selp": {
+        "first": "b3j0f.rcm.io.policy.sel.SelectFirstPolicy",
+        "all": "b3j0f.rcm.io.policy.sel.SelectAllPolicy",
+        "count": "b3j0f.rcm.io.policy.sel.SelectCountPolicy",
+        "random": "b3j0f.rcm.io.policy.sel.SelectRandomPolicy",
+        "roundabout": "b3j0f.rcm.io.policy.sel.SelectRoundaboutPolicy"
+    },
+    "exep": {
+        "async": "b3j0f.rcm.io.policy.exe.AsyncPolicy",
+        "besteffort": "b3j0f.rcm.io.policy.exe.BestEffortPolicy",
+        "stateless": "b3j0f.rcm.io.policy.exe.StatelessPolicy"
+    },
+    "resp": {
+        "first": "b3j0f.rcm.io.policy.res.ResultFirstPolicy",
+        "all": "b3j0f.rcm.io.policy.res.ResultAllPolicy",
+        "count": "b3j0f.rcm.io.policy.res.ResultCountPolicy",
+        "random": "b3j0f.rcm.io.policy.res.ResultRandomPolicy",
+        "roundabout": "b3j0f.rcm.io.policy.res.ResultRoundaboutPolicy"
+    }
+}

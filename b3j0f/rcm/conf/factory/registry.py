@@ -35,7 +35,7 @@ from b3j0f.rcm.conf.factory.base import Factory
 
 
 @Output()
-class FactoryRegistry(object):
+class FactoryRegistry(Factory):
     """In charge of instantiate components from a set of factories.
 
     By default, a factory registry have ports where names correspond to
@@ -46,13 +46,13 @@ class FactoryRegistry(object):
         """Handle Instantiation errors.
         """
 
-    def __init__(self, factories, cache=None):
+    def __init__(self, factories, cache=None, *args, **kwargs):
         """
         :param dict factories: factories.
         :param dict cache: cache system to use.
         """
 
-        super(FactoryRegistry, self).__init__()
+        super(FactoryRegistry, self).__init__(*args, **kwargs)
 
         self.factories = {} if factories is None else factories
         self.cache = {} if cache is None else cache
@@ -117,7 +117,7 @@ class FactoryRegistry(object):
             # try to delete the component
             del component
 
-    def load(self, conf, cached=True):
+    def load(self, conf, cached=True, registry=None):
         """Instantiate a new Component from input conf.
 
         :param dict conf: configuration to use.

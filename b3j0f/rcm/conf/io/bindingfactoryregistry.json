@@ -1,0 +1,8 @@
+{
+    "uid": "b3j0f.rcm.conf.io.bindingfactoryregistry",
+    "impl": "b3j0f.rcm.conf.factory.registry.FactoryRegistry",
+    "factories": [
+        {"impl": "b3j0f.rcm.conf.io.python.binding.PythonBindingFactory"},
+        {"impl": "b3j0f.rcm.conf.io.c.binding.CBindingFactory"}
+    ]
+}

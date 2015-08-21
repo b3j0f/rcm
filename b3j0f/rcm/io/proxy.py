@@ -35,7 +35,7 @@ from functools import wraps
 from inspect import getmembers, isroutine
 
 from b3j0f.utils.proxy import get_proxy
-from b3j0f.rcm.io.policy import PolicyResultSet
+from b3j0f.rcm.io.policy.core import PolicyResultSet
 
 
 class ProxySet(tuple):
@@ -73,6 +73,7 @@ class ProxySet(tuple):
             # ensure proxies is an Iterable
             if not isinstance(resourceproxies, ProxySet):
                 resourceproxies = (resourceproxies,)
+
             # generate a proxy for all port proxies
             for proxy in resourceproxies:
                 new_proxy = get_proxy(elt=proxy, bases=bases)
@@ -123,6 +124,7 @@ class ProxySet(tuple):
 
         for pos in self._resource_names_by_proxy_pos:
             resource_name = self._resource_names_by_proxy_pos[pos]
+
             if resource_name == name:
                 result.append(pos)
 
@@ -150,19 +152,24 @@ def getportproxy(port):
         result = ProxySet(
             port=port, resources=resources, bases=bases
         )
+
     # use one object which propagates methods to port proxies
     elif resources:
         proxies = []  # get a list of proxies
+
         for rname in resources:
             # get subport
             subport = resources[rname]
             # if rname is not port, use directly subport
             proxy = subport if rname is port else subport.proxy
+
             # if proxy is a proxy set, add items
             if isinstance(proxy, ProxySet):
                 proxies += proxy
+
             else:
                 proxies.append(proxy)
+
         # embed proxies in a policy result set for future policies
         proxies = PolicyResultSet(proxies)
         _dict = {}  # proxy dict to fill with dedicated methods
@@ -219,38 +226,44 @@ def _methodproxy(port, routine, rname, proxies):
         # check if proxies have to change dynamically
         if selectpr is None:
             proxiestorun = proxies
+
         else:
             proxiestorun = selectpr(
                 port=port, proxies=proxies, routine=rname,
                 instance=proxyinstance,
                 args=args, kwargs=kwargs
             )
+
         # if execpr is None, process proxies
         if execpr is None:
             results = []
+
             for proxy_to_run in proxiestorun:
                 routine = getattr(proxy_to_run, rname)
                 method_res = routine(*args, **kwargs)
                 results.append(method_res)
+
         else:  # if execpr is asked
             results = execpr(
                 port=port, proxies=proxiestorun,
                 routine=rname, instance=proxyinstance,
                 args=args, kwargs=kwargs
             )
+
         # if resultpr is None, process the result
         if resultpr is None:
+
             if isinstance(results, PolicyResultSet) and results:
                 result = [0]
             else:
                 result = results
+
         else:
             result = resultpr(
-                port=port, proxies=proxies,
-                routine=rname, instance=proxyinstance,
-                args=args, kwargs=kwargs,
-                results=results
+                port=port, proxies=proxies, routine=rname, results=results,
+                instance=proxyinstance, args=args, kwargs=kwargs,
             )
+
         return result
 
     return result

@@ -30,7 +30,7 @@ application in a port proxy.
 
 __all__ = ['PolicyResultSet', 'Policy', 'ParameterizedPolicy']
 
-from collections import Callable
+from re import compile as re_compile
 
 
 class PolicyResultSet(tuple):
@@ -82,47 +82,6 @@ class PolicyRules(object):
 
     __slots__ = [SELECT_POLICY, EXEC_POLICY, RESULT_POLICY]
 
-    class PolicyRulesType(dict):
-
-        def apply(self, policies, rname=None):
-
-            raise NotImplementedError()
-
-        def unapply(self, policies, rname=None):
-
-            raise NotImplementedError()
-
-        def __iadd__(self, value):
-
-            self.apply(value)
-
-        def __isub__(self, value):
-
-            self.unapply(value)
-
-        def __getitem__(self, key):
-
-            return self.get(rname=key)
-
-        def get(self, rname=None):
-            """Get the right policy rule related to specific policy and
-            routine name.
-
-            :param str rname: routine name.
-            :return: policy rule.
-            """
-
-            result = None
-
-            # if policy is a set of rules by routine name
-            if isinstance(policy, dict):
-                result = policy.get(rname)
-            # if policy is a rule
-            elif isinstance(policy, Callable):
-                result = policy
-
-            return result
-
     def __init__(self, selectp=None, execp=None, resultp=None):
         """
         :param selectp: in case of not multiple port, a selectp
@@ -136,7 +95,7 @@ class PolicyRules(object):
             - instance: the proxy instance,
             - args: method args,
             - kwargs: method kwargs.
-        :type selectp: dict or callable
+        :type selectp: dict of callable by routine regex name or callable
         :param execp: in case of not multiple port, a execp chooses at
             runtime how to execute a proxy method. If it is a dict, keys are
             method names and values are callable execp. Every execp
@@ -148,7 +107,7 @@ class PolicyRules(object):
             - instance: the proxy instance,
             - args: method args,
             - kwargs: method kwargs.
-        :type execp: dict or callable
+        :type execp: dict of callable by routine regex name or callable
         :param resultp: in case of not multiple port, a resultp
             choose at which proxy method result to return. If it is a dict,
             keys are method names and values are callable resultp. Every
@@ -161,32 +120,51 @@ class PolicyRules(object):
             - args: method args,
             - kwargs: method kwargs,
             - results: method results.
-        :type resultp: dict or callable
+        :type resultp: dict of callable by routine regex name or callable
         """
 
-        self.selectp = selectp
-        self.execp = execp
-        self.resultp = resultp
+        self.selectp = self._init_policies(selectp)
+        self.execp = self._init_policies(execp)
+        self.resultp = self._init_policies(resultp)
+
+    def _init_policies(self, policies):
+        """Init policies.
+
+        :param policies:policy names or set of policy names by routine regex
+            names.
+        :type policies: str(s) or dict
+        """
+
+        result = {}
+
+        if policies is not None:
+            if callable(policies):
+                # default policies applyed on all routines
+                policies = {'.*': policies}
+
+            for routinere in policies:
+                # compile routinere
+                policy = policies[routinere]
+                regex = re_compile(routinere)
+                # append policy to the result
+                result.setdefault(regex, []).append(policy)
+
+        return result
 
     @staticmethod
-    def _rule(policy, rname=None):
-        """Get the right policy rule related to specific policy and
-        routine name.
+    def _rule(policies, rname=None):
+        """Get the right policy rules related to specific policies kind (and
+        routine regex name).
 
-        :param policy: policy to use.
-        :type policy: dict or Callable
-        :param str rname: routine name.
-        :return: policy rule.
+        :param dict policies: policy rules to use.
+        :param str rname: routine regex name.
+        :return: policies.
         """
 
-        result = None
-
-        # if policy is a set of rules by routine name
-        if isinstance(policy, dict):
-            result = policy.get(rname)
-        # if policy is a rule
-        elif isinstance(policy, Callable):
-            result = policy
+        result = [
+            policies[routinere] for routinere in policies
+            if routinere.match('' if rname is None else rname)
+        ]
 
         return result
 
@@ -197,7 +175,7 @@ class PolicyRules(object):
         :return: selection policy rule.
         """
 
-        return self._rule(policy=self.selectp, rname=rname)
+        return self._rule(policies=self.selectp, rname=rname)
 
     def execpr(self, rname=None):
         """Get the right execution policy rule related to a routine name.
@@ -206,7 +184,7 @@ class PolicyRules(object):
         :return: execution policy rule.
         """
 
-        return self._rule(policy=self.execp, rname=rname)
+        return self._rule(policies=self.execp, rname=rname)
 
     def resultpr(self, rname=None):
         """Get the right result policy rule related to a routine name.
@@ -215,22 +193,4 @@ class PolicyRules(object):
         :return: policy rule.
         """
 
-        return self._rule(policy=self.resultp, rname=rname)
-
-    def apply_policies(ptype, *policies):
-        """Apply policies in the input policy_rules.
-
-        :param PolicyRules policyrules: policyrules to update.
-        :param list policies: list of policies to apply.
-        """
-
-        raise NotImplementedError()
-
-    def unapply_policies(ptype, *policies):
-        """Unapply policies from the input policy_rules.
-
-        :param ptype: policy type to unapply.
-        :param list policies: list of policies to apply.
-        """
-
-        raise NotImplementedError()
+        return self._rule(policies=self.resultp, rname=rname)

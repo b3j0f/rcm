@@ -70,15 +70,17 @@ Therefore, RCM provides:
 
 - a model where everything is a reflective component (component, controller, port, component factory, etc.) with the same reflective API.
 - component (re-)configuration tools in order to ease distributed development, deployment and execution.
-- binding specialization which distinguish what and how the business is provided/consumed.
+- binding specialization which distinguishes what and how the business is provided/consumed.
 - sharing of components allowing one component to be embedded by several components.
 
-This model has a specific definition about component behavior. Components are a set of resources which contribute in its behavior. In such point of view, level of contribution is defined by the type of resources. By default, component resources might be seen suuch as embedded into the component. Once you accept this definition, you can use a port, which is a specific type of components which is bound to other ports in order improve a lazy coupling between components. Such ports are parts of the component non-functional properties, therefore, they are not impacted by component business state.
+This model has a specific definition about component behavior. Components are a set of resources which contribute in its behavior. In such point of view, level of contribution is defined by the type of resources. By default, component resources might be seen such as embedded into the component. Once you accept this definition, you can use a port, which is a specific type of components which is bound to other ports in order improve a lazy coupling between components. Such ports are parts of the component non-functional properties, therefore, they are not impacted by component business state.
+
+This idea allows to play at the same time with component binding, component, composition and grey box components. A grey box component is a black box component, providing definition of its interfaces outside the component, and other information (properties, content) useful to better understand its capabilities and compose and decompose it in a dynamic environment. The grey word is used in order to be more transparent with its definition.
 
 Here is a description of provided packages:
 
 * b3j0f.rcm.core: default package which contains the definition of a Component.
-* b3j0f.rcm.ctrl: non-functional properties of components.
+* b3j0f.rcm.ctl: non-functional properties of components.
 * b3j0f.rcm.io: Input/Output Component management.
 * b3j0f.rcm.conf: component configuration and factory definition.
 

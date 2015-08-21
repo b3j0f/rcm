@@ -33,11 +33,13 @@ from b3j0f.rcm.ctl.annotation import C2CtrlAnnotation, CtrlAnnotation
 
 
 class ContentController(Controller):
-    """In charge of inner composition between components.
+    """In charge of component composition without automatical binding between
+    embedding components and embedded components.
     """
 
-    class ContentError(Exception):
-        pass
+    class Error(Exception):
+        """Handle content controller errors.
+        """
 
     CONTENT = '_content'
 
@@ -53,6 +55,9 @@ class ContentController(Controller):
 
     @property
     def content(self):
+        """Get the content.
+        """
+
         return [self._content]
 
     @content.setter

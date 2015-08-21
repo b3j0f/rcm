@@ -1,0 +1,8 @@
+{
+    "uid": "b3j0f.rcm.conf.io.itffactoryregistry",
+    "impl": "b3j0f.rcm.factory.registry.FactoryRegistry",
+    "factories": [
+        {"impl": "b3j0f.rcm.conf.io.python.factory.PythonItfFactory"},
+        {"impl": "b3j0f.rcm.conf.io.c.factory.CItfFactory"}
+    ]
+}

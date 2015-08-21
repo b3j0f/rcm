@@ -1,0 +1,13 @@
+{
+    "uid": "b3j0f.rcm.conf.ctl.factory.registry",
+    "impl": "b3j0f.rcm.conf.ctl.factory.registry.CtlFactoryRegistry",
+    "factories": {
+        "impl": {"impl": "b3j0f.rcm.conf.ctl.factory.impl.ImplFactory"},
+        "content": {"impl": "b3j0f.rcm.conf.ctl.factory.content.ContentFactory"},
+        "intent": {"impl": "b3j0f.rcm.conf.ctl.factory.intent.IntentFactory"},
+        "lifecycle": {"impl": "b3j0f.rcm.conf.ctl.factory.lifecycle.LifecycleFactor"},
+        "name": {"impl": "b3j0f.rcm.conf.ctl.factory.name.NameFactory"},
+        "property": {"impl": "b3j0f.rcm.conf.ctl.factory.property.PropertyFactory"},
+        "remote": {"impl": "b3j0f.rcm.conf.ctl.factory.remote.RemoteFactory"}
+    }
+}

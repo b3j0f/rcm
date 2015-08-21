@@ -43,9 +43,7 @@ Here are default execution policy classes:
 - StatelessPolicy: run proxies with one instance per call.
 """
 
-__all__ = [
-    'AsyncPolicy', 'BestEffortPolicy', 'StatelessPolicy'
-]
+__all__ = ['AsyncPolicy', 'BestEffortPolicy', 'StatelessPolicy']
 
 from random import shuffle
 
