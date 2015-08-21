@@ -193,9 +193,11 @@ def getportproxy(port):
         _dict['__new__'] = _dict['__init__'] = (
             lambda *args, **kwargs: None
         )
+
         # get proxy elt
         proxycls = type('Proxy', bases, _dict)
         proxy = proxycls()
+
         # generate a dedicated proxy which respects method signatures
         result = get_proxy(elt=proxy, bases=bases, _dict=_dict)
 
@@ -223,16 +225,12 @@ def _methodproxy(port, routine, rname, proxies):
         """Proxy selection wraper.
         """
 
-        # check if proxies have to change dynamically
-        if selectpr is None:
-            proxiestorun = proxies
-
-        else:
-            proxiestorun = selectpr(
-                port=port, proxies=proxies, routine=rname,
-                instance=proxyinstance,
-                args=args, kwargs=kwargs
-            )
+        # select proxies to run with selection policies
+        proxiestorun = selectpr(
+            port=port, proxies=proxies, routine=rname,
+            instance=proxyinstance,
+            args=args, kwargs=kwargs
+        )
 
         # if execpr is None, process proxies
         if execpr is None:
@@ -250,19 +248,11 @@ def _methodproxy(port, routine, rname, proxies):
                 args=args, kwargs=kwargs
             )
 
-        # if resultpr is None, process the result
-        if resultpr is None:
-
-            if isinstance(results, PolicyResultSet) and results:
-                result = [0]
-            else:
-                result = results
-
-        else:
-            result = resultpr(
-                port=port, proxies=proxies, routine=rname, results=results,
-                instance=proxyinstance, args=args, kwargs=kwargs,
-            )
+        # finally, process result policies
+        result = resultpr(
+            port=port, proxies=proxies, routine=rname, results=results,
+            instance=proxyinstance, args=args, kwargs=kwargs,
+        )
 
         return result
 

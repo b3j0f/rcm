@@ -218,6 +218,7 @@ class PolicyRulesFactory(Factory):
                 # update result with routines
                 if not routines:
                     routines = ['*']
+
                 for routine in routines:
                     result.setdefault(routine, []).append(policy)
 

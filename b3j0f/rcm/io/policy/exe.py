@@ -53,6 +53,7 @@ from time import time
 
 try:
     from threading import Thread
+
 except ImportError:
     from dummy_threading import Thread
 
@@ -110,14 +111,15 @@ class AsyncPolicy(Policy):
 
         for proxy in proxies:  # execute all proxies
             proxy_rountine = getattr(proxy, routine)
+
             try:
                 proxy_result = proxy_rountine(*args, **kwargs)
+
             except Exception as ex:
                 if self._callback is not None:
                     # and send the occured error to the callback
-                    self._callback(
-                        error=ex
-                    )
+                    self._callback(error=ex)
+
             else:
                 if self._callback is not None:
                     # and send result to the callback
@@ -202,6 +204,7 @@ class BestEffortPolicy(Policy):
             # check for maxtry
             if maxtry <= 0:
                 raise BestEffortPolicy.MaxTryError()
+
             # check for timeout condition
             if timeout is not None and timeout > (time() - tick):
                 raise BestEffortPolicy.TimeoutError()
@@ -209,14 +212,19 @@ class BestEffortPolicy(Policy):
             # choose next proxy
             try:
                 proxy = next(proxies_iterator)
+
             except StopIteration:
                 break  # stop to execute proxies if no more proxies to run
+
             else:
                 method = getattr(proxy, routine)  # get the right proxy method
+
                 try:
                     result = method(*args, **kwargs)
+
                 except Exception:
                     pass  # continue iteration on errors
+
                 else:
                     break  # stop as soon as a proxy is executed without error
 

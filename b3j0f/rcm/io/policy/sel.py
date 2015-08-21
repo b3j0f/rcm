@@ -72,12 +72,10 @@ class FirstPolicy(ParameterizedPolicy):
 
     def __call__(self, *args, **kwargs):
 
-        param = kwargs[self.name]
+        result = super(FirstPolicy, self).__call__(*args, **kwargs)
 
-        if isinstance(param, PolicyResultSet):
-            result = param[0] if param else None
-        else:
-            result = param
+        if isinstance(result, PolicyResultSet):
+            result = result[0] if result else None
 
         return result
 
@@ -108,7 +106,7 @@ class CountPolicy(ParameterizedPolicy):
 
     def __call__(self, *args, **kwargs):
 
-        result = kwargs[self.name]
+        result = super(CountPolicy, self).__call__(*args, **kwargs)
 
         if isinstance(result, PolicyResultSet):
 
@@ -139,8 +137,8 @@ class RandomPolicy(ParameterizedPolicy):
     """
 
     def __call__(self, *args, **kwargs):
-        # default value is the parameter
-        result = kwargs[self.name]
+
+        result = super(RandomPolicy, self).__call__(*args, **kwargs)
 
         # do something only if result is a PolicyResultSet
         if isinstance(result, PolicyResultSet):
@@ -165,13 +163,14 @@ class RoundaboutPolicy(ParameterizedPolicy):
         self.index = 0
 
     def __call__(self, *args, **kwargs):
-        # default result is the parameter
-        result = param = kwargs[self.name]
 
-        if isinstance(param, PolicyResultSet):
-            if param:  # increment index
-                result = param[self.index]
-                self.index = (self.index + 1) % len(param)
+        result = super(RoundaboutPolicy, self).__call__(*args, **kwargs)
+
+        if isinstance(result, PolicyResultSet):
+            if result:  # increment index
+                index = self.index
+                self.index = (self.index + 1) % len(result)
+                result = result[index]
             else:
                 result = None
 

@@ -158,13 +158,26 @@ class PolicyRules(object):
 
         :param dict policies: policy rules to use.
         :param str rname: routine regex name.
-        :return: policies.
+        :return: policy execution function.
         """
 
-        result = [
+        policies = [
             policies[routinere] for routinere in policies
             if routinere.match('' if rname is None else rname)
         ]
+
+        def runpolicies(proxies, *args, **kwargs):
+            """Run all policies on input parameters and returns proxies to run.
+            """
+
+            result = proxies
+
+            for policy in policies:
+                result = policy(proxies=result, *args, **kwargs)
+
+            return result
+
+        result = runpolicies
 
         return result
 
