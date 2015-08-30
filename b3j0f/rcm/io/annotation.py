@@ -215,13 +215,21 @@ class Output(Ctl2CAnnotation):
         if itfs is None:  # if itfs is not given, use annotation target
             itfs = target
 
-        # create a port
-        port = Port(
-            resource=result, itfs=self.itfs,
-            policyrules=self.policyrules, iokind=self.iokind
-        )
-        # and bind it to the component
-        component.set_port(port=port, name=name)
+        # get related port
+        port = component.get(name)
+        if port is None:
+            # create a port
+            port = Port(
+                resource=result, itfs=self.itfs,
+                policyrules=self.policyrules, iokind=self.iokind
+            )
+            # and bind it to the component
+            component.set_port(port=port, name=name)
+        else:  # update port properties
+            port.resource = result
+            port.itfs = itfs
+            port.policyrules = self.policyrules
+            port.iokind = self.iokind
 
 
 @MaxCount()

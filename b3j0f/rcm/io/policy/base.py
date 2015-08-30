@@ -26,7 +26,7 @@
 
 """This module provides proxy selection policy classes.
 
-A selection is a function which takes in parameters:
+A policy is a callable which takes in parameters:
 
 - port: proxy port.
 - resources: port resources.
@@ -38,31 +38,61 @@ And returns one proxy or a PolicyResultSet.
 
 Here are types of selection proxies classes:
 
-- SelectAllPolicy: select all proxies.
-- SelectFirstPolicy: select the first proxy or an empty list of proxies.
-- SelectCountPolicy: select (random) proxies between [inf;sup].
-- SelectRandomPolicy: select one random proxy.
-- SelectRoundaboutPolicy: select iteratively a proxy among proxies. The first
+- AllPolicy: select all proxies.
+- FirstPolicy: select the first proxy or an empty list of proxies.
+- CountPolicy: select (random) proxies between [inf;sup].
+- RandomPolicy: select one random proxy.
+- RoundaboutPolicy: select iteratively a proxy among proxies. The first
     call select the first proxy. Second call, the second. When all
     proxies have been called once, the policy starts again with the first
     proxy.
 """
 
 __all__ = [
-    'PolicyResultSet', 'Policy', 'ParameterizedPolicy',
+    'Policy', 'ParameterizedPolicy',
     'FirstPolicy', 'AllPolicy', 'CountPolicy', 'RandomPolicy',
-    'RoundaboutPolicy',
-    'SelectFirstPolicy', 'SelectAllPolicy', 'SelectCountPolicy',
-    'SelectRandomPolicy', 'SelectRoundaboutPolicy'
+    'RoundaboutPolicy'
 ]
 
 from random import shuffle, choice
 
 from sys import maxsize
 
-from b3j0f.rcm.io.policy.core import (
-    Policy, PolicyResultSet, ParameterizedPolicy
-)
+from b3j0f.rcm.io.policy.core import PolicyResultSet
+
+
+class Policy(object):
+    """In charge of applying a policy on proxy selection/execution/results.
+    """
+
+    def __call__(self, *args, **kwargs):
+
+        raise NotImplementedError()
+
+
+class ParameterizedPolicy(Policy):
+    """In charge of applying a policy on a specific policy parameter designed
+    by this ``name`` attribute.
+
+    Choose the parameter by default.
+    """
+    def __init__(self, name, *args, **kwargs):
+        """
+        :param str name: parameter name.
+        """
+
+        super(ParameterizedPolicy, self).__init__(*args, **kwargs)
+
+        self.name = name
+
+    def __call__(self, *args, **kwargs):
+        """
+        :return: kwargs[self.name]
+        """
+
+        result = kwargs[self.name]
+
+        return result
 
 
 class FirstPolicy(ParameterizedPolicy):
@@ -175,53 +205,3 @@ class RoundaboutPolicy(ParameterizedPolicy):
                 result = None
 
         return result
-
-
-class SelectFirstPolicy(FirstPolicy):
-    """Apply first policy on proxies.
-    """
-
-    def __init__(self, *args, **kwargs):
-
-        super(SelectFirstPolicy, self).__init__(
-            name='proxies', *args, **kwargs
-        )
-
-
-class SelectAllPolicy(AllPolicy):
-    """Apply all policy on proxies.
-    """
-    def __init__(self, *args, **kwargs):
-
-        super(SelectAllPolicy, self).__init__(name='proxies', *args, **kwargs)
-
-
-class SelectCountPolicy(CountPolicy):
-    """Apply count policy on proxies.
-    """
-    def __init__(self, *args, **kwargs):
-
-        super(SelectCountPolicy, self).__init__(
-            name='proxies', *args, **kwargs
-        )
-
-
-class SelectRandomPolicy(RandomPolicy):
-    """Apply random policy on proxies.
-    """
-    def __init__(self, *args, **kwargs):
-
-        super(SelectRandomPolicy, self).__init__(
-            name='proxies', *args, **kwargs
-        )
-
-
-class SelectRoundaboutPolicy(RoundaboutPolicy):
-    """Apply roundabout policy on proxies.
-    """
-
-    def __init__(self, *args, **kwargs):
-
-        super(SelectRoundaboutPolicy, self).__init__(
-            name='proxies', *args, **kwargs
-        )

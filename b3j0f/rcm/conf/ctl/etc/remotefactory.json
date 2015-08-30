@@ -1,0 +1,6 @@
+{
+    "uid": "b3j0f.rcm.conf.ctl.remote.remotefactory",
+    "extends": "b3j0f.rcm.conf.factory",
+    "validator": "b3j0f.rcm.conf.ctl.remote.RemoteChecker",
+    "instantiator": "b3j0f.rcm.conf.ctl.remote.RemoteInstantiator"
+}

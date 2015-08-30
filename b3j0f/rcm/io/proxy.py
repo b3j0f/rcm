@@ -214,45 +214,25 @@ def _methodproxy(port, routine, rname, proxies):
     :return: routine proxy.
     """
 
-    # get the rights policy rules
-    selectpr = port._policyrules.selectpr(rname)
-    execpr = port._policyrules.exectpr(rname)
-    resultpr = port._policyrules.resultpr(rname)
-
     # wraps the routine
     @wraps(routine)
     def result(proxyinstance, *args, **kwargs):
         """Proxy selection wraper.
         """
 
-        # select proxies to run with selection policies
-        proxiestorun = selectpr(
+        # execute policies on proxies
+        proxiestorun = port._policyset.execute(
             port=port, proxies=proxies, routine=rname,
-            instance=proxyinstance,
-            args=args, kwargs=kwargs
+            instance=proxyinstance, args=args, kwargs=kwargs
         )
 
-        # if execpr is None, process proxies
-        if execpr is None:
-            results = []
+        # get the right result
+        result = []
 
-            for proxy_to_run in proxiestorun:
-                routine = getattr(proxy_to_run, rname)
-                method_res = routine(*args, **kwargs)
-                results.append(method_res)
-
-        else:  # if execpr is asked
-            results = execpr(
-                port=port, proxies=proxiestorun,
-                routine=rname, instance=proxyinstance,
-                args=args, kwargs=kwargs
-            )
-
-        # finally, process result policies
-        result = resultpr(
-            port=port, proxies=proxies, routine=rname, results=results,
-            instance=proxyinstance, args=args, kwargs=kwargs,
-        )
+        for proxy in proxiestorun:
+            routine = getattr(proxy, rname)
+            method_res = routine(*args, **kwargs)
+            result.append(method_res)
 
         return result
 

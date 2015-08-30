@@ -39,7 +39,6 @@ And returns one result or a PolicyResultSet.
 Here are default execution policy classes:
 
 - AsyncPolicy: run asynchronously given proxies.
-- BestEffortPolicy: run the first policy which does not raise Exception.
 - StatelessPolicy: run proxies with one instance per call.
 """
 
@@ -57,6 +56,10 @@ try:
 except ImportError:
     from dummy_threading import Thread
 
+from b3j0f.aop.advices import get_advices, weave
+
+from b3j0f.rcm.ctl.impl import ImplController
+
 from b3j0f.rcm.io.proxy import ProxySet
 from b3j0f.rcm.io.policy.core import Policy
 
@@ -64,45 +67,74 @@ from b3j0f.rcm.io.policy.core import Policy
 class AsyncPolicy(Policy):
     """Asynchronous dynamic execution policy.
 
-    A callback is used in order to be notified when all proxy are executed.
+    A callback is used in order to be notified when a proxy is executed.
     Such callback takes in parameter:
+
     - result: proxy execution result.
     - error: proxy execution error.
 
-    In a multi task concern, the join method permits to wait until all proxy
-    are executed.
+    In a multi task concern, the join method permits to wait until end proxy
+    executions.
+
+    Finally, the parameter ``multi`` is used by the policy in order to execute:
+
+    - False: all proxies in one thread.
+    - True: one proxy per thread.
     """
 
     _CALLBACK = '_callback'  #: private callback attribute name
-    _THREAD = '_thread'  #: private thread attribute name
+    _THREADS = '_threads'  #: private threads attribute name
+    MULTI = 'multi'  #: public multi attribute name
 
-    def __init__(self, callback=None, *args, **kwargs):
+    DEFAULT_MULTI = False  #: default value of the ``multi``
+
+    def __init__(self, callback=None, multi=False, *args, **kwargs):
         """
         :param callable callback: callable object which will get proxy
             execution results.
+        :param bool multi: if True (default False) use one thread by proxy,
+            otherwise, use one thread for all proxies.
         """
 
         super(AsyncPolicy, self).__init__(*args, **kwargs)
 
         # initialize private attributes
-        self._thread = None
+        self._threads = None
 
         # set callback
         self._callback = callback
 
-    def __call__(self, *args, **kwargs):
-        # create a thread which execute self.exec_proxies
-        self._thread = Thread(
-            target=self.exec_proxies, args=args, kwargs=kwargs
-        )
-        # start the thread
-        self._thread.start()
+        # set multi
+        self.multi = multi
+
+    def __call__(self, proxies, *args, **kwargs):
+        """
+        :param Joinpoint joinpoint: joinpoint to proceed in order to apply the
+            policy.
+        """
+
+        # create threads which execute self.exec_proxies
+        if self.multi:  # one per proxy
+            self._threads = [
+                Thread(
+                    proxies=proxy, *args, **kwargs
+                )
+                for proxy in proxies
+            ]
+
+        else:  # one for all proxies
+            self._threads = [
+                Thread(proxies=proxies, *args, **kwargs)
+            ]
+
+        # start threads
+        for thread in self._threads:
+            thread.start()
 
     def exec_proxies(self, proxies, routine, *args, **kwargs):
         """Execute iteratively all proxies and use result in self callback.
 
-        :param proxies: proxies to execute.
-        :param str routine: routine name of proxies to execute.
+        :param Joinpoint joinpoint: joinpoint to proceed.
         """
 
         # ensure proxies is a list of proxies
@@ -123,16 +155,14 @@ class AsyncPolicy(Policy):
             else:
                 if self._callback is not None:
                     # and send result to the callback
-                    self._callback(
-                        result=proxy_result
-                    )
+                    self._callback(result=proxy_result)
 
     def join(self):
         """Wait until all proxy are executed.
         """
 
-        if isinstance(self._thread, Thread):
-            self._thread.join()
+        for thread in self._threads:
+            thread.join()
 
 
 class BestEffortPolicy(Policy):
@@ -146,7 +176,6 @@ class BestEffortPolicy(Policy):
     class TimeoutError(Exception):
         """Raised when a timeout occures.
         """
-        pass
 
     class MaxTryError(Exception):
         """Raised when a max try is passed.
@@ -237,13 +266,19 @@ class StatelessPolicy(Policy):
     """Exec policy in charge of given a new instance per call.
     """
 
-    def __call__(self, routine, instance, *args, **kwargs):
+    def __call__(
+            self, routine, instance, component, target, ctx, *args, **kwargs
+    ):
 
-        # get instance cls
-        cls = type(instance)
-        # instantiate a new proxy
-        proxy = cls()
+        # get target advices
+        advices = get_advices(target)
+        # get component ImplController
+        implctl = ImplController.get_ctl(component)
+        # get a new business instance thanks to the impl controller
+        proxyinstance = implctl.newinstance()
+        # get related method and calls it
+        result = getattr(proxyinstance, routine)
+        # weave advices on the result
+        weave(target=result, ctx=proxyinstance, advices=advices)
 
-        proxyroutine = getattr(proxy, routine)
-
-        return proxyroutine(*args, **kwargs)
+        return result

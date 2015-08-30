@@ -1,0 +1,6 @@
+{
+    "uid": "b3j0f.rcm.conf.ctl.impl.implfactory",
+    "extends": "b3j0f.rcm.conf.factory",
+    "validator": "b3j0f.rcm.conf.ctl.impl.ImplChecker",
+    "instantiator": "b3j0f.rcm.conf.ctl.impl.ImplInstantiator"
+}

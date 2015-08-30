@@ -1,0 +1,6 @@
+{
+    "uid": "b3j0f.rcm.conf.ctl.content.contentfactory",
+    "extends": "b3j0f.rcm.conf.factory",
+    "validator": "b3j0f.rcm.conf.ctl.content.ContentChecker",
+    "instantiator": "b3j0f.rcm.conf.ctl.content.ContentInstantiator"
+}

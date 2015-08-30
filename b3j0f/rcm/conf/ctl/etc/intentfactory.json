@@ -1,0 +1,6 @@
+{
+    "uid": "b3j0f.rcm.conf.ctl.intent.intentfactory",
+    "extends": "b3j0f.rcm.conf.factory",
+    "validator": "b3j0f.rcm.conf.ctl.intent.IntentChecker",
+    "instantiator": "b3j0f.rcm.conf.ctl.intent.IntentInstantiator"
+}

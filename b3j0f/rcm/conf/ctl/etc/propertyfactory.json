@@ -1,0 +1,6 @@
+{
+    "uid": "b3j0f.rcm.conf.ctl.property.propertyfactory",
+    "extends": "b3j0f.rcm.conf.factory",
+    "validator": "b3j0f.rcm.conf.ctl.property.PropertyChecker",
+    "instantiator": "b3j0f.rcm.conf.ctl.property.PropertyInstantiator"
+}

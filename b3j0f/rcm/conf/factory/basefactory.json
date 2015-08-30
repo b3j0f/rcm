@@ -1,0 +1,4 @@
+{
+    "uid": "b3j0f.rcm.conf.factory.factory",
+    "impl": "b3j0f.rcm.conf.factory.base.Factory"
+}

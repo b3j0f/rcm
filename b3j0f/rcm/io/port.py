@@ -93,7 +93,7 @@ class Port(Controller):
     def __init__(
             self, itfs=None, resource=None, iokind=DEFAULT_IOKIND,
             multiple=DEFAULT_MULTIPLE, inf=DEFAULT_INF, sup=DEFAULT_SUP,
-            policyrules=None,
+            policies=None,
             *args, **kwargs
     ):
         """
@@ -105,7 +105,7 @@ class Port(Controller):
         :param bool multiple: multiple proxy cardinality. False by default.
         :param int inf: minimal port number to use. Default 0.
         :param int sup: maximal port number to use. Default infinity.
-        :param b3j0f.rcm.io.policy.PolicyRules policyrules: policy rules.
+        :param b3j0f.rcm.io.policy.PolicyRules policies: policy rules.
         """
 
         # set private attributes
@@ -116,7 +116,7 @@ class Port(Controller):
         self._multiple = multiple
         self._inf = inf
         self._sup = sup
-        self._policyrules = policyrules
+        self._policyrules = policies
 
         super(Port, self).__init__(*args, **kwargs)
 
