@@ -28,11 +28,11 @@
 application in a port proxy.
 """
 
-__all__ = [
-    'PolicyExecutor', 'PolicyResultSet'
-]
+__all__ = ['PolicyExecutor', 'PolicyResultSet']
 
 from re import compile as re_compile
+
+from functools import reduce
 
 
 class PolicyResultSet(tuple):
@@ -44,16 +44,19 @@ class PolicyExecutor(object):
     """Manage execution of proxy policies.
     """
 
-    POLICIES = 'policies'  #: policies attribute name
+    POLICIES = '_policies'  #: policies attr name
+    _SPE_POLICIES = '_spe_policies'  #: specific policies attribute name
+    _RE_POLICIES = '_re_policies'  #: re policies attr name
+    _POLICIES_BY_RNAME = '_policies_by_rname'  #: policies by rname attr name
 
-    __slots__ = [POLICIES]
+    __slots__ = [POLICIES, _RE_POLICIES, _SPE_POLICIES, _POLICIES_BY_RNAME]
 
     def __init__(self, policies=None):
         """
-        :param policies: in case of not multiple port, a policies
-            chooses at runtime which proxy method to run. If it is a dict, keys
-            are method names and values are callable policies. Every
-            policies takes in parameters:
+        :param dict policies: dict of callable policies by routine (regex) name
+            . If the routine name is None, related policies are applied on all
+            proxy routines.
+            A policy takes in parameters:
             - port: self port,
             - resources: self resources,
             - proxies: list of proxies to execute,
@@ -61,41 +64,51 @@ class PolicyExecutor(object):
             - instance: the proxy instance,
             - args: method args,
             - kwargs: method kwargs.
-        :type policies: dict of callable by routine regex name or callable
         """
 
         super(PolicyExecutor, self).__init__()
 
-        self.policies = self._init_policies(policies)
+        # init protected attributes
+        self._policies = self._spe_policies = self._re_policies = None
+        self._policies_by_rname = {}
+        # init policies
+        self.policies = policies
 
-    def _init_policies(self, policies):
-        """Init policies.
+    @property
+    def policies(self):
+        """Get policies.
 
-        :param policies:policy names or set of policy names by routine regex
-            names.
-        :type policies: str(s) or dict
         :rtype: dict
         """
 
-        result = {}
+        return self._policies
 
-        if policies is not None:
-            if callable(policies):
-                # default policies applyed on all routines
-                policies = {'.*': policies}
+    @policies.setter
+    def policies(self, policies):
+        """Change of policies.
 
-            for routinere in policies:
-                # compile routinere
-                policy = policies[routinere]
-                regex = re_compile(routinere)
-                # append policy to the result
-                result.setdefault(regex, []).append(policy)
+        :param dict policies: new policies to use.
+        """
+        # init self policies
+        self._policies = {} if policies is None else policies.copy()
 
-        return result
+        self._spe_policies = {}  # init specific policies
 
-    def execute(
-            self, port, proxies, routine, instance, args, kwargs, rname=None
-    ):
+        self._re_policies = {}  # init self re_policies
+
+        self._policies_by_rname.clear()  # init self policies by rname
+
+        routine_re = '^[A-Za-z_][0-9A-Za-z_]*'  # get routine name regex
+        routine_re = re_compile(routine_re)
+
+        for rname in self._policies:  # fill self policies and _re_policies
+            if rname is None or routine_re.match(rname):
+                self._spe_policies[rname] = list(policies[rname])
+
+            else:
+                self._re_policies[re_compile(rname)] = list(policies[rname])
+
+    def execute(self, proxies, rname=None, *args, **kwargs):
         """Execute policies on input proxies related to additional parameters.
 
         :param str rname: routine name.
@@ -103,14 +116,34 @@ class PolicyExecutor(object):
         :rtype: list
         """
 
-        policies = [
-            self.policies[routinere] for routinere in self.policies
-            if routinere.match('' if rname is None else rname)
-        ]
+        if rname in self._policies_by_rname:  # check if policies are in memory
+            policies = self._policies_by_rname[rname]
+
+        else:  # identify policies able to process the rname
+            policies = []
+
+            if None in self._spe_policies:  # apply global policies
+                policies += self._spe_policies[None]
+
+            # apply specific policies
+            if rname is not None and rname in self._spe_policies:
+                policies += self._spe_policies[rname]
+
+            policies += reduce(
+                lambda x, y: x + y,
+                [  # apply regex policies
+                    self._re_policies[routinere]
+                    for routinere in self._re_policies
+                    if routinere.match('' if rname is None else rname)
+                ],
+                []
+            )
+
+            self._policies_by_rname[rname] = policies  # save policies in mem
 
         result = proxies
 
-        for policy in policies:
-            result = policy(proxies=result, *args, **kwargs)
+        for policy in policies:  # execute found policies on proxies
+            result = policy(proxies=result, rname=rname, *args, **kwargs)
 
         return result

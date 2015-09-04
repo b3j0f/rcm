@@ -170,7 +170,7 @@ def getportproxy(port):
             else:
                 proxies.append(proxy)
 
-        # embed proxies in a policy result set for future policies
+        # embed proxies in a policy result set for future policy executions
         proxies = PolicyResultSet(proxies)
         _dict = {}  # proxy dict to fill with dedicated methods
         # wraps all interface methods
