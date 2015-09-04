@@ -49,7 +49,7 @@ Here are types of selection proxies classes:
 """
 
 __all__ = [
-    'Policy', 'ParameterizedPolicy',
+    'Policy',
     'FirstPolicy', 'AllPolicy', 'CountPolicy', 'RandomPolicy',
     'RoundaboutPolicy'
 ]
@@ -66,36 +66,16 @@ class Policy(object):
     """
 
     def __call__(self, *args, **kwargs):
-
-        raise NotImplementedError()
-
-
-class ParameterizedPolicy(Policy):
-    """In charge of applying a policy on a specific policy parameter designed
-    by this ``name`` attribute.
-
-    Choose the parameter by default.
-    """
-    def __init__(self, name, *args, **kwargs):
         """
-        :param str name: parameter name.
+        :return: kwargs['proxies']
         """
 
-        super(ParameterizedPolicy, self).__init__(*args, **kwargs)
-
-        self.name = name
-
-    def __call__(self, *args, **kwargs):
-        """
-        :return: kwargs[self.name]
-        """
-
-        result = kwargs[self.name]
+        result = kwargs['proxies']
 
         return result
 
 
-class FirstPolicy(ParameterizedPolicy):
+class FirstPolicy(Policy):
     """Choose first value in specific parameter if parameter is
     PolicyResultSet, otherwise, return parameter.
     """
@@ -110,13 +90,13 @@ class FirstPolicy(ParameterizedPolicy):
         return result
 
 
-class AllPolicy(ParameterizedPolicy):
+class AllPolicy(Policy):
     """Choose specific parameter.
     """
 
 
-class CountPolicy(ParameterizedPolicy):
-    """Choose count parameters among **kwargs[self.name].
+class CountPolicy(Policy):
+    """Choose count parameters among proxies.
 
     Check than resources number are in an interval, otherwise, raise a
     CountError.
@@ -161,7 +141,7 @@ class CountPolicy(ParameterizedPolicy):
         return result
 
 
-class RandomPolicy(ParameterizedPolicy):
+class RandomPolicy(Policy):
     """Choose one random item in specific parameter if parameter is a
     PolicyResultSet. Otherwise, Choose parameter.
     """
@@ -180,7 +160,7 @@ class RandomPolicy(ParameterizedPolicy):
         return result
 
 
-class RoundaboutPolicy(ParameterizedPolicy):
+class RoundaboutPolicy(Policy):
     """Choose iteratively Round about proxy resource policy.
 
     Select iteratively resources or None if sources is empty.

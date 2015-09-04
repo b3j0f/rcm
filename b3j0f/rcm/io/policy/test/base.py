@@ -32,7 +32,7 @@ from unittest import main
 
 from b3j0f.utils.ut import UTCase
 from b3j0f.rcm.io.policy.base import (
-    PolicyResultSet, Policy, ParameterizedPolicy,
+    PolicyResultSet, Policy,
     FirstPolicy, AllPolicy, CountPolicy, RandomPolicy,
     RoundaboutPolicy
 )
@@ -42,20 +42,9 @@ class TestPolicy(UTCase):
     """Test policy object.
     """
 
-    def _get_policy_cls(self):
-        """
-        :return: parameterized policy class.
-        """
-        return Policy
+    def setUp(self):
 
-
-class TestParameterizedPolicy(TestPolicy):
-    """Test ParameterizedPolicy.
-    """
-
-    def setUp(self, *args, **kwargs):
-
-        super(TestParameterizedPolicy, self).setUp(*args, **kwargs)
+        super(TestPolicy, self).setUp()
 
         self.count = 50  # number of proxies to generate in a PolicyResultSet
         self.policy_cls = self._get_policy_cls()  # get policy cls
@@ -65,22 +54,14 @@ class TestParameterizedPolicy(TestPolicy):
         """
         :return: parameterized policy class.
         """
-        return ParameterizedPolicy
-
-    def _get_name(self):
-        """
-        :return: parameterized policy name.
-        """
-
-        return 'test'
+        return Policy
 
     def _get_policy(self):
         """Instantiate a new policy related to self name and args/kwargs.
         """
-        self.name = self._get_name()
+
         self.args, self.kwargs = self._get_args_kwargs()
-        if self.name is not None:
-            self.kwargs['name'] = self.name
+
         result = self.policy_cls(
             *self.args, **self.kwargs
         )
@@ -92,27 +73,13 @@ class TestParameterizedPolicy(TestPolicy):
         """
         return (), {}
 
-    def test_noname(self):
-        """Test to instantiate a parameterized policy without name.
-        """
-
-        if self.name is not None:
-            self.assertRaises(TypeError, self.policy_cls)
-
-    def test_name(self):
-        """Test to instantiate a parameterized policy with a name.
-        """
-
-        if self.name is not None:
-            self.assertEqual(self.name, self.policy.name)
-
     def _get_params(self, param):
         """
         :return: policy invocation params.
         :rtype: dict
         """
 
-        return {} if self.name is None else {self.name: param}
+        return {'proxies': param}
 
     def test_none(self):
         """Test when param is None.
@@ -195,7 +162,7 @@ class TestParameterizedPolicy(TestPolicy):
         self.assertEqual(param, result)
 
 
-class TestFirstPolicy(TestParameterizedPolicy):
+class TestFirstPolicy(TestPolicy):
     """Test First policy class.
     """
 
@@ -212,7 +179,7 @@ class TestFirstPolicy(TestParameterizedPolicy):
         self.assertIsNone(result)
 
 
-class TestAllPolicy(TestParameterizedPolicy):
+class TestAllPolicy(TestPolicy):
     """Test AllPolicy.
     """
     def _get_policy_cls(self):
@@ -220,7 +187,7 @@ class TestAllPolicy(TestParameterizedPolicy):
         return AllPolicy
 
 
-class TestCountPolicy(TestParameterizedPolicy):
+class TestCountPolicy(TestPolicy):
     """Test CountPolicy.
     """
 
@@ -262,7 +229,7 @@ class TestCountPolicy(TestParameterizedPolicy):
         self.assertRaises(CountPolicy.CountError, policy, **params)
 
 
-class TestRandomPolicy(TestParameterizedPolicy):
+class TestRandomPolicy(TestPolicy):
     """Test RandomPolicy.
     """
     def _get_policy_cls(self):
@@ -278,7 +245,7 @@ class TestRandomPolicy(TestParameterizedPolicy):
         self.assertIsNone(result)
 
 
-class TestRoundaboutPolicy(TestParameterizedPolicy):
+class TestRoundaboutPolicy(TestPolicy):
     """Test RoundaboutPolicy.
     """
     def _get_policy_cls(self):
