@@ -39,9 +39,7 @@ order to describe bound resources. The ``how`` is ensured with Binding objects
 which are used by Port objects.
 """
 
-__all__ = [
-    'SetIOCtl', 'Input', 'Output', 'Async', 'Ports'
-]
+__all__ = ['SetIOCtl', 'Input', 'Output', 'Async', 'Ports']
 
 from inspect import isclass, isroutine
 
@@ -197,7 +195,7 @@ class Output(Ctl2CAnnotation):
         self.iokind = iokind
 
     def process_result(
-        self, result, component, member, target, *args, **kwargs
+            self, result, component, member, target, *args, **kwargs
     ):
 
         # get port name

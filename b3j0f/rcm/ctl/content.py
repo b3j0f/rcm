@@ -29,7 +29,7 @@ __all__ = ['ContentController', 'Content', 'Add', 'Remove']
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.ctl.core import Controller
 from b3j0f.rcm.ctl.name import NameController
-from b3j0f.rcm.ctl.annotation import C2CtrlAnnotation, CtrlAnnotation
+from b3j0f.rcm.ctl.annotation import C2CtlAnnotation, CtlAnnotation
 
 
 class ContentController(Controller):
@@ -114,7 +114,7 @@ class ContentController(Controller):
 
         result = None
 
-        cc = ContentController.get_controller(component=component)
+        cc = ContentController.get_ctl(component=component)
         if cc is not None:
             result = cc.content
 
@@ -129,7 +129,7 @@ class ContentController(Controller):
         :type content: Component or iterable of Components
         """
 
-        cc = ContentController.get_controller(component=component)
+        cc = ContentController.get_ctl(component=component)
         if cc is not None:
             cc += content
 
@@ -142,28 +142,28 @@ class ContentController(Controller):
         :type content: Component or iterable of Components
         """
 
-        cc = ContentController.get_controller(component=component)
+        cc = ContentController.get_ctl(component=component)
         if cc is not None:
             cc -= content
 
 
-class Content(C2CtrlAnnotation):
+class Content(C2CtlAnnotation):
     """Inject ContentController in an implementation.
     """
 
     def get_value(self, component, *args, **kwargs):
 
-        return ContentController.get_controller(component)
+        return ContentController.get_ctl(component)
 
 
-class Add(CtrlAnnotation):
+class Add(CtlAnnotation):
     """Fired when related component is added to a new parent component.
     """
 
     pass
 
 
-class Remove(CtrlAnnotation):
+class Remove(CtlAnnotation):
     """Fired when related component is removed from a parent component.
     """
 

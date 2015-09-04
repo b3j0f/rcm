@@ -31,7 +31,7 @@ from b3j0f.utils.ut import UTCase
 from b3j0f.utils.path import getpath
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.ctl.core import Controller
-from b3j0f.rcm.ctl.annotation import C2CtrlAnnotation
+from b3j0f.rcm.ctl.annotation import C2CtlAnnotation
 from b3j0f.rcm.ctl.impl import (
     ImplController, Impl, Stateless, Context
 )
@@ -174,12 +174,12 @@ class ImplTest(UTCase):
         if error is not None:
             self.assertRaises(
                 error,
-                C2CtrlAnnotation.call_setter,
+                C2CtlAnnotation.call_setter,
                 component=self.component,
                 impl=Test
             )
         else:
-            result = C2CtrlAnnotation.call_setter(
+            result = C2CtlAnnotation.call_setter(
                 component=self.component, impl=Test
             )
 
@@ -369,7 +369,7 @@ class ContextTest(UTCase):
                 self.p1 = p1
                 self.p2 = p2
 
-        result = C2CtrlAnnotation.call_setter(
+        result = C2CtlAnnotation.call_setter(
             component=self.component, impl=Test
         )
 

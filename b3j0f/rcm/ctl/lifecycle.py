@@ -31,7 +31,7 @@ except ImportError:
 
 from b3j0f.rcm.ctl.core import Controller
 from b3j0f.rcm.ctl.annotation import (
-    CtrlAnnotationInterceptor, C2CtrlAnnotation
+    CtlAnnotationInterceptor, C2CtlAnnotation
 )
 from b3j0f.rcm.io.port import Port
 from b3j0f.rcm.ctl.content import ContentController
@@ -365,7 +365,7 @@ class LifecycleController(Controller):
         )
 
 
-class Lifecycle(C2CtrlAnnotation):
+class Lifecycle(C2CtlAnnotation):
     """Inject lifecycle controller in an implementation.
     """
 
@@ -374,7 +374,7 @@ class Lifecycle(C2CtrlAnnotation):
         return LifecycleController.get_ctl(component=component)
 
 
-class NewLCStatus(CtrlAnnotationInterceptor):
+class NewLCStatus(CtlAnnotationInterceptor):
     """Fire method before a lifecycle change of status.
 
     Specific parameters are Component.set_port parameters:

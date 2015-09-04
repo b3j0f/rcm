@@ -39,7 +39,7 @@ order to describe bound resources. The ``how`` is ensured with Binding objects
 which are used by Port objects.
 """
 
-__all__ = ['IOController']
+__all__ = ['IOController', 'SetIOCtl']
 
 from collections import Iterable
 
@@ -48,6 +48,7 @@ from b3j0f.rcm.core import Component
 from b3j0f.rcm.io.port import Port
 from b3j0f.rcm.ctl.core import Controller
 from b3j0f.rcm.ctl.name import NameController
+from b3j0f.rcm.ctl.annotation import C2CtlAnnotation
 
 
 class IOController(Controller):
@@ -59,8 +60,8 @@ class IOController(Controller):
         """
 
     def get_sub_ports(
-        self, components=None,
-        portnames=None, porttypes=None, portcond=None
+            self, components=None,
+            portnames=None, porttypes=None, portcond=None
     ):
         """Get all component ports of sub components of self components.
 
@@ -182,3 +183,12 @@ class IOController(Controller):
             _components=components, _method='unwire',
             inputports=inputports, outputports=outputports
         )
+
+
+class SetIOCtl(C2CtlAnnotation):
+    """Annotation dedicated to inject an ImplController in an implementation.
+    """
+
+    def get_value(self, component, *args, **kwargs):
+
+        return IOController.get_ctl(component)

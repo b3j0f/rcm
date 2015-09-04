@@ -28,7 +28,7 @@ __all__ = ['IntentController', 'Intent']
 
 from b3j0f.aop import weave
 from b3j0f.rcm.ctl.core import Controller
-from b3j0f.rcm.ctl.annotation import C2CtrlAnnotation
+from b3j0f.rcm.ctl.annotation import C2CtlAnnotation
 
 from re import compile as re_compile
 
@@ -142,10 +142,10 @@ class IntentController(Controller):
         return result
 
 
-class Intent(C2CtrlAnnotation):
+class Intent(C2CtlAnnotation):
     """Inject an IntentController into a component implementation.
     """
 
     def get_value(self, component, *args, **kwargs):
 
-        return IntentController.get_controller(component)
+        return IntentController.get_ctl(component)

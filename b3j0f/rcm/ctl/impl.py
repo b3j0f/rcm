@@ -29,7 +29,7 @@
 
 __all__ = [
     'ImplController',  # impl controller
-    'Impl', 'Stateless',  # impl annotations
+    'SetImplCtl', 'Stateless',  # impl annotations
     'new_component'
 ]
 
@@ -40,9 +40,7 @@ from b3j0f.utils.version import basestring
 from b3j0f.utils.path import lookup
 from b3j0f.rcm.core import Component
 from b3j0f.rcm.ctl.core import Controller
-from b3j0f.rcm.ctl.annotation import (
-    CtrlAnnotation, C2CtrlAnnotation
-)
+from b3j0f.rcm.ctl.annotation import CtlAnnotation, C2CtlAnnotation
 
 
 class ImplController(Controller):
@@ -122,20 +120,22 @@ class ImplController(Controller):
             kwargs = {}
         # try to instantiate the implementation
         try:
-            result = C2CtrlAnnotation.call_setter(
+            result = C2CtlAnnotation.call_setter(
                 component=component, impl=self._cls, args=args, kwargs=kwargs,
                 force=True
             )
-        except Exception as e:
+        except Exception as ex:
             raise ImplController.ImplError(
-                "Error ({0}) during impl instantiation of {1}".format(e, self)
+                "Error ({0}) during impl instantiation of {1}".format(ex, self)
             )
         else:  # update self impl
             try:
                 self.impl = result
-            except Exception as e:
+            except Exception as ex:
                 raise ImplController.ImplError(
-                    "Error ({0}) while changing of impl of {1}".format(e, self)
+                    "Error ({0}) while changing of impl of {1}".format(
+                        ex, self
+                    )
                 )
 
         return result
@@ -176,6 +176,9 @@ class ImplController(Controller):
 
     @property
     def impl(self):
+        """
+        :return: self implementation.
+        """
         return self._impl
 
     @impl.setter
@@ -187,8 +190,8 @@ class ImplController(Controller):
 
         # unapply business annotations on old impl
         if self._impl is not None:
-            for component in self._bound_to:
-                    CtrlAnnotation.unapply_from(
+            for component in self._rports:
+                    CtlAnnotation.unapply_from(
                         component=component, impl=self._impl
                     )
 
@@ -198,10 +201,10 @@ class ImplController(Controller):
             # and impl
             self._impl = value
             # apply business annotations on impl
-            for component in self._bound_to:
-                CtrlAnnotation.apply_on(component=component, impl=self._impl)
+            for component in self._rports:
+                CtlAnnotation.apply_on(component=component, impl=self._impl)
                 # and call setters then getters
-                C2CtrlAnnotation.call_setters(
+                C2CtlAnnotation.call_setters(
                     component=component, impl=self._impl, call_getters=True
                 )
 
@@ -220,9 +223,9 @@ class ImplController(Controller):
 
         result = None
 
-        ic = ImplController.get_controller(component=component)
-        if ic is not None:
-            result = ic.stateful
+        ictl = ImplController.get_ctl(component=component)
+        if ictl is not None:
+            result = ictl.stateful
 
         return result
 
@@ -233,9 +236,9 @@ class ImplController(Controller):
         :param Component component: component from where get stateful.
         """
 
-        ic = ImplController.get_controller(component=component)
-        if ic is not None:
-            ic.stateful = stateful
+        ictl = ImplController.get_ctl(component=component)
+        if ictl is not None:
+            ictl.stateful = stateful
 
     @staticmethod
     def get_cls(component):
@@ -247,9 +250,9 @@ class ImplController(Controller):
 
         result = None
 
-        ic = ImplController.get_controller(component=component)
-        if ic is not None:
-            result = ic.cls
+        ictl = ImplController.get_ctl(component=component)
+        if ictl is not None:
+            result = ictl.cls
 
         return result
 
@@ -260,9 +263,9 @@ class ImplController(Controller):
         :param Component component: component from where get class impl.
         """
 
-        ic = ImplController.get_controller(component=component)
-        if ic is not None:
-            ic.cls = cls
+        ictl = ImplController.get_ctl(component=component)
+        if ictl is not None:
+            ictl.cls = cls
 
     @staticmethod
     def get_impl(component):
@@ -274,9 +277,9 @@ class ImplController(Controller):
 
         result = None
 
-        ic = ImplController.get_controller(component=component)
-        if ic is not None:
-            result = ic.impl
+        ictl = ImplController.get_ctl(component=component)
+        if ictl is not None:
+            result = ictl.impl
 
         return result
 
@@ -288,9 +291,9 @@ class ImplController(Controller):
         :param impl: new impl to use.
         """
 
-        ic = ImplController.get_controller(component=component)
-        if ic is not None:
-            ic.impl = impl
+        ictl = ImplController.get_ctl(component=component)
+        if ictl is not None:
+            ictl.impl = impl
 
     @staticmethod
     def instantiate_impl(component, args=None, kwargs=None):
@@ -304,9 +307,9 @@ class ImplController(Controller):
 
         result = None
 
-        ic = ImplController.get_controller(component=component)
-        if ic is not None:
-            result = ic.instantiate(
+        ictl = ImplController.get_ctl(component=component)
+        if ictl is not None:
+            result = ictl.instantiate(
                 component=component, args=args, kwargs=kwargs
             )
 
@@ -323,31 +326,31 @@ def new_component(cls, *controllers):
 
     result = Component()
 
-    ic = ImplController.bind_to(result)
-    ic.cls = cls
+    ictl = ImplController.bind_to(result)
+    ictl.cls = cls
 
     for controller in controllers:
         controller.bind_to(result)
 
-    ic.instantiate()
+    ictl.instantiate()
 
     return result
 
 
-class Impl(C2CtrlAnnotation):
+class SetImplCtl(C2CtlAnnotation):
     """Annotation dedicated to inject an ImplController in an implementation.
     """
 
     def get_value(self, component, *args, **kwargs):
 
-        return ImplController.get_controller(component)
+        return ImplController.get_ctl(component)
 
 
-class Context(C2CtrlAnnotation):
+class Context(C2CtlAnnotation):
     """Annotation dedicated to inject a component into its implementation.
     """
 
-    __slots__ = C2CtrlAnnotation.__slots__
+    __slots__ = C2CtlAnnotation.__slots__
 
     def get_value(self, component, *args, **kwargs):
 
@@ -356,13 +359,13 @@ class Context(C2CtrlAnnotation):
 
 @MaxCount()
 @Target(type)
-class Stateless(CtrlAnnotation):
+class Stateless(CtlAnnotation):
     """Specify stateless on impl controller.
     """
 
     IMPL_STATEFUL = 'impl_stateful'  #: impl stateful attribute name
 
-    __slots__ = (IMPL_STATEFUL, ) + CtrlAnnotation.__slots__
+    __slots__ = (IMPL_STATEFUL, ) + CtlAnnotation.__slots__
 
     def apply(self, component, *args, **kwargs):
         # save old stateful status

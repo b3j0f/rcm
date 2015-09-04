@@ -30,10 +30,11 @@ from unittest import main
 from b3j0f.rcm.io.policy.exe import (
     AsyncPolicy, BestEffortPolicy, StatelessPolicy
 )
-from b3j0f.rcm.io.policy.test.sel import TestParameterizedPolicy
+from b3j0f.rcm.io.policy.test.base import TestPolicy
+from b3j0f.rcm.io.policy.executor import PolicyResultSet
 
 
-class TestAsyncPolicy(TestParameterizedPolicy):
+class TestAsyncPolicy(TestPolicy):
     """Test AsyncPolicy.
     """
 
@@ -49,10 +50,6 @@ class TestAsyncPolicy(TestParameterizedPolicy):
         self._callback_params = getattr(self, '_callback_params', [])
 
         self._callback_params.append((args, kwargs))
-
-    def _get_name(self):
-
-        return None
 
     def _get_args_kwargs(self):
 
@@ -108,17 +105,13 @@ class TestAsyncPolicy(TestParameterizedPolicy):
         self.assertIsInstance(result, ValueError)
 
 
-class TestAsyncPolicyWithoutCallback(TestParameterizedPolicy):
+class TestAsyncPolicyWithoutCallback(TestPolicy):
     """Test AsyncPolicy without callback.
     """
 
     def _get_policy_cls(self):
 
         return AsyncPolicy
-
-    def _get_name(self):
-
-        return None
 
     def _get_params(self, param):
 
@@ -156,17 +149,13 @@ class TestAsyncPolicyWithoutCallback(TestParameterizedPolicy):
         self.policy.join()
 
 
-class TestBestEffortPolicy(TestParameterizedPolicy):
+class TestBestEffortPolicy(TestPolicy):
     """Test BestEffortPolicy.
     """
 
     def _get_policy_cls(self):
 
         return BestEffortPolicy
-
-    def _get_name(self):
-
-        return None
 
     def _get_args_kwargs(self):
 
@@ -204,17 +193,13 @@ class TestBestEffortPolicy(TestParameterizedPolicy):
         self.assertIsNot(instance, result)
 
 
-class TestStatelessPolicy(TestParameterizedPolicy):
+class TestStatelessPolicy(TestPolicy):
     """Test StatelessPolicy.
     """
 
     def _get_policy_cls(self):
 
         return StatelessPolicy
-
-    def _get_name(self):
-
-        return None
 
     def _get_args_kwargs(self):
 

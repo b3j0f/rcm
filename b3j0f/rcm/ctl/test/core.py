@@ -84,7 +84,7 @@ class ControllerTest(UTCase):
             ControllerTest.TestSlotsController(self)
         )
 
-    def test_get_controller(self):
+    def test_get_ctl(self):
         """Test Controller.get_ctl static method.
         """
 

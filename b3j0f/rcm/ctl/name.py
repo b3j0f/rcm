@@ -30,7 +30,7 @@
 __all__ = ['NameController', 'SetNameCtrl', 'SetName', 'GetName']
 
 from b3j0f.rcm.ctl.core import Controller
-from b3j0f.rcm.ctl.annotation import C2CtrlAnnotation, CtrlAnnotation
+from b3j0f.rcm.ctl.annotation import C2CtlAnnotation, CtlAnnotation
 
 
 class NameController(Controller):
@@ -223,20 +223,20 @@ class NameController(Controller):
         return result
 
 
-class SetNameCtrl(C2CtrlAnnotation):
+class SetNameCtrl(C2CtlAnnotation):
     """Inject Name controller in an implementation.
     """
 
     def get_value(self, component, *args, **kwargs):
 
-        return NameController.get_controller(component)
+        return NameController.get_ctl(component)
 
 
-class SetName(CtrlAnnotation):
+class SetName(CtlAnnotation):
     """Bind setter implementation methods to the name controller.
     """
 
-    __slots__ = CtrlAnnotation.__slots__
+    __slots__ = CtlAnnotation.__slots__
 
     def get_resource(self, component, *args, **kwargs):
 
@@ -245,11 +245,11 @@ class SetName(CtrlAnnotation):
         return result
 
 
-class GetName(CtrlAnnotation):
+class GetName(CtlAnnotation):
     """Bind getter implementation methods to the name controller.
     """
 
-    __slots__ = CtrlAnnotation.__slots__
+    __slots__ = CtlAnnotation.__slots__
 
     def apply_on(self, component, attr, *args, **kwargs):
 
