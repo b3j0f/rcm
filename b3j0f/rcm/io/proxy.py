@@ -34,6 +34,7 @@ from functools import wraps
 
 from inspect import getmembers, isroutine
 
+from b3j0f.utils.iterable import first
 from b3j0f.utils.proxy import get_proxy
 from b3j0f.rcm.io.policy.core import PolicyResultSet
 
@@ -43,7 +44,7 @@ class ProxySet(tuple):
     easily choose proxies depending on port names.
 
     It uses a port, port resources by name and a list of proxies.
-    The get_resource_name(proxy) permits to find back proxy port name.
+    The resource_name(proxy) permits to find back proxy port name.
 
     It inherits from a tuple in order avoid modification.
     """
@@ -100,7 +101,7 @@ class ProxySet(tuple):
         self.resources = resources
         self.bases = bases
 
-    def get_resource_name(self, pos):
+    def resource_name(self, pos):
         """Get resource name from a proxy pos.
 
         :param pos: proxy position in proxies list.
@@ -112,7 +113,7 @@ class ProxySet(tuple):
 
         return result
 
-    def get_proxies_pos(self, name):
+    def proxies_pos(self, name):
         """Get positions of proxies from a resource name.
 
         :param str name: resource name from where get proxies.
@@ -131,17 +132,19 @@ class ProxySet(tuple):
         return result
 
 
-def getportproxy(port):
+def getportproxy(port, protected=False):
     """Get port proxy.
 
     :param b3j0f.rcm.io.port.Port port: port from which get proxy.
+    :param bool protected: also proxify protected methods if True (False by
+        default).
     :return: proxy port related to port resources.
     """
 
     result = None
 
     # get bases interfaces
-    bases = object if port.itfs is None else (
+    bases = (object, ) if port.itfs is None else (
         itf.pycls for itf in port.itfs
     )
 
@@ -149,9 +152,7 @@ def getportproxy(port):
 
     # if multiple, proxies is a ProxySet
     if port.multiple:
-        result = ProxySet(
-            port=port, resources=resources, bases=bases
-        )
+        result = ProxySet(port=port, resources=resources, bases=bases)
 
     # use one object which propagates methods to port proxies
     elif resources:
@@ -179,7 +180,9 @@ def getportproxy(port):
             for rname, routine in getmembers(
                     base,
                     lambda mname, member:
-                    mname[0] != '_' and isroutine(member)
+                    (protected or mname[0] != '_')  # filter public methods
+                    and isroutine(member)  # get only routine
+                    and mname not in _dict  # avoid already proxified elts
             ):
                 # get related method proxy
                 methodproxy = _methodproxy(
@@ -226,13 +229,20 @@ def _methodproxy(port, routine, rname, proxies):
             instance=proxyinstance, args=args, kwargs=kwargs
         )
 
-        # get the right result
-        result = []
+        if port.multiple:  # if port is multiple, execute all proxies
+            # get the right result
+            result = []
 
-        for proxy in proxiestorun:
-            routine = getattr(proxy, rname)
-            method_res = routine(*args, **kwargs)
-            result.append(method_res)
+            for proxy in proxiestorun:
+                routine = getattr(proxy, rname)
+                method_res = routine(*args, **kwargs)
+                result.append(method_res)
+
+        else:  # if not multiple, execute the first proxiestorun
+            proxy = first(proxiestorun)
+            if proxy is not None:
+                routine = getattr(proxy, rname)
+                result = routine(*args, **kwargs)
 
         return result
 

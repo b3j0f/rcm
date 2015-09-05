@@ -60,9 +60,12 @@ class TestProxySet(UTCase):
             '4': Port(),
             '5': Port(resource=object()),
             '6': ProxySet(
-                port=None, resources={0: 0, 1: 1}, bases=(object,)),
-            '7': Port(resource=ProxySet(
-                port=None, resources={0: 0, 1: 1}, bases=(object,))
+                port=None, resources={0: 0, 1: 1}, bases=(object,)
+            ),
+            '7': Port(
+                resource=ProxySet(
+                    port=None, resources={0: 0, 1: 1}, bases=(object,)
+                )
             )
         }
 

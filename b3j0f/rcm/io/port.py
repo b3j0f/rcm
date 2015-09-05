@@ -60,9 +60,9 @@ class Port(Controller):
     - a multiple boolean flag which specifies port proxifier cardinality. If
         True, get_proxy returns one proxy, otherwise a tuple of proxies. False
         by default.
-    - an inferior/superior bound related to minimal/maximal number of
-        resources to bind. Used only if multiple is True.
-    - proxy selection, execution and result selection in case of not multiple.
+    - inferior/superior bounds related to minimal/maximal number of
+        resources to bind. Used only if port is multiple.
+    - proxy policy execution in case of port is not multiple.
 
     While interfaces and proxies are internal to the port, resources and
     bindings are bound to the port because they are seen such as port
@@ -77,7 +77,7 @@ class Port(Controller):
     INPUT = 1 << 0  #: input port kind
     OUTPUT = 1 << 1  #: output port kind
     DEFAULT_IOKIND = INPUT | OUTPUT  #: default port kind
-    DEFAULT_MULTIPLE = True  #: default multiple value
+    DEFAULT_MULTIPLE = False  #: default multiple value
     DEFAULT_INF = 0  #: default inf value
     DEFAULT_SUP = maxint  #: default sup value
 
