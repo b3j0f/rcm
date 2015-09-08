@@ -57,12 +57,13 @@ class Port(Controller):
     - input/output port kind(s).
     - a resource to proxify which can come from outside the component model.
     - bound port(s) to proxify such as component model resources.
-    - a multiple boolean flag which specifies port proxifier cardinality. If
-        True, get_proxy returns one proxy, otherwise a tuple of proxies. False
-        by default.
+    - a cardinality flag which specifies port proxies cardinality. Completed
+        with the ``tomany`` and ``. If
+        toone, True, get_proxy returns one proxy, otherwise a tuple of proxies.
+        False by default.
     - inferior/superior bounds related to minimal/maximal number of
-        resources to bind. Used only if port is multiple.
-    - proxy policy execution in case of port is not multiple.
+        resources to bind. Used only if port is cardinality.
+    - proxy policies.
 
     While interfaces and proxies are internal to the port, resources and
     bindings are bound to the port because they are seen such as port
@@ -72,29 +73,35 @@ class Port(Controller):
     class PortError(Exception):
         """Raised if new port port is inconsistent with port requirements.
         """
-        pass
 
-    INPUT = 1 << 0  #: input port kind
-    OUTPUT = 1 << 1  #: output port kind
-    DEFAULT_IOKIND = INPUT | OUTPUT  #: default port kind
-    DEFAULT_MULTIPLE = False  #: default multiple value
-    DEFAULT_INF = 0  #: default inf value
-    DEFAULT_SUP = maxint  #: default sup value
+    # port kind
+    INPUT = 1 << 0  #: input port kind.
+    OUTPUT = 1 << 1  #: output port kind.
+    DEFAULT_IOKIND = INPUT | OUTPUT  #: default port kind.
+    DEFAULT_INF = 0  #: default inf value.
+    DEFAULT_SUP = maxint  #: default sup value.
+    # proxy cardinality
+    ONE = 1  #: ONE CARDINALITY.
+    MANY = 2  #: MANY CARDINALITY.
+    _GAP = 2  #: GAP used to separate both ONE and MANY cardinalities.
+    MANY2ONE = MANY | (ONE << _GAP)  #: MANY TO ONE cardinality.
+    ONE2ONE = ONE | (ONE << _GAP)  #: ONE TO ONE cardinality.
+    MANY2MANY = MANY | (MANY << _GAP)  #: MANY TO MANY cardinality.
+    DEFAULT_CARDINALITY = ONE2ONE  #: default cardinality (ONE2ONE)
 
-    ITFS = '_itfs'  #: interfaces attribute name
-    PROXY = '_proxy'  #: proxy attribute name
-    IOKIND = '_iokind'  #: i/o kind of port (input/output/both)
-    MULTIPLE = '_multiple'  #: multiple port proxy attribute name
-    INF = 'inf'  #: minimal number of bindable resources attribute name
-    SUP = 'sup'  #: maximal number of bindable resources attribute name
-    RESOURCE = '_resource'  #: resource attribute name
-    POLICYRULES = '_policyrules'  #: policy rules attribute name
+    ITFS = '_itfs'  #: interfaces attribute name.
+    PROXY = '_proxy'  #: proxy attribute name.
+    IOKIND = '_iokind'  #: i/o kind of port (input/output/both).
+    CARDINALITY = '_cardinality'  #: cardinality port proxy attribute name.
+    INF = 'inf'  #: minimal number of bindable resources attribute name.
+    SUP = 'sup'  #: maximal number of bindable resources attribute name.
+    RESOURCE = '_resource'  #: resource attribute name.
+    POLICIES = 'policies'  #: policies attribute name.
 
     def __init__(
             self, itfs=None, resource=None, iokind=DEFAULT_IOKIND,
-            multiple=DEFAULT_MULTIPLE, inf=DEFAULT_INF, sup=DEFAULT_SUP,
-            policies=None,
-            *args, **kwargs
+            cardinality=DEFAULT_CARDINALITY, inf=DEFAULT_INF, sup=DEFAULT_SUP,
+            policies=None, *args, **kwargs
     ):
         """
         :param itfs: interface(s) which describe this port.
@@ -102,10 +109,10 @@ class Port(Controller):
         :param resource: resource to proxify.
         :param int iokind: i/o kind of ports among Port.OUTPUT, Port.INPUT or
             both (default).
-        :param bool multiple: multiple proxy cardinality. False by default.
+        :param int cardinality: io proxy cardinality. Default ONE2ONE.
         :param int inf: minimal port number to use. Default 0.
         :param int sup: maximal port number to use. Default infinity.
-        :param b3j0f.rcm.io.policy.PolicyRules policies: policy rules.
+        :param dict policies: policies configuration.
         """
 
         # set private attributes
@@ -113,10 +120,10 @@ class Port(Controller):
         self._proxy = None
         self._itfs = itfs
         self._iokind = iokind
-        self._multiple = multiple
+        self._cardinality = cardinality
         self._inf = inf
         self._sup = sup
-        self._policyrules = policies
+        self._policies = policies
 
         super(Port, self).__init__(*args, **kwargs)
 
@@ -168,26 +175,42 @@ class Port(Controller):
         self._iokind = iokind
 
     @property
-    def multiple(self):
-        """Get self multiple value.
+    def cardinality(self):
+        """Get self cardinality value.
 
-        :return: self multiple flag.
-        :rtype: bool
+        :return: self cardinality flag.
+        :rtype: int
         """
 
-        return self._multiple
+        return self._cardinality
 
-    @multiple.setter
-    def multiple(self, value):
-        """Change of self multiple value.
+    @cardinality.setter
+    def cardinality(self, value):
+        """Change of self cardinality value.
 
-        :param bool value: new multiple value to use.
+        :param int value: new cardinality value to use.
         """
 
-        if value != self._multiple:
-            self._multiple = not self._multiple
+        if value != self._cardinality:
+            self._cardinality = not self._cardinality
 
             self._renewproxy()
+
+    @property
+    def oneinput(self):
+        """
+        :return: True (default) if input proxy is alone (not a ProxySet).
+        :rtype: bool
+        """
+        return self.cardinality & Port.ONE
+
+    @property
+    def oneoutput(self):
+        """
+        :return: True (default) if output proxy is alone (not a ProxySet).
+        :rtype: bool
+        """
+        return (self.cardinality >> Port._GAP) & Port.ONE
 
     @property
     def itfs(self):
@@ -414,7 +437,7 @@ class Port(Controller):
             )
 
         # get the port proxy and save it in memory
-        self._proxy = getportproxy(port=self)
+        result = self._proxy = self.proxify(resources=resources)
 
         # and propagate changes to reversed ports
         for component in list(self._rports):
@@ -426,6 +449,38 @@ class Port(Controller):
                         component.set_port(name=bound_name, port=self)
                     except Exception:
                         pass  # in catching silently bind errors
+
+        return result
+
+    @property
+    def pyitfs(self):
+        """Get python interfaces.
+
+        :return: self python interfaces related to self interfaces.
+        :rtype: tuple
+        """
+
+        result = (object, ) if self.itfs is None else (
+            itf.pycls for itf in self.itfs
+        )
+
+        return result
+
+    def proxify(self, resources=None):
+        """Proxify input resources relate to this port properties.
+
+        :param dict resources: list of resources to proxify.
+        :return: proxified resources.
+        :rtype: object or ProxySet
+        """
+
+        result = proxify(
+            bases=self.pyitfs,
+            oneinput=self.oneinput, oneoutput=self.oneoutput,
+            resources=self.resources
+        )
+
+        return result
 
     @classmethod
     def INPUTS(cls, component, names=None, select=lambda *p: True):

@@ -38,6 +38,8 @@ And returns one proxy or a PolicyResultSet.
 
 Here are types of selection proxies classes:
 
+- SelectionPolicy: abstract class provided in order to make easier the
+    implementation of selection policies.
 - AllPolicy: select all proxies.
 - FirstPolicy: select the first proxy or an empty list of proxies.
 - CountPolicy: select (random) proxies between [inf;sup].
@@ -49,7 +51,7 @@ Here are types of selection proxies classes:
 """
 
 __all__ = [
-    'Policy',
+    'PolicyResultSet', 'SelectionPolicy',
     'FirstPolicy', 'AllPolicy', 'CountPolicy', 'RandomPolicy',
     'RoundaboutPolicy'
 ]
@@ -58,39 +60,27 @@ from random import shuffle, choice
 
 from sys import maxsize
 
-from b3j0f.rcm.io.policy.core import PolicyResultSet
 
-
-class PolicyConfiguration(object):
-    """
-    Policy configuration which contains both proxy selection and execution
-    policies and is used by ports in order to specify a particular proxy
-    processing.
-
-    ``selection`` and ``execution`` policies implementation are determined by
-    the port.
+class PolicyResultSet(tuple):
+    """In charge of embed a multiple policy result.
     """
 
-    SELECTION = 'selection'
-    EXECUTION = 'execution'
 
-    __slots__ = (SELECTION, EXECUTION)
+class SelectionPolicy(object):
+    """In charge of applying a policy on proxy selection.
+    """
 
-    def __init__(self, selection=None, execution=None):
+    def __call__(self, proxies, *args, **kwargs):
         """
-        :param dict selection: selection policies. Keys are routine names, and
-            values are selection policy configuration.
-        :param dict execution: execution policies. Keys are routine names, and
-            values are execution policy configuration.
+        Apply self selection policy on input proxies.
+
+        :return: proxies to execute (``proxies`` by default).
         """
 
-        super(PolicyConfiguration, self).__init__()
-
-        self.selection = selection
-        self.execution = execution
+        return proxies
 
 
-class FirstPolicy(Policy):
+class FirstPolicy(SelectionPolicy):
     """Choose first value in specific parameter if parameter is
     PolicyResultSet, otherwise, return parameter.
     """
@@ -105,12 +95,12 @@ class FirstPolicy(Policy):
         return result
 
 
-class AllPolicy(Policy):
-    """Choose specific parameter.
+class AllPolicy(SelectionPolicy):
+    """Select all policies.
     """
 
 
-class CountPolicy(Policy):
+class CountPolicy(SelectionPolicy):
     """Choose count parameters among proxies.
 
     Check than resources number are in an interval, otherwise, raise a
@@ -147,6 +137,7 @@ class CountPolicy(Policy):
                 result = list(result)
                 shuffle(result)
                 result = result[0: self.sup - self.inf]
+
             else:  # choose a slice of result
                 result = result[self.inf:self.sup]
 
@@ -156,7 +147,7 @@ class CountPolicy(Policy):
         return result
 
 
-class RandomPolicy(Policy):
+class RandomPolicy(SelectionPolicy):
     """Choose one random item in specific parameter if parameter is a
     PolicyResultSet. Otherwise, Choose parameter.
     """
@@ -169,13 +160,14 @@ class RandomPolicy(Policy):
         if isinstance(result, PolicyResultSet):
             if result:
                 result = choice(result)
+
             else:
                 result = None
 
         return result
 
 
-class RoundaboutPolicy(Policy):
+class RoundaboutPolicy(SelectionPolicy):
     """Choose iteratively Round about proxy resource policy.
 
     Select iteratively resources or None if sources is empty.
@@ -196,6 +188,7 @@ class RoundaboutPolicy(Policy):
                 index = self.index
                 self.index = (self.index + 1) % len(result)
                 result = result[index]
+
             else:
                 result = None
 

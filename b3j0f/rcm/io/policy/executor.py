@@ -28,16 +28,11 @@
 application in a port proxy.
 """
 
-__all__ = ['PolicyExecutor', 'PolicyResultSet']
+__all__ = ['PolicyExecutor']
 
 from re import compile as re_compile
 
 from functools import reduce
-
-
-class PolicyResultSet(tuple):
-    """In charge of embed a multiple policy result.
-    """
 
 
 class PolicyExecutor(object):

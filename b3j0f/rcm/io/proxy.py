@@ -132,23 +132,125 @@ class ProxySet(tuple):
         return result
 
 
-def getportproxy(port, protected=False):
-    """Get port proxy.
+def proxify(
+        resources, bases, oneinput, oneoutput, policyruler=None,
+        protected=False
+):
+    """Proxify input resources related to input parameters.
 
-    :param b3j0f.rcm.io.port.Port port: port from which get proxy.
-    :param bool protected: also proxify protected methods if True (False by
-        default).
-    :return: proxy port related to port resources.
+    :param dict resources: resources by name to proxify.
+    :param tuple bases: base classes from which get routines to proxify.
+    :param bool oneinput: port one input flag.
+    :param bool oneoutput: port one output flag. If True, return one instance
+        which implements all base classes from the input parameter ``bases``.
+        Otherwise, return a ProxySet.
+    :param bool protected: if False (default) proxify only public routines
+        from the base classes.
+    :return: proxified resources.
+
+        If ``oneoutput``, return one instance class which implements ``bases``
+        classes and executes all resources. Otherwise, ProxySet. If oneinput,
+        the proxy executes at most one resource in applying policyruler
+        selection before.
     """
 
-    result = None
+    if oneoutput:
 
-    # get bases interfaces
-    bases = (object, ) if port.itfs is None else (
-        itf.pycls for itf in port.itfs
-    )
+        proxydict = {}
 
-    resources = port.resources
+        for base in bases:
+            for name, routine in getmembers(
+                    base, lambda name, member:
+                    name not in proxydict and
+                    isroutine(member) and protected or name[0] != '_'
+            ):
+                @wraps(routine)
+                def routineproxy(*args, **kwargs):
+
+                    result = None  # default result
+
+                    if policyruler is not None:
+                        resources = policyruler.select(resources)
+
+                    if oneinput:
+                        for name in resources:
+                            resources = {name: resources[name]}
+
+                    for name in resources:
+                        resource = resources[name]
+                        resourceroutine = getattr(resource, name)
+
+                        if policyruler is None:
+                            result[name] = resourceroutine(*args, **kwargs)
+
+                        else:
+                            result[name] = policyruler.execute(
+                                resourceroutine, args, kwargs
+                            )
+
+                    if oneinput:
+                        result = result[name] if result else None
+
+                    return result
+
+                proxydict[name] = routineproxy
+
+        result = get_proxy(bases=bases, _dict=proxydict)
+
+    else:
+
+        result = {}
+
+        # get a list of all resources
+        allresources = []
+        for name in resources:
+            resource = resources[name]
+
+            if isinstance(resource, ProxySet):
+                allresources += resource
+
+            else:
+                allresources.append(resource)
+
+        # proxify all resources
+        for resource in allresources:
+
+            proxydict = {}
+
+            for base in bases:
+                for name, _ in getmembers(
+                        base, lambda name, member:
+                        isroutine(member) and protected or name[0] != '_'
+                ):
+
+                    resourceroutine = getattr(resource, name)
+
+                    def routineproxy(*args, **kwargs):
+
+                        if policyruler is None:
+                            result = resourceroutine(*args, **kwargs)
+
+                        else:
+                            result = policyruler.execute(
+                                resourceroutine, args, kwargs
+                            )
+
+                        return result
+
+                    proxydict[name] = routineproxy
+
+            # add default constructor
+            proxydict['__new__'] = proxydict['__init__'] = (
+                lambda *args, **kwargs: None
+            )
+
+            proxy = get_proxy(
+                elt=resourceroutine, bases=bases, _dict=proxydict
+            )
+
+        result[name] = proxy
+
+    return result
 
     # if multiple, proxies is a ProxySet
     if port.multiple:
@@ -186,8 +288,7 @@ def getportproxy(port, protected=False):
             ):
                 # get related method proxy
                 methodproxy = _methodproxy(
-                    port=port, routine=routine, proxies=proxies,
-                    rname=rname
+                    port=port, routine=routine, proxies=proxies, rname=rname
                 )
                 # update _dict with method proxy
                 _dict[rname] = methodproxy

@@ -61,10 +61,23 @@ from b3j0f.aop.advices import get_advices, weave
 from b3j0f.rcm.ctl.impl import ImplController
 
 from b3j0f.rcm.io.proxy import ProxySet
-from b3j0f.rcm.io.policy.core import Policy
 
 
-class AsyncPolicy(Policy):
+class ExecutionPolicy(object):
+    """
+    Policy dedicated to proxy execution.
+    """
+
+    def __call__(self, joinpoint):
+        """
+        :param b3j0f.aop.Joinpoint joinpoint: joinpoint which executes the
+            proxy.
+        """
+
+        raise NotImplementedError()
+
+
+class AsyncPolicy(ExecutionPolicy):
     """Asynchronous dynamic execution policy.
 
     A callback is used in order to be notified when a proxy is executed.
@@ -165,7 +178,7 @@ class AsyncPolicy(Policy):
             thread.join()
 
 
-class BestEffortPolicy(Policy):
+class BestEffortPolicy(ExecutionPolicy):
     """Best effort proxy resource policy.
 
     Select first resources which does not raise an Error, otherwise last error
@@ -262,7 +275,7 @@ class BestEffortPolicy(Policy):
         return result
 
 
-class StatelessPolicy(Policy):
+class StatelessPolicy(ExecutionPolicy):
     """Exec policy in charge of given a new instance per call.
     """
 
