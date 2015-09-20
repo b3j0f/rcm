@@ -43,7 +43,7 @@ __all__ = ['Port']
 
 from sys import maxsize as maxint
 
-from b3j0f.rcm.io.proxy import getportproxy
+from b3j0f.rcm.io.proxy import proxifyresources
 from b3j0f.rcm.ctl.core import Controller
 
 
@@ -474,7 +474,7 @@ class Port(Controller):
         :rtype: object or ProxySet
         """
 
-        result = proxify(
+        result = proxifyresources(
             bases=self.pyitfs,
             oneinput=self.oneinput, oneoutput=self.oneoutput,
             resources=self.resources

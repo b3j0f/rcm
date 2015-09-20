@@ -28,49 +28,12 @@
 from unittest import main
 
 from b3j0f.utils.ut import UTCase
-from b3j0f.rcm.io.policy.executor import PolicyExecutor, PolicyResultSet
+from b3j0f.rcm.io.policy.executor import PolicySet
 from random import randint
 
 
-class TestPolicyResultSet(UTCase):
-    """Test the PolicyResultSet.
-    """
-
-    def __init__(self, *args, **kwargs):
-
-        super(TestPolicyResultSet, self).__init__(*args, **kwargs)
-
-    def test_empty(self):
-        """Test an empty policy result set.
-        """
-
-        prs = PolicyResultSet()
-
-        self.assertFalse(prs)
-
-    def test_one_elt(self):
-        """Test a policy result set with one element.
-        """
-
-        policy = lambda *args, **kwargs: None
-        prs = PolicyResultSet([policy])
-
-        self.assertEqual(len(prs), 1)
-
-    def test_many_elt(self):
-        """Test a policy result set with several
-        """
-
-        count = randint(5, 10)
-        prs = PolicyResultSet(
-            [lambda *args, **kwargs: None for _ in range(count)]
-        )
-
-        self.assertEqual(len(prs), count)
-
-
-class TestPolicyExecutor(UTCase):
-    """Test PolicyExecutor class.
+class TestPolicySet(UTCase):
+    """Test PolicySet class.
     """
 
     def _policy(self, rname, *args, **kwargs):
@@ -81,10 +44,10 @@ class TestPolicyExecutor(UTCase):
 
     def setUp(self):
 
-        super(TestPolicyExecutor, self).setUp()
+        super(TestPolicySet, self).setUp()
 
         self.count = {}  # dict of count by rname
-        self.pex = PolicyExecutor()
+        self.pex = PolicySet()
 
     def test_empty(self):
         """Test without policy.

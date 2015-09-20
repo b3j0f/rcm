@@ -502,6 +502,7 @@ class Component(dict):
 
         for name in names:
             port = port[name]
+
         else:
             result = port
 

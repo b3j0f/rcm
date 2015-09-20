@@ -28,7 +28,7 @@
 ProxySet.get_proxy static method.
 """
 
-__all__ = ['getportproxy', 'ProxySet', '_methodproxy']
+__all__ = ['proxifyresources', 'ProxySet', '_methodproxy']
 
 from functools import wraps
 
@@ -132,8 +132,9 @@ class ProxySet(tuple):
         return result
 
 
-def proxify(
-        resources, bases, oneinput, oneoutput, policyruler=None,
+def proxifyresources(
+        resources,
+        bases=(object), oneinput=True, oneoutput=True, policyruler=None,
         protected=False
 ):
     """Proxify input resources related to input parameters.
@@ -218,21 +219,24 @@ def proxify(
             proxydict = {}
 
             for base in bases:
-                for name, _ in getmembers(
+                for name, routine in getmembers(
                         base, lambda name, member:
                         isroutine(member) and protected or name[0] != '_'
                 ):
 
                     resourceroutine = getattr(resource, name)
 
+                    @wraps(routine)
                     def routineproxy(*args, **kwargs):
 
+                        rr = resourceroutine
+
                         if policyruler is None:
-                            result = resourceroutine(*args, **kwargs)
+                            result = rr(*args, **kwargs)
 
                         else:
                             result = policyruler.execute(
-                                resourceroutine, args, kwargs
+                                rr, args, kwargs
                             )
 
                         return result

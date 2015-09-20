@@ -28,30 +28,60 @@
 application in a port proxy.
 """
 
-__all__ = ['PolicyExecutor']
+__all__ = ['PolicySet']
 
 from re import compile as re_compile
 
 from functools import reduce
 
+from operator import add
 
-class PolicyExecutor(object):
-    """Manage execution of proxy policies.
+from copy import deepcopy
+
+from b3j0f.aop import weave
+from b3j0f.rcm.io.proxy import ProxySet
+
+
+class PolicySet(object):
+    """Set of selection/execution proxy policies.
     """
 
-    POLICIES = '_policies'  #: policies attr name
-    _SPE_POLICIES = '_spe_policies'  #: specific policies attribute name
-    _RE_POLICIES = '_re_policies'  #: re policies attr name
-    _POLICIES_BY_RNAME = '_policies_by_rname'  #: policies by rname attr name
+    #: routine name regex
+    ROUTINE_REGEX = re_compile('^[A-Za-z_][0-9A-Za-z_]*')
 
-    __slots__ = [POLICIES, _RE_POLICIES, _SPE_POLICIES, _POLICIES_BY_RNAME]
+    #: proxy selection policies attribute name
+    SEL_POLICIES = '_sel_policies'
+    #: proxy selection policies specific attribute name
+    _SEL_SPE_POLICIES = '_sel_spe_policies'
+    #: proxy selection policies regex attribute name
+    _SEL_REG_POLICIES = '_sel_reg_policies'
+    #: proxy selection policies by routine name attribute name
+    _SEL_POLICIES_BY_RNAME = '_sel_policies_by_rname'
+    #: proxy execution policies attribute name
+    EXE_POLICIES = '_exe_policies'
+    #: proxy execution policies specific attribute name
+    _EXE_SPE_POLICIES = '_exe_spe_policies'
+    #: proxy execution policies regex attribute name
+    _EXE_REG_POLICIES = '_exe_reg_policies'
+    #: proxy execution policies by routine name attribute name
+    _EXE_POLICIES_BY_RNAME = '_exe_policies_by_rname'
 
-    def __init__(self, policies=None):
+    _SELECTION_KIND = 'sel'  #: selection policy kind
+    _EXECUTION_KIND = 'exe'  #: execution policy kind
+
+    __slots__ = [
+        SEL_POLICIES,
+        _SEL_REG_POLICIES, _SEL_SPE_POLICIES, _SEL_POLICIES_BY_RNAME,
+        EXE_POLICIES,
+        _EXE_REG_POLICIES, _EXE_SPE_POLICIES, _EXE_POLICIES_BY_RNAME
+    ]
+
+    def __init__(self, sel_policies=None, exe_policies=None):
         """
-        :param dict policies: dict of callable policies by routine (regex) name
-            . If the routine name is None, related policies are applied on all
-            proxy routines.
-            A policy takes in parameters:
+        :param dict sel_policies: dict of proxy selection policies by routine
+            (regex) name. If the routine name is None, related policies are
+            applied on all proxy routines.
+            A policy is a function which takes in parameters:
             - port: self port,
             - resources: self resources,
             - proxies: list of proxies to execute,
@@ -59,82 +89,153 @@ class PolicyExecutor(object):
             - instance: the proxy instance,
             - args: method args,
             - kwargs: method kwargs.
+        :param dict exe_policies: dict of proxy execution policies by routine
+            (regex) name. If the routine name is None, related policies are
+            applied on all proxy routines.
+            A policy is an advice (see also b3j0f.aop.advice) which takes in
+            parameter a joinpointexecution.
         """
 
-        super(PolicyExecutor, self).__init__()
+        super(PolicySet, self).__init__()
 
         # init protected attributes
-        self._policies = self._spe_policies = self._re_policies = None
-        self._policies_by_rname = {}
+        self._sel_policies = {}
+        self._sel_spe_policies = {}
+        self._sel_reg_policies = {}
+        self._sel_policies_by_rname = {}
+        self._exe_policies = {}
+        self._exe_spe_policies = {}
+        self._exe_reg_policies = {}
+        self._exe_policies_by_rname = {}
+
         # init policies
-        self.policies = policies
+        self.sel_policies = sel_policies
+        self.exe_policies = exe_policies
 
     @property
-    def policies(self):
-        """Get policies.
+    def sel_policies(self):
+        """Get proxy selection policies.
 
         :rtype: dict
         """
 
-        return self._policies
+        return self._sel_policies
 
-    @policies.setter
-    def policies(self, policies):
-        """Change of policies.
+    @sel_policies.setter
+    def sel_policies(self, sel_policies):
+        """Change of proxy selection policies.
 
-        :param dict policies: new policies to use.
+        :param dict sel_policies: new policies to use.
         """
+
+        self._set_policies(sel_policies, self._SELECTION_KIND)
+
+    @property
+    def exe_policies(self):
+        """Get proxy execution policies.
+
+        :rtype: dict
+        """
+
+        return self._exe_policies
+
+    @exe_policies.setter
+    def exe_policies(self, exe_policies):
+        """Change of proxy execution policies.
+
+        :param dict exe_policies: new policies to use.
+        """
+
+        self._set_policies(exe_policies, self._EXECUTION_KIND)
+
+    def _set_policies(self, policies, kind):
+        """Fill this policy attributes.
+
+        :param dict policies: policies from where get policies to use.
+        :param dict selfpolicies: public self policies attribute.
+        :param dict spe: specific policies to fill.
+        :param dict reg: regex policies to fill.
+        :param dict by_rname: policies by routine name to empty.
+        """
+
+        selfpolicies = getattr(self, '_{0}_policies'.format(kind))
+        spe = getattr(self, '_{0}_spe_policies'.format(kind))
+        reg = getattr(self, '_{0}_reg_policies'.format(kind))
+        by_rname = getattr(self, '_{0}_policies_by_rname'.format(kind))
+
         # init self policies
-        self._policies = {} if policies is None else policies.copy()
+        selfpolicies.clear()
+        if policies is not None:
+            policies.update(deepcopy(policies))
 
-        self._spe_policies = {}  # init specific policies
+        spe.clear()  # clear specific policies
+        reg.clear()  # clear regex policies
+        by_rname.clear()  # clear self policies by rname
 
-        self._re_policies = {}  # init self re_policies
+        for rname in selfpolicies:  # fill specific and regex policies
+            # is specific routine name ?
+            if rname is None or PolicySet.ROUTINE_REGEX.match(rname):
+                spe[rname] = list(selfpolicies[rname])
 
-        self._policies_by_rname.clear()  # init self policies by rname
+            else:  # otherwise, this is a regex routine name
+                re_rname = re_compile(rname)
+                reg[re_rname] = list(selfpolicies[rname])
 
-        routine_re = '^[A-Za-z_][0-9A-Za-z_]*'  # get routine name regex
-        routine_re = re_compile(routine_re)
+    @staticmethod
+    def _get_policies(spe, reg, by_rname, rname=None):
+        """Get policies corresponding to input routine name.
 
-        for rname in self._policies:  # fill self policies and _re_policies
-            if rname is None or routine_re.match(rname):
-                self._spe_policies[rname] = list(policies[rname])
+        :param str rname: routine name.
+        :param dict spe:
+        :param dict reg:
+        :param dict by_rname:
+        :return: policies  to execute after policy execution.
+        :rtype: list
+        """
 
-            else:
-                self._re_policies[re_compile(rname)] = list(policies[rname])
+        result = None
 
-    def execute(self, proxies, rname=None, *args, **kwargs):
-        """Execute policies on input proxies related to additional parameters.
+        if rname in by_rname:  # check if policies are in memory
+            result = by_rname[rname]
+
+        else:  # identify policies able to process the rname
+            result = []
+
+            if None in spe:  # apply global policies
+                result += spe[None]
+
+            # apply specific policies
+            if rname is not None and rname in spe:
+                result += spe[rname]
+
+            if reg:  # if regex policies is not empty
+                result += reduce(
+                    add,
+                    [  # apply regex policies
+                        reg[routinere] for routinere in reg
+                        if routinere.match('' if rname is None else rname)
+                    ]
+                )
+
+            by_rname[rname] = result  # save policies in memory
+
+        return result
+
+    def selectproxies(self, proxies, rname=None, *args, **kwargs):
+        """Select proxies related to this policies.
+
+        The selection is done in executing sequentially policies with proxies
+        in parameters. Each iteration uses the previous policy selection.
 
         :param str rname: routine name.
         :return: proxies to execute after policy execution.
         :rtype: list
         """
 
-        if rname in self._policies_by_rname:  # check if policies are in memory
-            policies = self._policies_by_rname[rname]
-
-        else:  # identify policies able to process the rname
-            policies = []
-
-            if None in self._spe_policies:  # apply global policies
-                policies += self._spe_policies[None]
-
-            # apply specific policies
-            if rname is not None and rname in self._spe_policies:
-                policies += self._spe_policies[rname]
-
-            policies += reduce(
-                lambda x, y: x + y,
-                [  # apply regex policies
-                    self._re_policies[routinere]
-                    for routinere in self._re_policies
-                    if routinere.match('' if rname is None else rname)
-                ],
-                []
-            )
-
-            self._policies_by_rname[rname] = policies  # save policies in mem
+        policies = self._get_policies(
+            spe=self._sel_spe_policies, reg=self._sel_reg_policies,
+            by_rname=self._sel_policies_by_rname
+        )
 
         result = proxies
 
@@ -142,3 +243,26 @@ class PolicyExecutor(object):
             result = policy(proxies=result, rname=rname, *args, **kwargs)
 
         return result
+
+    def executeproxies(self, proxies, rname=None, *args, **kwargs):
+        """Execute proxies related to this policies.
+
+        The execution is done in weaving advices on proxies.
+
+        :param proxies: proxies whete weave advices to.
+        :param str rname: routine name.
+        """
+
+        # get proxy execution policies
+        policies = self._get_policies(
+            spe=self._exe_spe_policies, reg=self._exe_reg_policies,
+            by_rname=self._exe_policies_by_rname
+        )
+
+        # ensure proxies are many
+        _proxies = proxies
+        if not isinstance(proxies, ProxySet):
+            _proxies = [proxies]
+
+        for proxy in _proxies:  # weave policies on all proxies
+            weave(target=proxy, advices=policies)

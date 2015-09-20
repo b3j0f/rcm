@@ -34,7 +34,7 @@ A policy is a callable which takes in parameters:
 - name: method name being executed.
 - args and kwargs: respectively method varargs and keywords.
 
-And returns one proxy or a PolicyResultSet.
+And returns one proxy or a ProxySelection.
 
 Here are types of selection proxies classes:
 
@@ -51,7 +51,7 @@ Here are types of selection proxies classes:
 """
 
 __all__ = [
-    'PolicyResultSet', 'SelectionPolicy',
+    'ProxySelection', 'SelectionPolicy',
     'FirstPolicy', 'AllPolicy', 'CountPolicy', 'RandomPolicy',
     'RoundaboutPolicy'
 ]
@@ -61,8 +61,8 @@ from random import shuffle, choice
 from sys import maxsize
 
 
-class PolicyResultSet(tuple):
-    """In charge of embed a multiple policy result.
+class ProxySelection(tuple):
+    """Set of selected proxies from proxy selection policies.
     """
 
 
@@ -82,14 +82,14 @@ class SelectionPolicy(object):
 
 class FirstPolicy(SelectionPolicy):
     """Choose first value in specific parameter if parameter is
-    PolicyResultSet, otherwise, return parameter.
+    ProxySelection, otherwise, return parameter.
     """
 
     def __call__(self, *args, **kwargs):
 
         result = super(FirstPolicy, self).__call__(*args, **kwargs)
 
-        if isinstance(result, PolicyResultSet):
+        if isinstance(result, ProxySelection):
             result = result[0] if result else None
 
         return result
@@ -123,7 +123,7 @@ class CountPolicy(SelectionPolicy):
 
         result = super(CountPolicy, self).__call__(*args, **kwargs)
 
-        if isinstance(result, PolicyResultSet):
+        if isinstance(result, ProxySelection):
 
             len_proxies = len(result)
 
@@ -142,22 +142,22 @@ class CountPolicy(SelectionPolicy):
                 result = result[self.inf:self.sup]
 
             # ensure result is a policy result set
-            result = PolicyResultSet(result)
+            result = ProxySelection(result)
 
         return result
 
 
 class RandomPolicy(SelectionPolicy):
     """Choose one random item in specific parameter if parameter is a
-    PolicyResultSet. Otherwise, Choose parameter.
+    ProxySelection. Otherwise, Choose parameter.
     """
 
     def __call__(self, *args, **kwargs):
 
         result = super(RandomPolicy, self).__call__(*args, **kwargs)
 
-        # do something only if result is a PolicyResultSet
-        if isinstance(result, PolicyResultSet):
+        # do something only if result is a ProxySelection
+        if isinstance(result, ProxySelection):
             if result:
                 result = choice(result)
 
@@ -183,7 +183,7 @@ class RoundaboutPolicy(SelectionPolicy):
 
         result = super(RoundaboutPolicy, self).__call__(*args, **kwargs)
 
-        if isinstance(result, PolicyResultSet):
+        if isinstance(result, ProxySelection):
             if result:  # increment index
                 index = self.index
                 self.index = (self.index + 1) % len(result)

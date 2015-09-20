@@ -30,12 +30,50 @@
 
 from unittest import main
 
+from random import randint
+
 from b3j0f.utils.ut import UTCase
-from b3j0f.rcm.io.policy.base import (
-    PolicyResultSet, Policy,
-    FirstPolicy, AllPolicy, CountPolicy, RandomPolicy,
-    RoundaboutPolicy
+from b3j0f.rcm.io.policy.selection import (
+    ProxySelection,
+    FirstPolicy, AllPolicy, CountPolicy, RandomPolicy, RoundaboutPolicy
 )
+
+
+class TestProxySelection(UTCase):
+    """Test the ProxySelection.
+    """
+
+    def __init__(self, *args, **kwargs):
+
+        super(TestProxySelection, self).__init__(*args, **kwargs)
+
+    def test_empty(self):
+        """Test an empty policy result set.
+        """
+
+        prs = ProxySelection()
+
+        self.assertFalse(prs)
+
+    def test_one_elt(self):
+        """Test a policy result set with one element.
+        """
+
+        policy = lambda *args, **kwargs: None
+        prs = ProxySelection([policy])
+
+        self.assertEqual(len(prs), 1)
+
+    def test_many_elt(self):
+        """Test a policy result set with several
+        """
+
+        count = randint(5, 10)
+        prs = ProxySelection(
+            [lambda *args, **kwargs: None for _ in range(count)]
+        )
+
+        self.assertEqual(len(prs), count)
 
 
 class TestPolicy(UTCase):
@@ -46,7 +84,7 @@ class TestPolicy(UTCase):
 
         super(TestPolicy, self).setUp()
 
-        self.count = 50  # number of proxies to generate in a PolicyResultSet
+        self.count = 50  # number of proxies to generate in a ProxySelection
         self.policy_cls = self._get_policy_cls()  # get policy cls
         self.policy = self._get_policy()  # get policy
 
@@ -54,7 +92,8 @@ class TestPolicy(UTCase):
         """
         :return: parameterized policy class.
         """
-        return Policy
+
+        raise NotImplementedError()
 
     def _get_policy(self):
         """Instantiate a new policy related to self name and args/kwargs.
@@ -113,9 +152,9 @@ class TestPolicy(UTCase):
         self._test_not_policy_result(param=param, result=result)
 
     def _test_not_policy_result(self, param, result):
-        """Assert a not PolicyResultSet result.
+        """Assert a not ProxySelection result.
 
-        :param (not PolicyResultSet) param:
+        :param (not ProxySelection) param:
         """
 
         self.assertEqual(result, param)
@@ -124,7 +163,7 @@ class TestPolicy(UTCase):
         """Test when param is an empty policy result set.
         """
 
-        param = PolicyResultSet()
+        param = ProxySelection()
 
         params = self._get_params(param)
         result = self.policy(**params)
@@ -135,7 +174,7 @@ class TestPolicy(UTCase):
         """Specific assertion section of an empty policyresultset such as a
         parameter.
 
-        :param PolicyResultSet param: empty policyresultset.
+        :param ProxySelection param: empty policyresultset.
         :param result: policy result.
         """
 
@@ -145,7 +184,7 @@ class TestPolicy(UTCase):
         """Test when param is a policy result set.
         """
 
-        param = PolicyResultSet([i for i in range(self.count)])
+        param = ProxySelection([i for i in range(self.count)])
 
         params = self._get_params(param)
         result = self.policy(**params)
@@ -155,7 +194,7 @@ class TestPolicy(UTCase):
     def _assert_PolicyResultSet(self, param, result):
         """Specific assertion section of a policyresultset such as a parameter.
 
-        :param PolicyResultSet param: input param policyresultset.
+        :param ProxySelection param: input param policyresultset.
         :param result: policy result.
         """
 
@@ -224,7 +263,7 @@ class TestCountPolicy(TestPolicy):
 
         policy = self._get_policy()
         policy.inf = 5
-        param = PolicyResultSet()
+        param = ProxySelection()
         params = self._get_params(param)
         self.assertRaises(CountPolicy.CountError, policy, **params)
 
